@@ -278,7 +278,7 @@ function totalConSigno(filas) {
     const d = new Date(), z = (n) => String(n).padStart(2, '0');
     const sello = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
     const nombreLog = `${PERIODO}-ELIMINACION-NCR-${sello}${EJECUTAR ? '' : '-SIMULACION'}.csv`;
-    const dirLog = EJECUTAR ? path.dirname(ARCHIVO) : path.join(process.cwd(), 'descargas');
+    const dirLog = EJECUTAR ? path.dirname(ARCHIVO) : path.join((process.env.BVA_SALIDAS_PATH || path.join(require('os').homedir(), 'Documents', 'BVA-salidas')), 'ncr-simulaciones');
     fs.mkdirSync(dirLog, { recursive: true });
     const cols = ['fila', 'drogueria', 'farmacia', 'cuit', 'tipo', 'pv', 'nro', 'importe', 'fecha',
                   'idReg', 'libro_total', 'libro_fecha', 'accion', 'detalle'];

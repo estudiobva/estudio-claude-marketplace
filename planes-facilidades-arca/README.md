@@ -24,7 +24,7 @@ node scripts/planes-facilidades.js --consolidar        # rearma Excel y PDF sin 
 node scripts/planes-facilidades.js --ver               # navegador visible
 ```
 
-Salida en `descargas/planes/AAAA-MM-DD/` (excluida del repo):
+Salida en `~/Documents/BVA-salidas/planes/AAAA-MM-DD/` (se cambia con `--salida` o `BVA_SALIDAS_PATH`):
 
 - `REPORTE_PLANES_FACILIDADES_AAAAMMDD.pdf`: primero las sociedades que no se pudieron
   revisar, después las que tienen cuotas impagas y al final todas, plan por plan.

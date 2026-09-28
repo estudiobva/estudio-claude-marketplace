@@ -19,9 +19,9 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/planes-facilidades.js --consolidar
 ```
 
 Agrega `--historico` para incluir planes cancelados y `--ver` para ver el navegador.
-Deja la salida en `<salida>/AAAA-MM-DD/` (reporte PDF, informe Excel y un Excel por
-sociedad). Pasar siempre `--salida=<carpeta>` (por ejemplo `~/Downloads/planes`): el
-default es `descargas/planes/` dentro del plugin y se borra cuando el plugin se actualiza. Si ARCA rechaza la clave o pide captcha, no reintenta.
+Deja la salida en `~/Documents/BVA-salidas/planes/AAAA-MM-DD/` (reporte PDF, informe
+Excel y un Excel por sociedad). Se cambia con `--salida=<carpeta>` o con
+`BVA_SALIDAS_PATH` en el `.env`. Si ARCA rechaza la clave o pide captcha, no reintenta.
 
 **Plugin instalado:** los scripts viven en la raiz del plugin. Correr cada comando
 con `cd "${CLAUDE_PLUGIN_ROOT:-.}" && ...`. La primera vez (y despues de cada

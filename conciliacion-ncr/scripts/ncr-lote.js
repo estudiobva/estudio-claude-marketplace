@@ -30,7 +30,7 @@
  * mas (varias comparten apoderado y reintentar bloquea la clave); las que faltan
  * se descargan y concilian igual.
  *
- * Deja el resumen en descargas/ncr-lote/AAAAMM-<fecha-hora>.json y .csv.
+ * Deja el resumen en ~/Documents/BVA-salidas/ncr-lote/ ($BVA_SALIDAS_PATH)AAAAMM-<fecha-hora>.json y .csv.
  */
 
 const fs   = require('fs');
@@ -215,7 +215,7 @@ async function procesar(o) {
 
   const d = new Date(), z = (n) => String(n).padStart(2, '0');
   const sello = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
-  const dir = path.join(__dirname, '..', 'descargas', 'ncr-lote');
+  const dir = path.join((process.env.BVA_SALIDAS_PATH || path.join(require('os').homedir(), 'Documents', 'BVA-salidas')), 'ncr-lote');
   fs.mkdirSync(dir, { recursive: true });
   const base = path.join(dir, `${PERIODO}-${sello}`);
   fs.writeFileSync(`${base}.json`, JSON.stringify({ periodo: PERIODO, generado: d.toISOString(), filas }, null, 1), 'utf-8');
