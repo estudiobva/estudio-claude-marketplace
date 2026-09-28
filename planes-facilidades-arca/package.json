@@ -1,0 +1,16 @@
+{
+  "name": "planes-facilidades-arca",
+  "version": "1.0.0",
+  "description": "Relevamiento de planes de facilidades de pago (Mis Facilidades, ARCA) con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "relevar": "node scripts/planes-facilidades.js",
+    "reporte": "node scripts/planes-reporte.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
