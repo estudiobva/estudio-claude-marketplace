@@ -7,6 +7,7 @@ un script de Playwright y la skill que lo usa.
 |---|---|
 | `planes-facilidades-arca` | Releva los planes de facilidades de pago en Mis Facilidades (ARCA). |
 | `conciliacion-ncr` | Concilia el Portal IVA contra las NCR de Suizo y Monroe y las saca del Libro Compras. |
+| `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 
 ## Instalación
 
@@ -17,6 +18,7 @@ GitHub (`gh auth login`) en la máquina.
 /plugin marketplace add estudiobva/estudio-claude-marketplace
 /plugin install planes-facilidades-arca@estudiobva-skills
 /plugin install conciliacion-ncr@estudiobva-skills
+/plugin install anticipos-sct@estudiobva-skills
 ```
 
 Después, una vez por plugin (y después de cada actualización), en la carpeta del plugin:

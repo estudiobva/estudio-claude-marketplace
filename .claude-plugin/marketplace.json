@@ -1,6 +1,9 @@
 {
   "name": "estudiobva-skills",
-  "owner": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "owner": {
+    "name": "Estudio BVA",
+    "email": "joaquin@estudiobva.com"
+  },
   "metadata": {
     "description": "Skills y scripts de Playwright del Estudio BVA para ARCA y las sociedades farmacéuticas.",
     "version": "1.0.0"
@@ -16,6 +19,12 @@
       "name": "conciliacion-ncr",
       "source": "./conciliacion-ncr",
       "description": "Concilia las compras del Portal IVA contra las Notas de Crédito de Recupero de Suizo y Monroe y las saca del Libro Compras borrador.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "anticipos-sct",
+      "source": "./anticipos-sct",
+      "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
       "category": "contabilidad"
     }
   ]

@@ -1,0 +1,8 @@
+{
+  "name": "anticipos-sct",
+  "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA) con Playwright: capital, intereses, vencimiento y estado, en Excel. Solo lee.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arca", "afip", "sct", "cuentas tributarias", "anticipos", "ganancias", "bienes personales", "playwright", "argentina"]
+}
