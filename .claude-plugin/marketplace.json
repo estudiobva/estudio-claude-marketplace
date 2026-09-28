@@ -32,6 +32,12 @@
       "source": "./deudas-ddjj-sct",
       "description": "Controla en el Sistema de Cuentas Tributarias (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación de cada sociedad, en un Excel consolidado.",
       "category": "contabilidad"
+    },
+    {
+      "name": "bancos-bva",
+      "source": "./bancos-bva",
+      "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año. En revisión: ver el estado por banco en su README.",
+      "category": "contabilidad"
     }
   ]
 }

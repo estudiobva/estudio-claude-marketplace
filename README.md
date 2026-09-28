@@ -9,6 +9,7 @@ un script de Playwright y la skill que lo usa.
 | `conciliacion-ncr` | Concilia el Portal IVA contra las NCR de Suizo y Monroe y las saca del Libro Compras. |
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
+| `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
 
 ## Instalación
 
@@ -21,6 +22,7 @@ GitHub (`gh auth login`) en la máquina.
 /plugin install conciliacion-ncr@estudiobva-skills
 /plugin install anticipos-sct@estudiobva-skills
 /plugin install deudas-ddjj-sct@estudiobva-skills
+/plugin install bancos-bva@estudiobva-skills
 ```
 
 Después, una vez por plugin (y después de cada actualización), en la carpeta del plugin:

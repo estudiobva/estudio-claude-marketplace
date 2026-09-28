@@ -1,0 +1,17 @@
+{
+  "name": "bancos-bva",
+  "version": "0.2.0",
+  "description": "Extractos bancarios del Estudio BVA con Playwright.",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "postinstall": "playwright install chromium",
+    "doctor": "node scripts/doctor.js",
+    "extractos": "node scripts/extractos-banco.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
