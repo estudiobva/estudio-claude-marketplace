@@ -1,0 +1,16 @@
+{
+  "name": "anticipos-sct",
+  "version": "1.0.0",
+  "description": "Relevamiento de anticipos de Ganancias y Bienes Personales (SCT, ARCA) con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "relevar": "node scripts/anticipos-sct.js",
+    "lote": "node scripts/anticipos-sct-lote.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
