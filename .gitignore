@@ -1,0 +1,45 @@
+# Credenciales y configuracion local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+**/Claves_*
+**/claves*.xlsx
+**/*credencial*
+**/*password*
+**/*secret*
+
+# Datos: nunca se suben planillas, exportaciones ni reportes
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.zip
+*.json
+!package.json
+!package-lock.json
+
+# Salidas y volcados de los scripts
+descargas/
+debug/
+_crudo/
+_facilidades/
+output/
+logs/
+*.log
+*.html
+
+# Dependencias y entorno
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
