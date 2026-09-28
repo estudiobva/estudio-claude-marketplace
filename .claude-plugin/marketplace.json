@@ -26,6 +26,12 @@
       "source": "./anticipos-sct",
       "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
       "category": "contabilidad"
+    },
+    {
+      "name": "deudas-ddjj-sct",
+      "source": "./deudas-ddjj-sct",
+      "description": "Controla en el Sistema de Cuentas Tributarias (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación de cada sociedad, en un Excel consolidado.",
+      "category": "contabilidad"
     }
   ]
 }

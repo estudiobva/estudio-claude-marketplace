@@ -1,0 +1,18 @@
+{
+  "name": "deudas-ddjj-sct",
+  "version": "1.0.0",
+  "description": "Deudas que no son anticipos y DDJJ pendientes de presentación (SCT, ARCA) con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "relevar": "node scripts/deudas-ddjj-sct.js",
+    "lote": "node scripts/deudas-ddjj-sct-lote.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

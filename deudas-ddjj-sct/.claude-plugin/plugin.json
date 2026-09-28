@@ -1,0 +1,8 @@
+{
+  "name": "deudas-ddjj-sct",
+  "description": "Controla en el Sistema de Cuentas Tributarias (ARCA) de cada sociedad las deudas que no son anticipos y las DDJJ pendientes de presentación, con Playwright, en un Excel consolidado. Solo lee.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arca", "afip", "sct", "cuentas tributarias", "deudas", "ddjj", "presentaciones", "playwright", "argentina"]
+}
