@@ -32,6 +32,14 @@ quien tenga los scripts.
 | 4 | Eliminar las NCR del Libro Compras | `node scripts/eliminar-ncr.js` (ver abajo) |
 | 2+3+simulacion del 4, varias sociedades | Lote | `node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"` (ver **Lote**) |
 
+**Plugin instalado:** los scripts viven en la raiz del plugin. Correr cada comando
+con `cd "${CLAUDE_PLUGIN_ROOT:-.}" && ...`. La primera vez (y despues de cada
+actualizacion del plugin): `npm install && npx playwright install chromium &&
+python3 -m pip install -r requirements.txt`. Las credenciales van en
+`~/.fisco-ar/.env` (copiar `.env.example`), que sobrevive a las actualizaciones.
+El resumen de `ncr-lote.js` queda en `descargas/ncr-lote/` dentro del plugin: copiarlo
+afuera si hay que conservarlo (se borra al actualizar el plugin).
+
 **Orden obligatorio: el paso 4 va despues de la ULTIMA importacion desde ARCA
 del periodo.** "Importar desde ARCA" trae todo lo que no esta en el libro, asi
 que una importacion posterior vuelve a meter las NCR eliminadas (se arregla

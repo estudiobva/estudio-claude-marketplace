@@ -7,6 +7,30 @@ description: "Releva los planes de facilidades de pago vigentes de una sociedad 
 
 Objetivo: para una o varias sociedades, obtener todos los planes de facilidades de pago con su situación, y el detalle cuota por cuota (pagadas y pendientes), y dejarlo en un Excel por sociedad.
 
+## Con el script (Claude Code)
+
+Si hay una sesion de Claude Code en la maquina, preferir el lote de Playwright
+en vez de recorrer Mis Facilidades a mano con Chrome:
+
+```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/planes-facilidades.js --nombre="<sociedad>"
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/planes-facilidades.js --login=<apoderado>
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/planes-facilidades.js --consolidar   # rearma Excel y PDF sin entrar a ARCA
+```
+
+Agrega `--historico` para incluir planes cancelados y `--ver` para ver el navegador.
+Deja la salida en `<salida>/AAAA-MM-DD/` (reporte PDF, informe Excel y un Excel por
+sociedad). Pasar siempre `--salida=<carpeta>` (por ejemplo `~/Downloads/planes`): el
+default es `descargas/planes/` dentro del plugin y se borra cuando el plugin se actualiza. Si ARCA rechaza la clave o pide captcha, no reintenta.
+
+**Plugin instalado:** los scripts viven en la raiz del plugin. Correr cada comando
+con `cd "${CLAUDE_PLUGIN_ROOT:-.}" && ...`. La primera vez (y despues de cada
+actualizacion del plugin): `npm install && npx playwright install chromium &&
+python3 -m pip install -r requirements.txt`. Las credenciales van en
+`~/.fisco-ar/.env` (copiar `.env.example`), que sobrevive a las actualizaciones.
+
+Sin Claude Code (Cowork), seguir los pasos de abajo con Claude in Chrome.
+
 ## Requisitos
 
 - El usuario inicia sesión en ARCA con CUIT y Clave Fiscal a mano antes de arrancar (representante con las sociedades asociadas). Esta skill NO maneja credenciales.

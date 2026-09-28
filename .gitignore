@@ -22,6 +22,8 @@
 *.json
 !package.json
 !package-lock.json
+!.claude-plugin/marketplace.json
+!**/.claude-plugin/plugin.json
 
 # Salidas y volcados de los scripts
 descargas/
