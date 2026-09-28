@@ -43,3 +43,18 @@ venv/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Circuito NCR
+*.bundle
+_anteriores/
+.fisco-ar/
+!**/lib/ncr-alias.json
+
+# Mas datos y credenciales
+*.xlsb
+*.ods
+*.txt
+!requirements.txt
+*.p8
+id_rsa*
+*.kdbx
