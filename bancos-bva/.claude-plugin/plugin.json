@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "bancos-bva",
+  "description": "Descarga extractos bancarios del home banking de empresas (Galicia, Comafi, Santander, Hipotecario, Macro, Nacion, BBVA, Patagonia, Provincia) con Playwright, los renombra y los archiva por sociedad, banco y año.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Estudio BVA",
+    "email": "joaquin@estudiobva.com"
+  },
+  "keywords": [
+    "bancos",
+    "extractos",
+    "home banking",
+    "playwright",
+    "contabilidad",
+    "argentina"
+  ],
+  "license": "MIT",
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace"
+}
