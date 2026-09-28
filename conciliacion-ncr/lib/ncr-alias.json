@@ -1,0 +1,11 @@
+{
+  "_comentario": "Nombre del archivo de Monroe en el SharePoint (normalizado: mayusculas, sin espacios de mas) -> valor de CLIENTE en el archivo de Suizo. Solo hace falta cuando no son iguales. Agregar SOLO alias confirmados: si un nombre no resuelve, descargar-ncr frena y pregunta en vez de adivinar. Casos ambiguos conocidos y a proposito sin alias: SALUD Y SANAR / SOY SALUD (Suizo tiene SALUD y CONGRESO), SOY LUNA (Suizo tiene LUNA, que podria ser Sanar 67), CERCANIAS, SANAR 69 (pendientes de confirmar con el estudio, 22/09/2026).",
+  "alias": {
+    "FRANCO ALEMANA": "F ALEMANA",
+    "LA RECOVA": "RECOVA",
+    "NUEVA GENERACION": "N GENERACION",
+    "NUEVA VENTURA": "N VENTURA",
+    "SOL BERA": "BERAZATEGUI",
+    "VENTURA": "N VENTURA"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "conciliacion-ncr",
+  "version": "1.0.0",
+  "description": "Circuito NCR: baja las Notas de Credito de Recupero de Suizo y Monroe, las concilia contra las compras del Portal IVA (ARCA) y las elimina del Libro Compras borrador.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "descargar": "node scripts/descargar-ncr.js",
+    "conciliar": "python scripts/conciliar-ncr.py",
+    "eliminar": "node scripts/eliminar-ncr.js",
+    "lote": "node scripts/ncr-lote.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
