@@ -1,4 +1,4 @@
-# skills
+# estudio-claude-marketplace
 
 Marketplace de plugins de Claude Code del Estudio BVA. Cada carpeta es un plugin:
 un script de Playwright y la skill que lo usa.
@@ -10,11 +10,11 @@ un script de Playwright y la skill que lo usa.
 
 ## Instalación
 
-El repo es privado: hace falta tener acceso a `estudiobva/skills` y estar logueado en
+El repo es privado: hace falta tener acceso a `estudiobva/estudio-claude-marketplace` y estar logueado en
 GitHub (`gh auth login`) en la máquina.
 
 ```
-/plugin marketplace add estudiobva/skills
+/plugin marketplace add estudiobva/estudio-claude-marketplace
 /plugin install planes-facilidades-arca@estudiobva-skills
 /plugin install conciliacion-ncr@estudiobva-skills
 ```
