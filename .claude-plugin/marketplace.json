@@ -1,0 +1,22 @@
+{
+  "name": "estudiobva-skills",
+  "owner": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "metadata": {
+    "description": "Skills y scripts de Playwright del Estudio BVA para ARCA y las sociedades farmacéuticas.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "planes-facilidades-arca",
+      "source": "./planes-facilidades-arca",
+      "description": "Releva los planes de facilidades de pago de cada sociedad en Mis Facilidades (ARCA): cuotas pagadas, impagas y a vencer, en Excel y PDF.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "conciliacion-ncr",
+      "source": "./conciliacion-ncr",
+      "description": "Concilia las compras del Portal IVA contra las Notas de Crédito de Recupero de Suizo y Monroe y las saca del Libro Compras borrador.",
+      "category": "contabilidad"
+    }
+  ]
+}

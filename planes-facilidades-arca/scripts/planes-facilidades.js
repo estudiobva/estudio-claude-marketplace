@@ -17,7 +17,7 @@
  *   --historico   Ademas de los Vigentes, entra al detalle de los planes
  *                 cancelados/caducos (por defecto solo se listan).
  *   --rehacer     Por defecto, lo ya relevado hoy con exito se saltea (reanudable).
- *   --salida      Carpeta base (default: <repo>/descargas/planes). Subcarpeta por dia.
+ *   --salida      Carpeta base (default: ~/Documents/BVA-salidas/planes, o $BVA_SALIDAS_PATH/planes). Subcarpeta por dia.
  *   --ver         Navegador visible.
  *
  * Por cada sociedad: Presentaciones Enviadas → por cada plan Vigente: Detalle →
@@ -56,7 +56,8 @@ const HOY = new Date();
 const iso = [HOY.getFullYear(), String(HOY.getMonth() + 1).padStart(2, '0'),
              String(HOY.getDate()).padStart(2, '0')].join('-');
 const compacto = iso.replace(/-/g, '');
-const BASE = args['salida'] || path.join(__dirname, '..', 'descargas', 'planes');
+loadEnv(); // antes de BASE: BVA_SALIDAS_PATH puede venir del .env
+const BASE = args['salida'] || path.join((process.env.BVA_SALIDAS_PATH || path.join(require('os').homedir(), 'Documents', 'BVA-salidas')), 'planes');
 const DIR = path.join(BASE, iso);
 const CRUDO = path.join(DIR, '_crudo');
 const RESUMEN = path.join(DIR, 'lote-resumen.json');

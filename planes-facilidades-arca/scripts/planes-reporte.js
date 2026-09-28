@@ -19,11 +19,12 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { parseArgs, fail } = require('../lib/args');
 
+require('../lib/env').loadEnv();
 const args = parseArgs();
 const hoy = new Date();
 const iso = args['fecha'] || [hoy.getFullYear(), String(hoy.getMonth() + 1).padStart(2, '0'),
                               String(hoy.getDate()).padStart(2, '0')].join('-');
-const DIR = path.join(args['salida'] || path.join(__dirname, '..', 'descargas', 'planes'), iso);
+const DIR = path.join(args['salida'] || path.join((process.env.BVA_SALIDAS_PATH || path.join(require('os').homedir(), 'Documents', 'BVA-salidas')), 'planes'), iso);
 const RESUMEN = path.join(DIR, 'lote-resumen.json');
 if (!fs.existsSync(RESUMEN)) fail(`No hay relevamiento en ${DIR}. Corre primero planes-facilidades.js.`);
 

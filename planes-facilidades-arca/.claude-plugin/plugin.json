@@ -1,0 +1,8 @@
+{
+  "name": "planes-facilidades-arca",
+  "description": "Releva los planes de facilidades de pago de cada sociedad en Mis Facilidades (ARCA) con Playwright: cuotas pagadas, impagas y a vencer, CBU y obligaciones incluidas. Solo lee.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/skills",
+  "keywords": ["arca", "afip", "mis facilidades", "planes de pago", "playwright", "argentina"]
+}
