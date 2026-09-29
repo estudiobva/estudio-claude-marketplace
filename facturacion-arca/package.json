@@ -1,0 +1,16 @@
+{
+  "name": "facturacion-arca",
+  "version": "1.0.0",
+  "description": "Emisión de facturas en Comprobantes en Línea (RCEL, ARCA) con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "validar": "node scripts/facturacion-arca.js --validar",
+    "facturar": "node scripts/facturacion-arca.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

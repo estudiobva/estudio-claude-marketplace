@@ -1,0 +1,8 @@
+{
+  "name": "facturacion-arca",
+  "description": "Emite facturas de servicios en Comprobantes en Línea (RCEL) de ARCA para cualquier emisor (Factura C, A o B) desde la planilla mensual, con Playwright: validar, dry-run y emisión con código de aprobación. Escribe en ARCA.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arca", "afip", "rcel", "comprobantes en linea", "factura", "cae", "monotributo", "playwright", "argentina"]
+}

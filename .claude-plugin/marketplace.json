@@ -50,6 +50,12 @@
       "source": "./portal-iva-descarga",
       "description": "Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas de una o varias sociedades para un período, en Excel, y los archiva en la carpeta IVA del mes.",
       "category": "contabilidad"
+    },
+    {
+      "name": "facturacion-arca",
+      "source": "./facturacion-arca",
+      "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
+      "category": "contabilidad"
     }
   ]
 }
