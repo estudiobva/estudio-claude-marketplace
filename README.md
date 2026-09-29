@@ -10,6 +10,7 @@ un script de Playwright y la skill que lo usa.
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
 | `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
+| `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
 
 ## Instalación
 
@@ -23,6 +24,7 @@ GitHub (`gh auth login`) en la máquina.
 /plugin install anticipos-sct@estudiobva-skills
 /plugin install deudas-ddjj-sct@estudiobva-skills
 /plugin install bancos-bva@estudiobva-skills
+/plugin install portal-iva-descarga@estudiobva-skills
 ```
 
 Después, una vez por plugin (y después de cada actualización), en la carpeta del plugin:
