@@ -23,7 +23,7 @@ python3 scripts/conciliar-ncr.py --cuit=<CUIT> --periodo=MM/AAAA --solo-revisar
 python3 scripts/conciliar-ncr.py --cuit=<CUIT> --periodo=MM/AAAA               # deja la conciliacion
 node scripts/eliminar-ncr.js --nombre="<sociedad>" --periodo=MM/AAAA           # simulacion
 node scripts/eliminar-ncr.js --nombre="<sociedad>" --periodo=MM/AAAA --ejecutar
-node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"                    # 2 + 3 + simulacion, varias
+node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"                    # 1 + 2 + 3 + simulacion, varias
 ```
 
 ## Reglas
@@ -32,6 +32,8 @@ node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"                    
   encontradas y las diferencias se informan y no se tocan.
 - `eliminar-ncr.js` sin `--ejecutar` solo simula. `ncr-lote.js` nunca elimina.
 - El lote no entra a ARCA si la DDJJ de IVA del período ya está presentada.
+- El lote reutiliza las compras que ya están en la carpeta si se bajaron después del día 5
+  del mes siguiente; si se bajaron antes son parciales y no se usan (ver SKILL.md).
 - Si ARCA rechaza la clave o pide captcha, no reintenta.
 - No pisa archivos: lo anterior va a `ncr/_anteriores/`.
 
@@ -42,6 +44,8 @@ node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"                    
 - `scripts/conciliar-ncr.py`: la conciliación (solo openpyxl).
 - `scripts/eliminar-ncr.js` + `scripts/leer_conciliacion_ncr.py`: eliminación en el Libro Compras.
 - `scripts/ncr-lote.js`: varias sociedades hasta la simulación.
+- `scripts/portal-iva-descarga.js` + `scripts/csv_a_excel.py`: compras del Portal IVA (paso 1),
+  copia del plugin `portal-iva-descarga`.
 - `lib/portal-iva.js`, `lib/rutas-bva.js`: Portal IVA y carpetas de la unidad compartida.
 - `lib/arca-login.js`, `lib/env.js`, `lib/claves.js`: login en ARCA y credenciales.
 - `lib/ncr-alias.json`: nombre de farmacia en Monroe -> `CLIENTE` en Suizo.
