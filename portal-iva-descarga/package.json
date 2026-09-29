@@ -1,6 +1,6 @@
 {
   "name": "portal-iva-descarga",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Baja el Libro IVA Compras y Ventas del Portal IVA (ARCA), los pasa a Excel y los archiva en la unidad compartida.",
   "private": true,
   "license": "UNLICENSED",
