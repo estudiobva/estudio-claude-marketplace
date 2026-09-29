@@ -1,7 +1,7 @@
 {
   "name": "conciliacion-ncr",
   "description": "Circuito NCR: baja las Notas de Crédito de Recupero de Suizo y Monroe, las concilia contra las compras del Portal IVA (ARCA) y elimina las conciliadas del Libro Compras borrador. Nunca presenta la DDJJ.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
   "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
   "keywords": ["arca", "portal iva", "ncr", "suizo", "monroe", "playwright", "argentina"]
