@@ -1,0 +1,8 @@
+{
+  "name": "setup-bva",
+  "description": "Prepara una computadora del Estudio BVA para usar los plugins del marketplace: instala los programas (Git, Node, Python, GitHub CLI, Claude Code), agrega el marketplace, instala todos los plugins con sus dependencias, arma el .env con la planilla de claves y corre un diagnóstico. Avisa al abrir Claude si un plugin actualizado quedó sin dependencias.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["setup", "instalacion", "windows", "playwright", "diagnostico"]
+}
