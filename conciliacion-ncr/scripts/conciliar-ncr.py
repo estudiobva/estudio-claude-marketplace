@@ -106,11 +106,18 @@ def carpeta_sociedad(cuit):
     return os.path.join(base, hits[0])
 
 
+def carpeta_mes(mens, per):
+    """Misma regla que carpetaMes() de lib/rutas-bva.js: 'AAAA/AAAAMM' si la sociedad usa carpeta de año."""
+    suelto, anio = os.path.join(mens, per), os.path.join(mens, per[:4])
+    return os.path.join(anio, per) if not os.path.isdir(suelto) and os.path.isdir(anio) else suelto
+
+
 def carpeta_ncr(soc, per):
     """Misma busqueda que carpetaNcr() de lib/rutas-bva.js."""
     mens = os.path.join(soc, '01-Impuestos Mensuales')
-    cand = [os.path.join(mens, per, f'{per}-IVA', 'ncr'), os.path.join(mens, f'{per}-IVA', 'ncr'),
-            os.path.join(mens, per, 'IVA', 'ncr'), os.path.join(mens, per, 'ncr')]
+    mes = carpeta_mes(mens, per)
+    cand = [os.path.join(mes, f'{per}-IVA', 'ncr'), os.path.join(mens, f'{per}-IVA', 'ncr'),
+            os.path.join(mes, 'IVA', 'ncr'), os.path.join(mes, 'ncr')]
     hay = [d for d in cand if os.path.isdir(d)]
     if len(hay) > 1:
         fail(f'Hay {len(hay)} carpetas ncr/ para {per}: {" | ".join(hay)}. Deja una sola.')
@@ -122,9 +129,10 @@ def carpeta_ncr(soc, per):
 def carpetas_compras(soc, per, ncr):
     """Donde buscar las compras del Portal IVA, de la mas especifica a la mas general."""
     mens = os.path.join(soc, '01-Impuestos Mensuales')
+    mes = carpeta_mes(mens, per)
     out = [ncr, os.path.dirname(ncr)]
-    for d in (os.path.join(mens, per, f'{per}-IVA'), os.path.join(mens, f'{per}-IVA'),
-              os.path.join(mens, per, 'IVA'), os.path.join(mens, per)):
+    for d in (os.path.join(mes, f'{per}-IVA'), os.path.join(mens, f'{per}-IVA'),
+              os.path.join(mes, 'IVA'), mes):
         if os.path.isdir(d) and d not in out:
             out.append(d)
     return out
@@ -220,6 +228,11 @@ def leer_portal(ruta):
             filas = list(ws.iter_rows(values_only=True))
             if filas and FECHA in [norm(c).lower() for c in filas[0] if c is not None]:
                 cab, filas = [str(c).strip() if c is not None else '' for c in filas[0]], filas[1:]
+                # El Excel de portal-iva-descarga.js cierra con una fila en blanco y
+                # abajo TOTAL + nota: los comprobantes terminan en la primera fila vacia.
+                vacia = next((i for i, f in enumerate(filas) if not any(v not in (None, '') for v in f)), None)
+                if vacia is not None:
+                    filas = filas[:vacia]
                 break
         else:
             fail(f'{os.path.basename(ruta)} no tiene ninguna hoja con el formato del Portal IVA.')

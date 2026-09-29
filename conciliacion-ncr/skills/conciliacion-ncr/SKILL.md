@@ -62,6 +62,11 @@ conciliacion da cientos de "NCR no encontradas" falsas.
 
 Dejar el CSV en la carpeta `ncr/` del periodo.
 
+Tambien sirve el Excel del plugin `portal-iva-descarga` (`AAAAMM - PORTAL IVA - COMPRAS.xlsx`
+en la carpeta IVA): `conciliar-ncr.py` lo lee igual que el CSV y corta en la fila en
+blanco antes del TOTAL. Si la sociedad usa carpeta de año (`01-Impuestos Mensuales/2026/AAAAMM`),
+los scripts usan el mes que esta adentro.
+
 ### Paso 2 — NCR del SharePoint
 
 Las droguerias las suben al SharePoint de las farmacias:

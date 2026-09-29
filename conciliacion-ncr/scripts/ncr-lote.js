@@ -106,7 +106,7 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 // rectificativa, asi que el lote no entra a ARCA con esa sociedad.
 function acuseIva(cuit) {
   let mes;
-  try { mes = path.join(rutas.carpetaSociedad(cuit), '01-Impuestos Mensuales', PERIODO); } catch { return null; }
+  try { mes = rutas.carpetaMes(path.join(rutas.carpetaSociedad(cuit), '01-Impuestos Mensuales'), PERIODO); } catch { return null; }
   if (!fs.existsSync(mes)) return null;
   const re = new RegExp(`^${PERIODO}.*\\bIVA\\b.*ACUSE`, 'i');
   const dirs = [mes, ...fs.readdirSync(mes, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => path.join(mes, e.name))];

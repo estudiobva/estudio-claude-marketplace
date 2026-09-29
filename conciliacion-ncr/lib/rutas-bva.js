@@ -49,6 +49,22 @@ function carpetaSociedad(cuit) {
   return path.join(base, candidatas[0].name);
 }
 
+// Carpeta del mes dentro de "01-Impuestos Mensuales".
+//
+// Conviven dos esquemas: el mes suelto ("01-Impuestos Mensuales/202608") y el
+// mes dentro de una carpeta de año ("01-Impuestos Mensuales/2026/202608", unas
+// 20 sociedades en 09/2026). Si existe la carpeta del año y no hay un mes suelto
+// con ese nombre, el mes va adentro del año: crear "202608" al lado de "2026"
+// deja dos lugares para el mismo periodo.
+function carpetaMes(mensuales, periodoAAAAMM) {
+  const suelto = path.join(mensuales, periodoAAAAMM);
+  const anio = path.join(mensuales, periodoAAAAMM.slice(0, 4));
+  if (!fs.existsSync(suelto) && fs.existsSync(anio) && fs.statSync(anio).isDirectory()) {
+    return path.join(anio, periodoAAAAMM);
+  }
+  return suelto;
+}
+
 // Carpeta IVA del periodo, creandola si falta.
 //
 // Ojo: en algunas sociedades la subcarpeta existe como "AAAAMM-IVA" en vez de
@@ -61,16 +77,17 @@ function carpetaIva(cuit, periodoAAAAMM, { crear = true } = {}) {
     if (!crear) throw new Error(`Falta "01-Impuestos Mensuales" en ${soc}`);
     fs.mkdirSync(mensuales, { recursive: true });
   }
+  const mes = carpetaMes(mensuales, periodoAAAAMM);
 
   // Variantes que ya existen en la unidad, en orden de preferencia.
   for (const variante of [
-    path.join(mensuales, periodoAAAAMM, `${periodoAAAAMM}-IVA`),   // ej. 202608/202608-IVA
+    path.join(mes, `${periodoAAAAMM}-IVA`),   // ej. 202608/202608-IVA
     path.join(mensuales, `${periodoAAAAMM}-IVA`),
   ]) {
     if (fs.existsSync(variante)) return variante;
   }
 
-  const destino = path.join(mensuales, periodoAAAAMM, 'IVA');
+  const destino = path.join(mes, 'IVA');
   if (!fs.existsSync(destino)) {
     if (!crear) throw new Error(`Falta ${destino}`);
     fs.mkdirSync(destino, { recursive: true });
@@ -86,11 +103,12 @@ function carpetaIva(cuit, periodoAAAAMM, { crear = true } = {}) {
 // Si no existe ninguna, [carpetaIva]/ncr (creandola si crear=true).
 function carpetaNcr(cuit, periodoAAAAMM, { crear = true } = {}) {
   const mensuales = path.join(carpetaSociedad(cuit), '01-Impuestos Mensuales');
+  const mes = carpetaMes(mensuales, periodoAAAAMM);
   const candidatas = [
-    path.join(mensuales, periodoAAAAMM, `${periodoAAAAMM}-IVA`, 'ncr'),
+    path.join(mes, `${periodoAAAAMM}-IVA`, 'ncr'),
     path.join(mensuales, `${periodoAAAAMM}-IVA`, 'ncr'),
-    path.join(mensuales, periodoAAAAMM, 'IVA', 'ncr'),
-    path.join(mensuales, periodoAAAAMM, 'ncr'),
+    path.join(mes, 'IVA', 'ncr'),
+    path.join(mes, 'ncr'),
   ];
   const hay = candidatas.filter((d) => fs.existsSync(d));
   if (hay.length > 1) {
@@ -106,4 +124,4 @@ function carpetaNcr(cuit, periodoAAAAMM, { crear = true } = {}) {
 const nombreArchivo = (periodoAAAAMM, libro, ext) =>
   `${periodoAAAAMM} - PORTAL IVA - ${libro.toUpperCase()}.${ext}`;
 
-module.exports = { raiz, carpetaSociedad, carpetaIva, carpetaNcr, nombreArchivo, RAIZ_DEFECTO };
+module.exports = { raiz, carpetaSociedad, carpetaMes, carpetaIva, carpetaNcr, nombreArchivo, RAIZ_DEFECTO };
