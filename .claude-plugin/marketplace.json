@@ -10,6 +10,12 @@
   },
   "plugins": [
     {
+      "name": "setup-bva",
+      "source": "./setup-bva",
+      "description": "Prepara la computadora para usar los plugins del estudio: programas, marketplace, dependencias, .env con la planilla de claves y diagnóstico. Avisa al abrir Claude si falta algo.",
+      "category": "herramientas"
+    },
+    {
       "name": "planes-facilidades-arca",
       "source": "./planes-facilidades-arca",
       "description": "Releva los planes de facilidades de pago de cada sociedad en Mis Facilidades (ARCA): cuotas pagadas, impagas y a vencer, en Excel y PDF.",
