@@ -26,11 +26,11 @@ quien tenga los scripts.
 
 | Paso | Que | Como |
 |---|---|---|
-| 1 | Compras del Portal IVA | `node scripts/portal-iva-compras.js --nombre="<Sociedad>" --periodo=MM/AAAA` |
+| 1 | Compras del Portal IVA | `node scripts/portal-iva-descarga.js --nombre="<Sociedad>" --periodo=MM/AAAA --libros=compras` (el lote lo hace solo si faltan) |
 | 2 | NCR del SharePoint | `bundle-ncr.js` en Chrome + `node scripts/descargar-ncr.js` (ver abajo) |
 | 3 | Conciliacion | `python scripts/conciliar-ncr.py --cuit=<CUIT> --periodo=MM/AAAA` (ver **Script**) |
 | 4 | Eliminar las NCR del Libro Compras | `node scripts/eliminar-ncr.js` (ver abajo) |
-| 2+3+simulacion del 4, varias sociedades | Lote | `node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"` (ver **Lote**) |
+| 1+2+3+simulacion del 4, varias sociedades | Lote | `node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"` (ver **Lote**) |
 
 **Plugin instalado:** los scripts viven en la raiz del plugin. Correr cada comando
 con `cd "${CLAUDE_PLUGIN_ROOT:-.}" && ...`. La primera vez (y despues de cada
@@ -435,11 +435,23 @@ node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="<sociedad A>;<sociedad B>"
 node scripts/ncr-lote.js --periodo=MM/AAAA --cuits=<CUIT A>,<CUIT B> --sin-simular
 ```
 
-Por sociedad corre `descargar-ncr` → `conciliar-ncr` → `eliminar-ncr` en
-**simulacion**, y devuelve una tabla con lo que se eliminaria, los hallazgos y el
+Por sociedad corre compras del Portal IVA → `descargar-ncr` → `conciliar-ncr` →
+`eliminar-ncr` en **simulacion**, y devuelve una tabla con lo que se eliminaria, los hallazgos y el
 comando exacto para eliminar. **Nunca elimina** (rechaza `--ejecutar`): la
 eliminacion sigue siendo de a una sociedad y con confirmacion del usuario.
 
+- **Compras (paso 1):** primero las busca en la carpeta del periodo, con la misma
+  regla que `conciliar-ncr`. El equipo suele bajar el Portal IVA y liquidar IVA
+  semanas despues, asi que si estan se usan y no se entra a ARCA. Se mira el dia
+  en que se bajo el archivo: durante el mes del periodo o hasta el dia 5 del mes
+  siguiente es **parcial**; despues del 5 es el mes cerrado.
+  - Parcial y es `AAAAMM - PORTAL IVA - COMPRAS.xlsx` (el del script): se vuelve a
+    bajar y se reemplaza.
+  - Parcial con otro nombre (lo subio el equipo): la sociedad queda con error y el
+    archivo no se toca. Borrarlo o renombrarlo, o `--aceptar-compras-parciales`.
+  - Si faltan, se bajan con `portal-iva-descarga.js --libros=compras`, salvo que la
+    DDJJ ya este presentada o se pase `--no-bajar-compras`.
+  - La columna `compras_origen` del resumen dice de donde salieron y cuando se bajaron.
 - Reconcilia solo si `descargar-ncr` trajo algo nuevo o reemplazado (o con
   `--reconciliar`); si no, usa la conciliacion que ya esta.
 - No entra a ARCA con una sociedad si en la carpeta del mes hay un acuse de IVA
@@ -448,7 +460,7 @@ eliminacion sigue siendo de a una sociedad y con confirmacion del usuario.
 - Si ARCA rechaza una clave o pide captcha, no entra mas a ARCA en ese lote
   (varias sociedades comparten apoderado y reintentar bloquea la clave).
 - Headless por defecto; `--ver` para el navegador visible.
-- Deja `descargas/ncr-lote/AAAAMM-<fecha-hora>.json` y `.csv`.
+- Deja `~/Documents/BVA-salidas/ncr-lote/AAAAMM-<fecha-hora>.json` y `.csv`.
 
 ## Flujo
 
