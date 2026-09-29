@@ -38,6 +38,12 @@
       "source": "./bancos-bva",
       "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año. En revisión: ver el estado por banco en su README.",
       "category": "contabilidad"
+    },
+    {
+      "name": "portal-iva-descarga",
+      "source": "./portal-iva-descarga",
+      "description": "Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas de una o varias sociedades para un período, en Excel, y los archiva en la carpeta IVA del mes.",
+      "category": "contabilidad"
     }
   ]
 }
