@@ -15,7 +15,9 @@
  *   --periodo           MM/AAAA o AAAAMM. Default: el mes anterior (se trabaja a mes vencido).
  *   --libros            compras,ventas (default los dos, en ese orden).
  *   --si-existe         abortar (default) | saltear | reemplazar, si ya esta el .xlsx.
- *   --aunque-presentada Entra aunque haya acuse de la DDJJ IVA del periodo.
+ *   --aunque-presentada Entra al borrador aunque haya acuse de la DDJJ IVA del periodo.
+ *   --presentada        Baja los libros de la DDJJ YA PRESENTADA (ultima secuencia),
+ *                       en solo lectura: no importa ni toca el borrador. Ver abajo.
  *   --no-archivar       Deja los .xlsx en ~/Documents/BVA-salidas/portal-iva ($BVA_SALIDAS_PATH) y no toca el Drive.
  *   --ver               Navegador visible.
  *
@@ -25,6 +27,13 @@
  *   [IVA del periodo]/AAAAMM - PORTAL IVA - VENTAS.xlsx
  * El CSV se borra: queda solo el Excel. conciliar-ncr.py lee ese .xlsx igual
  * que el CSV.
+ *
+ * Con --presentada: Declaraciones juradas presentadas -> Libro IVA -> "Ver" de
+ * la ultima secuencia del periodo -> Libro Compras / Ventas (sin IMPORTAR) -> CSV.
+ * Antes de archivar controla que el neto gravado del CSV (operaciones y notas de
+ * credito) coincida con la vista previa de la DDJJ; si no coincide, no archiva.
+ * No mira el acuse de la carpeta: el que manda es ARCA (si no hay presentacion
+ * del periodo, corta con sin_presentacion). Nunca clickea "Rectificar".
  *
  * Salida: JSON por stdout; progreso por stderr. NO presenta la DDJJ.
  */
@@ -46,6 +55,7 @@ const args = parseArgs();
 const VER = 'ver' in args;
 const ARCHIVAR = !('no-archivar' in args);
 const AUNQUE_PRESENTADA = 'aunque-presentada' in args;
+const PRESENTADA = 'presentada' in args;
 const SI_EXISTE = String(args['si-existe'] || 'abortar').toLowerCase();
 const PYTHON = process.env.BVA_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
@@ -140,8 +150,60 @@ function leerCsv(bajado, tmp) {
   return { csv, filas, fuera };
 }
 
-// Un libro, con el borrador ya abierto.
-async function bajarLibro(iva, libro, destinoDir, tmp) {
+// Neto gravado e IVA del CSV, separando operaciones (positivos) de notas de
+// credito (negativas), para compararlos con la vista previa de la DDJJ.
+// Una linea del CSV de ARCA: separador ";", textos entre comillas (pueden traer ";").
+function camposCsv(linea) {
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < linea.length; i++) {
+    const ch = linea[i];
+    if (q) { if (ch === '"' && linea[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ';') { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
+function totalesCsv(csv) {
+  const lineas = fs.readFileSync(csv, 'latin1').split(/\r?\n/).filter((l) => l.trim());
+  const cab = camposCsv(lineas[0]);
+  const col = (n) => { const i = cab.indexOf(n); if (i < 0) throw new Error(`El CSV no tiene la columna "${n}".`); return i; };
+  const num = (v) => Number(String(v || '0').trim().replace(/\./g, '').replace(',', '.')) || 0;
+  const cNeto = col('Total Neto Gravado'), cIva = col('Total IVA');
+  const t = { operaciones: { neto: 0, iva: 0 }, notasCredito: { neto: 0, iva: 0 } };
+  for (const l of lineas.slice(1)) {
+    const c = camposCsv(l);
+    const neto = num(c[cNeto]), iva = num(c[cIva]);
+    const k = neto < 0 || (neto === 0 && iva < 0) ? 'notasCredito' : 'operaciones';
+    t[k].neto += Math.abs(neto); t[k].iva += Math.abs(iva);
+  }
+  for (const k of Object.keys(t)) for (const m of ['neto', 'iva']) t[k][m] = Math.round(t[k][m] * 100) / 100;
+  return t;
+}
+
+// El neto gravado tiene que dar al centavo. El IVA se informa pero no se exige:
+// ARCA redondea por alicuota y en 08/2026 difirio en unos pocos pesos.
+function controlarContraVistaPrevia(libro, csvTot, vista) {
+  const v = vista && vista[libro];
+  if (!v || !v.operaciones) throw new Error(`No pude leer los totales de ${libro} en la vista previa de la DDJJ: no archivo sin controlar.`);
+  const esperado = { operaciones: v.operaciones.neto, notasCredito: v.notasCredito ? v.notasCredito.neto : 0 };
+  const dif = ['operaciones', 'notasCredito'].map((k) => ({ k, csv: csvTot[k].neto, ddjj: esperado[k], d: Math.round((csvTot[k].neto - esperado[k]) * 100) / 100 }));
+  const mal = dif.filter((x) => Math.abs(x.d) > 0.05);
+  if (mal.length) {
+    throw new Error(`El CSV de ${libro} no coincide con la DDJJ presentada: ` +
+      mal.map((x) => `${x.k} neto CSV ${x.csv} vs DDJJ ${x.ddjj}`).join('; ') + '. No lo archivo.');
+  }
+  return {
+    neto_operaciones: esperado.operaciones, neto_notas_credito: esperado.notasCredito,
+    iva_csv: Math.round((csvTot.operaciones.iva - csvTot.notasCredito.iva) * 100) / 100,
+    iva_ddjj: Math.round((v.operaciones.iva - (v.notasCredito ? v.notasCredito.iva : 0)) * 100) / 100,
+  };
+}
+
+// Un libro, con el borrador (o la DDJJ presentada) ya abierto.
+async function bajarLibro(iva, libro, destinoDir, tmp, presentada = null) {
   const nombre = rutas.nombreArchivo(PERIODO, libro, 'xlsx');
   const destino = ARCHIVAR ? path.join(destinoDir, nombre) : null;
   if (destino && fs.existsSync(destino) && SI_EXISTE !== 'reemplazar') {
@@ -149,15 +211,31 @@ async function bajarLibro(iva, libro, destinoDir, tmp) {
     throw new Error(`Ya existe ${destino}. No lo piso: --si-existe=reemplazar o --si-existe=saltear.`);
   }
 
-  await volverAlMenu(iva);
-  await pi.abrirLibro(iva, libro);
-  const importacion = await pi.importarDesdeArca(iva);
+  let importacion = null;
+  if (presentada) {
+    await pi.irAlMenuPresentacion(iva);
+    await pi.abrirLibro(iva, libro);
+    await iva.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {});
+    // Red de seguridad: en una DDJJ presentada no tiene que haber IMPORTAR.
+    if (await iva.locator('a, button').filter({ hasText: /^\s*IMPORTAR\s*$/i }).first().isVisible().catch(() => false)) {
+      throw new Error(`El Libro ${libro} muestra IMPORTAR: no parece la DDJJ presentada. No sigo.`);
+    }
+  } else {
+    await volverAlMenu(iva);
+    await pi.abrirLibro(iva, libro);
+    importacion = await pi.importarDesdeArca(iva);
+  }
 
   const dirLibro = fs.mkdtempSync(path.join(tmp, `${libro}-`));
   const bajado = await pi.descargarCsv(iva, dirLibro);
   const { csv, filas, fuera } = leerCsv(bajado, dirLibro);
   log(`${libro}: CSV con ${filas} filas de datos, ${fuera} con fecha fuera del periodo`);
   if (filas === 0) throw new Error(`El CSV de ${libro} bajo vacio: no archivo nada.`);
+  let control = null;
+  if (presentada) {
+    control = controlarContraVistaPrevia(libro, totalesCsv(csv), presentada.totales);
+    log(`${libro}: coincide con la DDJJ presentada (neto operaciones ${control.neto_operaciones}, NC ${control.neto_notas_credito})`);
+  }
 
   const xlsx = path.join(dirLibro, nombre);
   const salida = execFileSync(PYTHON, [path.join(__dirname, 'csv_a_excel.py'), csv, xlsx, `--libro=${libro}`], { encoding: 'utf-8' });
@@ -184,7 +262,7 @@ async function bajarLibro(iva, libro, destinoDir, tmp) {
   const csvViejo = destino && destino.replace(/\.xlsx$/, '.csv');
   const aviso = csvViejo && fs.existsSync(csvViejo) ? `Quedo tambien ${path.basename(csvViejo)} de una bajada anterior: borralo si el .xlsx es el bueno.` : null;
 
-  return { libro, ok: true, importacion, filas, filasFueraDePeriodo: fuera, archivo, aviso };
+  return { libro, ok: true, importacion, control_ddjj: control, filas, filasFueraDePeriodo: fuera, archivo, aviso };
 }
 
 let CUIT_ACTUAL = null;
@@ -209,9 +287,9 @@ async function unaSociedad(pedida) {
     else rutas.carpetaSociedad(cuit);
   } catch (e) { return { ...fila, error: e.message, code: 'destino_no_resuelto' }; }
 
-  const acuse = acuseIva(cuit);
+  const acuse = PRESENTADA ? null : acuseIva(cuit);
   if (acuse && !AUNQUE_PRESENTADA) {
-    return { ...fila, error: `La DDJJ de IVA ${PERIODO} ya esta presentada (${acuse}): no entro, podria abrir una rectificativa. Si igual hace falta, --aunque-presentada.`, code: 'ddjj_presentada' };
+    return { ...fila, error: `La DDJJ de IVA ${PERIODO} ya esta presentada (${acuse}): no entro al borrador, podria abrir una rectificativa. Para bajar los libros presentados: --presentada.`, code: 'ddjj_presentada' };
   }
 
   // Todo lo que ya existe y se saltea no necesita login.
@@ -226,20 +304,28 @@ async function unaSociedad(pedida) {
   const context = await browser.newContext({ locale: 'es-AR', acceptDownloads: true });
   const page = await context.newPage();
   try {
-    log(`${fila.sociedad} · CUIT ${cuit} · periodo ${PERIODO} · ${pendientes.join(' + ')}`);
+    log(`${fila.sociedad} · CUIT ${cuit} · periodo ${PERIODO} · ${pendientes.join(' + ')}${PRESENTADA ? ' · DDJJ presentada' : ''}`);
     log('entrando a ARCA…');
     await login(page, { cuitLogin, password });
     const iva = await pi.abrirPortalIva(context, page);
     fila.representando = (await pi.asegurarRepresentacion(iva, cuit)).linea;
-    await pi.abrirBorrador(iva, PERIODO);
-    fila.datosInicialesConfigurados = await pi.datosIniciales(iva);
+    let hoja = iva, presentada = null;
+    if (PRESENTADA) {
+      presentada = await pi.abrirPresentada(context, iva, PERIODO);
+      hoja = presentada.vista;
+      fila.ddjj = { formulario: presentada.elegida.formulario, secuencia: presentada.elegida.secuencia,
+        presentada_el: presentada.elegida.presentada, secuencias_del_periodo: presentada.secuencias.length };
+    } else {
+      await pi.abrirBorrador(iva, PERIODO);
+      fila.datosInicialesConfigurados = await pi.datosIniciales(iva);
+    }
 
     for (const libro of pendientes) {
       try {
-        fila.libros.push(await bajarLibro(iva, libro, destinoDir, tmp));
+        fila.libros.push(await bajarLibro(hoja, libro, destinoDir, tmp, presentada));
       } catch (e) {
         // Un libro que falla no frena al otro, salvo que sea un corte de ARCA.
-        if (['captcha', 'credenciales_invalidas', 'otro_borrador_abierto'].includes(e.code)) throw e;
+        if (['captcha', 'credenciales_invalidas', 'otro_borrador_abierto', 'sin_presentacion'].includes(e.code)) throw e;
         log(`${libro}: ERROR ${e.message}`);
         fila.libros.push({ libro, ok: false, error: e.message, code: e.code || 'error' });
       }
@@ -275,7 +361,7 @@ async function unaSociedad(pedida) {
   prefijo = '';
   const ok = resultados.every((r) => r.ok);
   console.log(JSON.stringify(PEDIDAS.length === 1 ? resultados[0] : {
-    ok, periodo: PERIODO, libros: LIBROS,
+    ok, periodo: PERIODO, libros: LIBROS, modo: PRESENTADA ? 'presentada' : 'borrador',
     procesadas: resultados.length, pedidas: PEDIDAS.length,
     con_error: resultados.filter((r) => !r.ok).map((r) => ({ sociedad: r.sociedad, error: r.error || r.libros.filter((l) => !l.ok).map((l) => `${l.libro}: ${l.error}`).join(' | ') })),
     resultados,

@@ -30,7 +30,12 @@ node scripts/portal-iva-descarga.js --nombre="<sociedad>"                    # m
 node scripts/portal-iva-descarga.js --nombre="<sociedad>" --periodo=08/2026
 node scripts/portal-iva-descarga.js --nombres="<A>;<B>" --periodo=08/2026 --si-existe=saltear
 node scripts/portal-iva-descarga.js --cuit=<CUIT> --libros=ventas
+node scripts/portal-iva-descarga.js --nombre="<sociedad>" --periodo=08/2026 --presentada   # DDJJ ya presentada
 ```
+
+`--presentada` baja los libros de la DDJJ ya presentada (última secuencia), en solo
+lectura: no importa ni toca el borrador, nunca clickea "Rectificar" y antes de archivar
+controla que el neto gravado coincida al centavo con la vista previa de la DDJJ.
 
 Se trabaja a mes vencido: sin `--periodo` toma el mes anterior. `--ver` muestra el
 navegador. `--no-archivar` deja los Excel en `~/Documents/BVA-salidas/portal-iva/`
