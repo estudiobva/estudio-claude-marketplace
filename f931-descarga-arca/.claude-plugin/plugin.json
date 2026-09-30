@@ -1,0 +1,8 @@
+{
+  "name": "f931-descarga-arca",
+  "description": "Baja los F.931 ya presentados de una sociedad desde Declaración en Línea (ARCA) con Playwright: se loguea solo con la planilla de claves y entrega un PDF por período (AAAAMM.pdf). Solo lee.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arca", "afip", "f931", "931", "declaracion en linea", "cargas sociales", "sueldos", "playwright", "argentina"]
+}

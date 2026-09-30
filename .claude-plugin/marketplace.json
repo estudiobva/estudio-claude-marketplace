@@ -56,6 +56,12 @@
       "source": "./facturacion-arca",
       "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
       "category": "contabilidad"
+    },
+    {
+      "name": "f931-descarga-arca",
+      "source": "./f931-descarga-arca",
+      "description": "Baja los F.931 ya presentados de una sociedad desde Declaración en Línea (ARCA), con login automático desde la planilla de claves: un PDF por período (AAAAMM.pdf).",
+      "category": "contabilidad"
     }
   ]
 }
