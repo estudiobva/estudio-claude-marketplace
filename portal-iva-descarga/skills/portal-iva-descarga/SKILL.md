@@ -1,6 +1,6 @@
 ---
 name: portal-iva-descarga
-description: "Baja del Portal IVA de ARCA el Libro IVA Compras y el Libro IVA Ventas de una o varias sociedades para un periodo (por defecto el mes anterior), importando primero desde ARCA al borrador, los convierte a Excel y los archiva en la unidad compartida como 'AAAAMM - PORTAL IVA - COMPRAS.xlsx' y 'AAAAMM - PORTAL IVA - VENTAS.xlsx' en la carpeta IVA del mes, sin dejar el CSV. Corre un script de Playwright que se loguea solo con la planilla de claves del estudio. Usar SIEMPRE que pidan \"bajar el Portal IVA\", \"descargar compras y ventas del Portal IVA\", \"bajar el libro IVA de [sociedad] [mes]\", \"traer las compras/ventas de ARCA\" o \"preparar el IVA del mes\". Es el paso 1 del circuito conciliacion-ncr: conciliar-ncr.py lee este Excel de compras igual que el CSV. No confundir con portal-iva-compras (carga CSV ya bajados en el template input_portal) ni con arca-portal-iva de fisco-ar (solo totales)."
+description: "Baja del Portal IVA de ARCA el Libro IVA Compras y el Libro IVA Ventas de una o varias sociedades para un periodo (por defecto el mes anterior), importando primero desde ARCA al borrador, los convierte a Excel y los archiva en la unidad compartida como 'AAAAMM - PORTAL IVA - COMPRAS.xlsx' y 'AAAAMM - PORTAL IVA - VENTAS.xlsx' en la carpeta IVA del mes, sin dejar el CSV. Corre un script de Playwright que se loguea solo con la planilla de claves del estudio. Usar SIEMPRE que pidan \"bajar el Portal IVA\", \"descargar compras y ventas del Portal IVA\", \"bajar el libro IVA de [sociedad] [mes]\", \"traer las compras/ventas de ARCA\" o \"preparar el IVA del mes\". Es el paso 1 del circuito conciliacion-ncr: conciliar-ncr.py lee este Excel de compras igual que el CSV. Con --presentada baja los libros de una DDJJ YA PRESENTADA (ultima secuencia, solo lectura, controlados contra la vista previa): usarlo cuando pidan \"los libros de la DDJJ presentada\", \"el libro IVA presentado de [mes]\" o un periodo ya presentado. No confundir con portal-iva-compras (carga CSV ya bajados en el template input_portal) ni con arca-portal-iva de fisco-ar (solo totales)."
 ---
 
 # Descarga del Portal IVA — Compras y Ventas
@@ -20,6 +20,7 @@ de presentar. Sin `--periodo` el script toma el mes anterior al de hoy.
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombre="<sociedad>"                # mes anterior
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombre="<sociedad>" --periodo=08/2026
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombres="<A>;<B>;<C>" --periodo=08/2026
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombre="<sociedad>" --periodo=08/2026 --presentada   # DDJJ ya presentada
 ```
 
 | Argumento | Para que |
@@ -29,7 +30,8 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombres="
 | `--periodo` | `MM/AAAA` o `AAAAMM`. Default: el mes anterior. |
 | `--libros` | `compras`, `ventas` o `compras,ventas` (default los dos). |
 | `--si-existe` | Si ya esta el `.xlsx`: `abortar` (default), `saltear` (ni entra a ARCA si estan los dos) o `reemplazar`. |
-| `--aunque-presentada` | Entra aunque haya acuse de la DDJJ IVA del periodo (ver Reglas). |
+| `--presentada` | Baja los libros de la DDJJ **ya presentada** (ver abajo). No importa ni toca el borrador. |
+| `--aunque-presentada` | Entra **al borrador** aunque haya acuse de la DDJJ IVA del periodo (ver Reglas). Para bajar lo presentado, usar `--presentada`. |
 | `--no-archivar` | Deja los Excel en `~/Documents/BVA-salidas/portal-iva/` y no toca el Drive. Igual importa al borrador. |
 | `--ver` | Navegador visible. Para lotes conviene headless. |
 
@@ -38,6 +40,30 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-descarga.js --nombres="
 Las credenciales van en `~/.fisco-ar/.env` (copiar `.env.example`), que sobrevive a
 las actualizaciones. En Mac, `BVA_UNIDAD_PATH` tiene que apuntar a la unidad
 compartida montada por Google Drive.
+
+## DDJJ ya presentadas (`--presentada`)
+
+Para bajar los libros tal como quedaron presentados (por ejemplo, para cruzar con
+el padron o armar el estado de resultados de meses cerrados). El script entra
+solo, igual que en el modo normal, y va por:
+
+**Declaraciones juradas presentadas → Libro IVA → "Ver"** de la ultima secuencia
+del periodo (si hay rectificativas, la mas reciente) → **Libro Compras / Ventas**,
+que se abren sin el boton IMPORTAR → CSV.
+
+- **No toca el borrador ni importa nada.** Nunca clickea "Rectificar" (esta en la
+  lista de botones prohibidos del modulo).
+- **Control antes de archivar:** el neto gravado del CSV (operaciones y notas de
+  credito por separado) tiene que coincidir al centavo con la vista previa de la
+  DDJJ. Si no coincide, no archiva. El IVA se informa (`control_ddjj`) pero no se
+  exige: ARCA redondea por alicuota y difiere en unos pocos pesos.
+- No mira el acuse de la carpeta: si ARCA no tiene presentacion del periodo, corta
+  con `sin_presentacion`.
+- Mismo nombre y carpeta que el modo normal (`AAAAMM - PORTAL IVA - COMPRAS.xlsx`).
+  Si ya existe el del borrador, pasar `--si-existe=reemplazar` para quedarse con el
+  presentado.
+- El JSON trae `ddjj`: formulario, secuencia, fecha de presentacion y cuantas
+  secuencias tiene el periodo.
 
 ## Que entrega
 
@@ -64,8 +90,9 @@ usuario sociedad, periodo, comprobantes de cada libro y donde quedo.
 - **Nunca presenta** ni toca Presentar / Confirmar / Generar DJ / Eliminar todos /
   Descartar: el modulo `lib/portal-iva.js` aborta si un click cae en esa lista.
 - **DDJJ ya presentada:** si en la carpeta del mes hay un acuse `AAAAMM-IVA-ACUSE-*`,
-  no entra (con el periodo presentado, "Nueva declaracion jurada" puede abrir una
-  rectificativa). `--aunque-presentada` solo si el usuario lo pide para ese periodo.
+  el modo normal no entra al borrador (con el periodo presentado, "Nueva declaracion
+  jurada" puede abrir una rectificativa). Para bajar lo presentado: `--presentada`.
+  `--aunque-presentada` solo si el usuario pide expresamente entrar al borrador.
 - **Un solo borrador por sociedad:** si ARCA tiene otro periodo sin presentar, corta
   con `otro_borrador_abierto`. Descartarlo borra lo cargado: nunca sin autorizacion
   expresa del usuario.

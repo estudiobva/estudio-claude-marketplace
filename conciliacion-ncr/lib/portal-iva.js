@@ -4,13 +4,13 @@
 // in Chrome. Es el mismo para Compras y Ventas salvo la tarjeta del libro.
 //
 // REGLA DURA: esto solo deja el borrador cargado y se lleva el listado.
-// NUNCA toca Presentar / Confirmar / Generar DJ ni "ELIMINAR TODOS".
+// NUNCA toca Presentar / Confirmar / Generar DJ / "ELIMINAR TODOS" / Rectificar.
 // Ver `SELECTORES_PROHIBIDOS` abajo.
 
 const IVA_URL = 'https://siapweb.cloud.afip.gob.ar/iva/';
 
 // Textos que este modulo no debe clickear jamas. Se chequea en clickSeguro().
-const SELECTORES_PROHIBIDOS = /presentar|confirmar|generar\s+dj|eliminar\s+todos|descartar/i;
+const SELECTORES_PROHIBIDOS = /presentar|confirmar|generar\s+dj|eliminar\s+todos|descartar|rectific/i;
 
 const log = (m) => process.stderr.write(`[portal-iva] ${m}\n`);
 
@@ -78,7 +78,7 @@ async function asegurarRepresentacion(page, cuitObjetivo) {
   await page.waitForSelector('text=/REPRESENTAR A/i', { timeout: 20000 });
 
   // Los cards son <a class="panel">. Se matchea por CUIT, no por nombre:
-  // varias sociedades comparten nombre ("Bernal") y el CUIT desempata.
+  // varias sociedades comparten parte del nombre y el CUIT desempata.
   const ok = await page.evaluate((cuit) => {
     const panels = Array.from(document.querySelectorAll('a.panel, a[href*="#/"], .panel'));
     const hit = panels.find(p => p.textContent.replace(/\D/g, '').includes(cuit));
@@ -117,7 +117,7 @@ async function clickBotonDeTarjeta(page, tituloRegex, textoBoton, descripcion) {
   const resultado = await page.evaluate(({ titulo, texto }) => {
     const reT = new RegExp(titulo, 'i');
     const reB = new RegExp(texto, 'i');
-    const prohibido = /presentar|confirmar|generar\s+dj|eliminar\s+todos|descartar/i;
+    const prohibido = /presentar|confirmar|generar\s+dj|eliminar\s+todos|descartar|rectific/i;
 
     const botones = Array.from(document.querySelectorAll('a, button, input[type=submit]'))
       .filter(e => e.offsetParent !== null)
@@ -411,8 +411,86 @@ async function descargarCsv(page, destinoDir) {
   return destino;
 }
 
+// ── DDJJ ya presentadas (solo lectura) ─────────────────────────────────────
+//
+// Camino: inicio -> "Declaraciones juradas presentadas" CONSULTAR -> tarjeta
+// "Libro IVA" CONSULTAR (#/livas.anteriores) -> fila del periodo, boton "Ver"
+// (title="Ver") -> vista previa en liva (verVistaPrevia.do) -> menuPresentacion.do
+// -> Libro Compras / Ventas, que se abren SIN el boton IMPORTAR.
+// Cada fila tiene tambien "Rectificar": esta en SELECTORES_PROHIBIDOS y aca se
+// clickea solo el boton con title="Ver".
+
+const aNumero = (s) => Number(String(s || '0').replace(/\./g, '').replace(',', '.'));
+
+// Filas de la lista de presentadas para un periodo AAAAMM, en el orden de ARCA
+// (la primera es la ultima secuencia: la rectificativa mas reciente).
+async function listarPresentadas(page, periodoAAAAMM) {
+  const mmaaaa = `${periodoAAAAMM.slice(4, 6)}/${periodoAAAAMM.slice(0, 4)}`;
+  return page.evaluate((per) => Array.from(document.querySelectorAll('tr'))
+    .map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
+    .filter((c) => c.length >= 5 && c[2] === per)
+    .map((c) => ({ formulario: c[1], periodo: c[2], secuencia: c[3], presentada: c[4] })), mmaaaa);
+}
+
+// Abre la vista previa de la ultima presentacion del periodo. Devuelve la
+// pagina de liva (puede ser una pestaña nueva), la fila elegida, todas las
+// secuencias del periodo y los totales de la vista previa para controlar el CSV.
+async function abrirPresentada(context, page, periodoAAAAMM) {
+  log(`buscando la DDJJ presentada de ${periodoAAAAMM}`);
+  await page.waitForSelector('button:has-text("CONSULTAR"), a:has-text("CONSULTAR")', { timeout: 30000 });
+  await clickBotonDeTarjeta(page, /presentad/i, /CONSULTAR/i, 'CONSULTAR de Declaraciones juradas presentadas');
+  await page.waitForTimeout(2000);
+  await clickBotonDeTarjeta(page, /Libro IVA/i, /CONSULTAR/i, 'CONSULTAR de Libro IVA presentado');
+  await page.waitForSelector('button[title="Ver"]', { timeout: 30000 });
+  await page.waitForTimeout(1500);
+
+  const filas = await listarPresentadas(page, periodoAAAAMM);
+  if (!filas.length) {
+    const e = new Error(`ARCA no tiene ninguna DDJJ de IVA presentada para ${periodoAAAAMM}.`);
+    e.code = 'sin_presentacion';
+    throw e;
+  }
+  const elegida = filas[0];
+  log(`presentada: ${elegida.formulario} ${elegida.periodo} · ${elegida.secuencia} · ${elegida.presentada}` +
+      (filas.length > 1 ? ` (hay ${filas.length} secuencias, uso la ultima)` : ''));
+
+  const mmaaaa = elegida.periodo;
+  const fila = page.locator('tr').filter({ has: page.locator('td', { hasText: new RegExp(`^\\s*${mmaaaa.replace('/', '\\/')}\\s*$`) }) }).first();
+  const ver = fila.locator('button[title="Ver"]');
+  const nueva = context.waitForEvent('page', { timeout: 20000 }).catch(() => null);
+  await ver.click();
+  let vista = await nueva;
+  if (!vista) vista = page;
+  await vista.waitForLoadState('domcontentloaded', { timeout: 60000 });
+  await vista.waitForURL(/verVistaPrevia\.do/, { timeout: 60000 });
+  await vista.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+  await vista.waitForTimeout(1500);
+
+  // Totales de la vista previa: "Operaciones de Compras  <neto>  <exento>  <credito>".
+  const texto = await vista.innerText('body');
+  const linea = (re) => { const m = texto.match(re); return m ? { neto: aNumero(m[1]), exento: aNumero(m[2]), iva: aNumero(m[3]) } : null; };
+  const n = '([\\d.]+,\\d{2})';
+  const totales = {};
+  for (const libro of ['Compras', 'Ventas']) {
+    totales[libro.toLowerCase()] = {
+      operaciones: linea(new RegExp(`Operaciones de ${libro}\\s+${n}\\s+${n}\\s+${n}`)),
+      notasCredito: linea(new RegExp(`Notas de Cr.dito de ${libro}\\s+${n}\\s+${n}\\s+${n}`)),
+    };
+  }
+  return { vista, elegida, secuencias: filas, totales };
+}
+
+// Desde la vista previa (o un libro abierto) al menu de la presentacion.
+async function irAlMenuPresentacion(page) {
+  await page.goto(page.url().replace(/(verVistaPrevia|verCompras|verVentas)\.do.*$/i, 'menuPresentacion.do'), { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+  await page.locator('a.panel, a, .panel').filter({ hasText: /Libro\s+(Compras|Ventas)/i }).first()
+    .waitFor({ state: 'visible', timeout: 30000 });
+}
+
 module.exports = {
   IVA_URL, abrirPortalIva, representadoActual, asegurarRepresentacion, clickBotonDeTarjeta,
   abrirBorrador, datosIniciales, abrirLibro, importarDesdeArca, descargarCsv,
   clickSeguro, cerrarModales, SELECTORES_PROHIBIDOS,
+  listarPresentadas, abrirPresentada, irAlMenuPresentacion,
 };
