@@ -61,7 +61,10 @@ async function representadoActual(page) {
       .find(t => /REPRESENTANDO/i.test(t));
     return l || null;
   });
-  return { linea, cuit: linea ? (linea.replace(/\D/g, '').match(/\d{11}/) || [null])[0] : null };
+  // El CUIT se toma del formato NN-NNNNNNNN-N: juntar todos los digitos falla si
+  // la razon social tiene numeros ("FARMACIA 2 SCS" -> 2 + CUIT...).
+  const m = linea && (linea.match(/\b(\d{2})-?(\d{8})-?(\d)\b/g) || []).pop();
+  return { linea, cuit: m ? m.replace(/\D/g, '') : null };
 }
 
 // Cambia la representada si hace falta. La eleccion se conserva entre pantallas.
