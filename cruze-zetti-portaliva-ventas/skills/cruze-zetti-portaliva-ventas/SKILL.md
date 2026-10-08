@@ -30,10 +30,11 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/cruze-zetti-portaliva-ventas.js --
    `AAAAMM-papeldetrabajo-<SOCIEDAD>.xlsx`. Si el del equipo es `.xls`, crea el `.xlsx`
    aparte y lo avisa. Escribe, con el formato compacto del papel de trabajo mensual:
    - **Ventas Zetti**: A1 titulo, fila 2 titulos, datos desde la 3 (PV y numero en D y E).
-   - **Ventas Portal IVA**: A1 "Comprobantes de Ventas - CUIT ... - Portal IVA ARCA - MM/AAAA",
-     9 columnas (Fecha, Tipo "1 - Factura A", PV, Numero, No Gravado, Exento, Neto Gravado,
-     IVA, Total), NC en negativo, IVA sumado por alicuota (ARCA redondea "Total IVA" a un
-     decimal).
+   - **Ventas Portal IVA**: el CSV del Libro IVA Ventas de ARCA pasado a Excel, sin perder
+     nada: todas las columnas en el mismo orden (comprador, alicuotas, percepciones, etc.),
+     encabezado en la fila 1 y una fila por comprobante, con fechas y numeros como tales.
+     Verificado celda por celda contra el CSV crudo. (Sin la fila TOTAL ni la nota que trae
+     el archivo de la carpeta IVA.)
    - **cruze**: diferencias Zetti vs Portal (cruzar_ventas.py: facturas/NC una a una, tiques
      por dia y punto de venta contra la Z). Las NC B a Consumidor Final del controlador
      fiscal (PV chicos) van a **NC controlador (fuera)**: no estan en el Portal porque van
@@ -56,6 +57,6 @@ Usa el mismo `~/.fisco-ar/.env` que los demas plugins (`CLAVES_ORGANISMOS_PATH` 
 planilla de la unidad; en Mac, `BVA_UNIDAD_PATH`). Credenciales: ARCA por sociedad y la
 fila "Zetti T&S Web (todas las sociedades)" de Claves_Organismos.xlsx.
 
-Validado 08/10/2026: hojas Ventas Zetti y Ventas Portal IVA identicas celda por celda a
-un papel armado a mano (08/2026); en 09/2026 la diferencia total quedo explicada por las NC
+Validado 08/10/2026: hoja Ventas Zetti identica celda por celda a un papel armado a mano y
+Ventas Portal IVA identica al CSV crudo de ARCA (08/2026); en 09/2026 la diferencia total quedo explicada por las NC
 del controlador y un corrimiento de fecha de un cierre Z.
