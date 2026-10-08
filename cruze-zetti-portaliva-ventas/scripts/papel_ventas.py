@@ -5,12 +5,13 @@ le agrega el cruce.
                             --papel=<AAAAMM-papeldetrabajo-X.xlsx> --cuit=<CUIT> --periodo=AAAAMM
                             [--si-existe=abortar|reemplazar] [--respaldos=<carpeta>]
 
-Hojas que escribe (formato compacto del papel de trabajo mensual):
-  "Ventas Portal IVA"  A1 "Comprobantes de Ventas - CUIT <cuit> - Portal IVA ARCA - MM/AAAA",
-                       fila 2 titulos, datos desde la fila 3: Fecha de Emision | Tipo de
-                       Comprobante ("1 - Factura A") | Punto de Venta | Numero de Comprobante |
-                       Importe No Gravado | Importe Exento | Total Neto Gravado | Total IVA |
-                       Importe Total. NC en negativo, ordenado por tipo y fecha.
+Hojas que escribe:
+  "Ventas Portal IVA"  el Libro IVA Ventas del Portal tal como lo da ARCA en el CSV: las
+                       mismas columnas (todas) en el mismo orden, fila 1 encabezados y
+                       una fila por comprobante, solo que pasado a Excel con tipos reales
+                       (fechas, numeros). Sale de AAAAMM - PORTAL IVA - VENTAS.xlsx, que es
+                       la conversion 1 a 1 del CSV (csv_a_excel.py); no se copian la fila
+                       TOTAL ni la nota al pie que ese archivo agrega.
   "Ventas Zetti"       la hoja de AAAAMM - ZETTI - VENTAS.xlsx tal cual (ya sale con el
                        formato del papel).
   "cruze"              el cruce de cruzar_ventas.py (modo dos archivos: separa las NC B
@@ -33,40 +34,9 @@ from copy import copy
 from datetime import datetime
 
 import openpyxl
-from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-CONTABLE = '_-"$"\\ * #,##0.00_-;\\-"$"\\ * #,##0.00_-;_-"$"\\ * "-"??_-;_-@_-'
-CHICA = Font(size=10)
-
-# Codigos de comprobante de ARCA, con el texto que usa el papel de trabajo.
-TIPOS = {
-    1: 'Factura A', 2: 'Nota de Débito A', 3: 'Nota de Crédito A', 4: 'Recibo A',
-    5: 'Nota de Venta al contado A', 6: 'Factura B', 7: 'Nota de Débito B', 8: 'Nota de Crédito B',
-    9: 'Recibo B', 10: 'Nota de Venta al contado B', 11: 'Factura C', 12: 'Nota de Débito C',
-    13: 'Nota de Crédito C', 15: 'Recibo C', 19: 'Factura de Exportación E',
-    20: 'Nota de Débito por Operaciones con el Exterior E',
-    21: 'Nota de Crédito por Operaciones con el Exterior E', 51: 'Factura M',
-    52: 'Nota de Débito M', 53: 'Nota de Crédito M', 81: 'Tique Factura A', 82: 'Tique Factura B',
-    83: 'Tique', 109: 'Tique C', 110: 'Tique Nota de Crédito', 111: 'Tique Factura C',
-    112: 'Tique Nota de Crédito A', 113: 'Tique Nota de Crédito B', 114: 'Tique Nota de Crédito C',
-    115: 'Tique Nota de Débito A', 116: 'Tique Nota de Débito B', 117: 'Tique Nota de Débito C',
-    118: 'Tique Factura M', 119: 'Tique Nota de Crédito M', 120: 'Tique Nota de Débito M',
-    201: 'Factura de Crédito electrónica MiPyMEs (FCE) A',
-    202: 'Nota de Débito electrónica MiPyMEs (FCE) A',
-    203: 'Nota de Crédito electrónica MiPyMEs (FCE) A',
-    206: 'Factura de Crédito electrónica MiPyMEs (FCE) B',
-    207: 'Nota de Débito electrónica MiPyMEs (FCE) B',
-    208: 'Nota de Crédito electrónica MiPyMEs (FCE) B',
-    211: 'Factura de Crédito electrónica MiPyMEs (FCE) C',
-    212: 'Nota de Débito electrónica MiPyMEs (FCE) C',
-    213: 'Nota de Crédito electrónica MiPyMEs (FCE) C',
-}
-COLS_PORTAL = ['Fecha de Emisión', 'Tipo de Comprobante', 'Punto de Venta', 'Número de Comprobante',
-               'Importe No Gravado', 'Importe Exento', 'Total Neto Gravado', 'Total IVA', 'Importe Total']
-IMPORTES_PORTAL = COLS_PORTAL[4:]
-
 
 def fallar(msg, **extra):
     print(json.dumps({'ok': False, 'error': msg, **extra}, ensure_ascii=False, default=str))
@@ -92,46 +62,18 @@ def hoja(wb, *palabras):
     return None
 
 
-def tipo_texto(v):
-    if isinstance(v, str) and ' - ' in v:
-        return v
-    try:
-        n = int(v)
-    except (TypeError, ValueError):
-        return v
-    return f'{n} - {TIPOS.get(n, "Comprobante")}'
-
-
 def filas_portal(ruta):
-    """Filas del Libro IVA Ventas del Portal (xlsx de portal-iva-descarga) en el
-    orden y las columnas de la hoja del papel."""
-    wb = leer(ruta, data_only=True)
-    n = hoja(wb, 'portal') or wb.sheetnames[0]
-    ws = wb[n]
-    filas = list(ws.iter_rows(values_only=True))
-    tit = [str(c or '').strip() for c in filas[0]]
-    faltan = [c for c in COLS_PORTAL if c not in tit]
-    if faltan:
-        fallar(f'Al Libro IVA Ventas del Portal le faltan columnas: {faltan}', archivo=ruta)
-    idx = [tit.index(c) for c in COLS_PORTAL]
-    # "Total IVA" del CSV de ARCA viene redondeado a un decimal (35.236,9); el
-    # papel usa la suma de las columnas "Importe IVA x%" (35.236,85).
-    alicuotas = [i for i, t in enumerate(tit) if t.startswith('Importe IVA')]
-    out = []
-    for f in filas[1:]:
-        if not isinstance(f[idx[0]], datetime):
-            continue  # TOTAL y nota al pie
-        r = [f[i] for i in idx]
-        if alicuotas:
-            r[7] = round(sum(f[i] or 0 for i in alicuotas), 2)
-        r[1] = tipo_texto(r[1])
-        for j in range(4, 9):
-            r[j] = r[j] or 0
-        out.append(r)
-    # Orden del papel: por codigo de comprobante y fecha (estable: dentro del dia
-    # queda el orden de ARCA).
-    out.sort(key=lambda r: (int(str(r[1]).split(' ')[0]) if str(r[1]).split(' ')[0].isdigit() else 999, r[0]))
-    return out
+    """Hoja del Libro IVA Ventas (xlsx de portal-iva-descarga): encabezado y filas
+    de comprobantes, sin la fila TOTAL ni la nota al pie. Devuelve la hoja de
+    origen y la cantidad de filas a copiar (encabezado incluido)."""
+    wb = leer(ruta)
+    ws = wb[hoja(wb, 'portal') or wb.sheetnames[0]]
+    if str(ws.cell(1, 1).value or '').strip() != 'Fecha de Emisión':
+        fallar('El Libro IVA Ventas del Portal no empieza con el encabezado del CSV de ARCA.', archivo=ruta)
+    n = 1
+    while isinstance(ws.cell(n + 1, 1).value, datetime):
+        n += 1
+    return ws, n
 
 
 def limpiar(ws):
@@ -144,26 +86,9 @@ def tiene_datos(ws):
     return any(c.value not in (None, '') for row in ws.iter_rows(max_row=min(ws.max_row, 10)) for c in row)
 
 
-def escribir_portal(ws, filas, cuit, periodo):
-    ws['A1'] = f'Comprobantes de Ventas - CUIT {cuit} - Portal IVA ARCA - {periodo[4:]}/{periodo[:4]}'
-    for j, t in enumerate(COLS_PORTAL, start=1):
-        c = ws.cell(2, j, t)
-        if t in IMPORTES_PORTAL:
-            c.number_format, c.font = CONTABLE, CHICA
-    for i, r in enumerate(filas, start=3):
-        for j, v in enumerate(r, start=1):
-            c = ws.cell(i, j, v)
-            if j == 1:
-                c.number_format = 'dd/mm/yyyy'
-            elif j >= 5:
-                c.number_format, c.font = CONTABLE, CHICA
-    for col, w in zip('ABCDEFGHI', (11, 24, 8, 12, 17, 16, 17, 15, 17)):
-        ws.column_dimensions[col].width = w
-
-
-def copiar_hoja(origen, destino):
+def copiar_hoja(origen, destino, max_row=None):
     """Copia valores, formatos, combinadas y anchos de una hoja a otra (de otro libro)."""
-    for row in origen.iter_rows():
+    for row in origen.iter_rows(max_row=max_row):
         for c in row:
             if c.value is None and not c.has_style:
                 continue
@@ -172,13 +97,16 @@ def copiar_hoja(origen, destino):
                 d.font, d.fill, d.border = copy(c.font), copy(c.fill), copy(c.border)
                 d.alignment, d.number_format = copy(c.alignment), c.number_format
     for rango in origen.merged_cells.ranges:
-        destino.merge_cells(str(rango))
+        if max_row is None or rango.max_row <= max_row:
+            destino.merge_cells(str(rango))
     for k, v in origen.column_dimensions.items():
         destino.column_dimensions[k].width = v.width
     for k, v in origen.row_dimensions.items():
-        if v.height:
+        if v.height and (max_row is None or k <= max_row):
             destino.row_dimensions[k].height = v.height
     destino.freeze_panes = origen.freeze_panes
+    if origen.auto_filter.ref and max_row is not None:
+        destino.auto_filter.ref = f'A1:{get_column_letter(origen.max_column)}{max_row}'
 
 
 def main():
@@ -192,9 +120,9 @@ def main():
     ap.add_argument('--respaldos', default=os.path.join(os.path.expanduser('~'), 'Documents', 'BVA-salidas', '_respaldos', 'papeles'))
     a = ap.parse_args()
 
-    # 1) Portal IVA -> filas del papel
-    portal = filas_portal(a.portal)
-    if not portal:
+    # 1) Portal IVA: el CSV de ARCA pasado a Excel, todas las columnas
+    ws_p, filas_p = filas_portal(a.portal)
+    if filas_p < 2:
         fallar('El Libro IVA Ventas del Portal no tiene comprobantes.', archivo=a.portal)
 
     # 2) Zetti: la hoja ya viene con el formato del papel
@@ -207,16 +135,9 @@ def main():
     # 3) Cruce (modo dos archivos de cruzar_ventas.py) a un temporal
     tmp = tempfile.mkdtemp(prefix='bva-cruze-')
     try:
-        # El cruce lee la misma hoja del Portal que va al papel (con el IVA sumado
-        # por alicuota, no el "Total IVA" redondeado de ARCA).
-        portal_papel = os.path.join(tmp, f'{a.periodo} - PORTAL IVA - VENTAS.xlsx')
-        wb_pp = openpyxl.Workbook()
-        escribir_portal(wb_pp.active, portal, a.cuit, a.periodo)
-        wb_pp.active.title = 'Ventas Portal IVA'
-        wb_pp.save(portal_papel)
         salida_cruce = os.path.join(tmp, 'cruce.xlsx')
         p = subprocess.run([sys.executable, os.path.join(AQUI, 'cruzar_ventas.py'), f'--zetti={a.zetti}',
-                            f'--portal={portal_papel}', f'--salida={salida_cruce}'],
+                            f'--portal={a.portal}', f'--salida={salida_cruce}'],
                            capture_output=True, text=True)
         try:
             cruce = json.loads(p.stdout)
@@ -268,7 +189,7 @@ def main():
         ws = preparar('Ventas Zetti', destinos[0][1])
         copiar_hoja(ws_z, ws)
         ws = preparar('Ventas Portal IVA', destinos[1][1])
-        escribir_portal(ws, portal, a.cuit, a.periodo)
+        copiar_hoja(ws_p, ws, max_row=filas_p)
         ws = preparar('cruze', destinos[2][1])
         copiar_hoja(wb_c[hojas_cruce[0]], ws)
         for nombre, existente in destinos[3:]:
@@ -284,7 +205,7 @@ def main():
     chequeo = cruce.get('chequeo_vs_totales_de_los_archivos', {})
     print(json.dumps({
         'ok': True, 'papel': a.papel, 'papel_nuevo': nuevo, 'respaldo': respaldo,
-        'filas_portal': len(portal), 'filas_zetti': max(ws_z.max_row - 2, 0),
+        'filas_portal': filas_p - 1, 'filas_zetti': max(ws_z.max_row - 2, 0),
         'hojas': [n for n in wb.sheetnames],
         'cruce': {
             'filas_diferencia': cruce.get('cantidad_filas_diferencia'),
