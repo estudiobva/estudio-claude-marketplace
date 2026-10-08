@@ -1,7 +1,7 @@
 {
   "name": "zetti-subdiario-iva-ventas",
   "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (reporte 5.6.5) de una, varias o todas las sociedades para un mes, lo pasa a Excel ordenado por tipo de comprobante y lo archiva en la carpeta IVA del mes como 'AAAAMM - ZETTI - VENTAS.xlsx'. Login automático con la planilla de claves.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
   "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
   "keywords": ["zetti", "t&s web", "subdiario", "iva ventas", "playwright", "argentina"]

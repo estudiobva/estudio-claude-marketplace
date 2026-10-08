@@ -81,22 +81,27 @@ No archiva (y lo informa con `ok: false`) si:
 
 `[Sociedad]/01-Impuestos Mensuales/AAAAMM/IVA/AAAAMM - ZETTI - VENTAS.xlsx` (la
 misma carpeta que el Portal IVA: con carpeta de año va en `AAAA/AAAAMM/IVA/`, y si
-existe `AAAAMM-IVA` se usa esa). Hoja **"Ventas Zetti"**:
+existe `AAAAMM-IVA` se usa esa). Hoja **"Ventas Zetti"** con el mismo formato que
+la solapa "Ventas Zetti" del papel de trabajo mensual, para copiarla tal cual:
 
-- Fila 1 `T&S Web`, fila 2 razon social, fila 3 `Fecha des:` / `Fecha has:`, fila 4
-  `Subdiario de IVA Ventas` + `C.U.I.T.:` (texto).
-- Fila 6 titulos y datos desde la fila 7, columnas contiguas: A Fecha, B TC, C M,
-  D Nro. Comp., E Cliente, F CUIT, G RESP, H Exen, I Grav, J IVA, K P.IB, L P.IVA,
-  M Total, N Cod. (901/902 del reporte, tal cual).
-- Fechas como fecha, importes como numero con 2 decimales, CUITs y Nro. Comp. como
-  texto. Ordenado por TC (FV, NC, ND, Z) manteniendo el orden por fecha dentro de
-  cada tipo. Fila **TOTAL** con `=SUM()` al pie.
+- Fila 1: `<razon social>  -  CUIT NN-NNNNNNNN-N  -  Subdiario de IVA Ventas MM/AAAA`.
+- Fila 2: Fecha | TC | M | Nro. Comp. | (sin titulo) | Cliente | CUIT | RESP | Exen | Grav | IVA | P.IB | Total.
+- Datos desde la fila 3. El comprobante va partido: D = punto de venta y E =
+  numero, los dos como numero (`0006-00000070` -> 6 y 70).
+- Fechas como fecha, importes con formato contable `$`. Ordenado por TC, letra
+  (A antes que B) y fecha.
+- Sin fila de totales, sin P.IVA y sin el codigo 901/902 del reporte (el papel no
+  los tiene). Si P.IVA viniera con importe, el JSON trae `aviso_piva` (el Total
+  lo incluye).
+
+Validado contra el papel de Sanar 64 08/2026: las 60 filas iguales celda por
+celda (ese papel no tenia el 31/08 porque se exporto hasta el 30/08).
 
 ## Respuesta al usuario
 
 En 2-3 lineas por sociedad: sociedad, periodo, cantidad de comprobantes por TC y
 totales de Exen, Grav, IVA y Total (del JSON), y donde quedo el archivo. Si hubo
-`redondeo`, mencionarlo en una linea. Si una sociedad fallo, decir el motivo
+`redondeo`, `aviso_piva` o `aviso_nro`, mencionarlo en una linea. Si una sociedad fallo, decir el motivo
 (`error` / `code`) en vez de adivinar:
 
 - `sin_credenciales` / `clave_rechazada`: falta o esta mal la fila ZETTI de la planilla.

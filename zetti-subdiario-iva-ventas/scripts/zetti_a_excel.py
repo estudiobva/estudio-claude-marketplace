@@ -2,7 +2,7 @@
 
     python3 zetti_a_excel.py <entrada.csv> <salida.xlsx> [--periodo=AAAAMM]
 
-El CSV de T&S Web viene en latin-1, separado por ";" y con columnas vacias
+El CSV de T&S Web viene en UTF-8 (a veces latin-1), separado por ";" y con columnas vacias
 intercaladas:
     filas 1-5  encabezado (T&S Web, fecha de emision, "Subdiario de IVA Ventas",
                Fecha des/has, Nodo, Razon social, C.U.I.T.)
@@ -11,12 +11,14 @@ intercaladas:
                por cierre de caja)
     ultima     ";;;...Total:;;;<Exen>;;<Grav>;<IVA>;;;<P.IB>;;<P.IVA>;<Total>"
 
-Salida (hoja "Ventas Zetti"):
-    fila 1 T&S Web | fila 2 razon social | fila 3 Fecha des / Fecha has
-    fila 4 Subdiario de IVA Ventas + C.U.I.T. (texto) | fila 6 titulos
-    datos desde la fila 7, columnas contiguas A..N, ordenados por TC (FV, NC,
-    ND, Z...) manteniendo el orden por fecha dentro de cada TC, y fila TOTAL
-    con SUM.
+Salida: hoja "Ventas Zetti" con el formato de la solapa del papel de trabajo
+mensual, para copiarla tal cual:
+    fila 1  "<razon social>  -  CUIT NN-NNNNNNNN-N  -  Subdiario de IVA Ventas MM/AAAA"
+    fila 2  Fecha | TC | M | Nro. Comp. (D = punto de venta, E = numero) | Cliente
+            | CUIT | RESP | Exen | Grav | IVA | P.IB | Total
+    datos   desde la fila 3, ordenados por TC, letra y fecha; sin fila de totales.
+P.IVA y el codigo 901/902 del reporte no van (el papel no los tiene); si P.IVA
+viniera con importe se avisa en el JSON.
 
 Imprime por stdout un JSON con razon social, CUIT, fechas, cantidad por TC,
 totales y el control contra la fila "Total:" del reporte. Sale con 1 (y el
@@ -32,7 +34,7 @@ import sys
 from datetime import datetime
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 # Titulo del reporte -> clave interna. El codigo final (901/902) no tiene titulo.
@@ -90,8 +92,14 @@ def main():
     entrada, salida = pos
     periodo = opts.get('periodo')
 
-    with open(entrada, encoding='latin-1', newline='') as fh:
-        filas = list(csv.reader(fh, delimiter=';'))
+    # T&S Web lo baja en UTF-8 (la skill manual decia latin-1: con latin-1 la Ñ
+    # sale "Ã\x91"). Si no es UTF-8 valido, latin-1.
+    crudo = open(entrada, 'rb').read()
+    try:
+        texto = crudo.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        texto = crudo.decode('latin-1')
+    filas = list(csv.reader(texto.splitlines(), delimiter=';'))
 
     i_tit = next((i for i, f in enumerate(filas) if f and f[0].strip() == 'Fecha' and 'TC' in [c.strip() for c in f]), None)
     if i_tit is None:
@@ -151,67 +159,56 @@ def main():
     difs = {k: round(suma[k] - total_reporte[k], 2) for k in IMPORTES if abs(suma[k] - total_reporte[k]) >= 0.005}
     graves = {k: v for k, v in difs.items() if k == 'total' or abs(v) > TOLERANCIA}
 
-    # Orden: por TC de la A a la Z; sorted() es estable, asi que dentro de cada
-    # TC queda el orden del reporte (por fecha).
-    datos.sort(key=lambda r: r['tc'])
+    # Orden de la solapa del papel de trabajo: TC, letra y fecha. sorted() es
+    # estable: dentro de una misma fecha queda el orden del reporte.
+    datos.sort(key=lambda r: (r['tc'], r['m'], r['fecha']))
+
+    # "0006-00000070" -> punto de venta 6 y numero 70, como en el papel.
+    sin_separar = 0
+    for r in datos:
+        m = re.fullmatch(r'(\d+)-(\d+)', r['nro'])
+        if m:
+            r['pv'], r['numero'] = int(m.group(1)), int(m.group(2))
+        else:
+            r['pv'], r['numero'] = r['nro'], None
+            sin_separar += 1
 
     wb = Workbook()
     ws = wb.active
     ws.title = 'Ventas Zetti'
-    negrita = Font(bold=True)
-    ws['A1'] = 'T&S Web'
-    ws['A2'] = razon
-    ws['A3'] = 'Fecha des:'
-    ws['B3'] = fecha(desde) or desde
-    ws['C3'] = 'Fecha has:'
-    ws['D3'] = fecha(hasta) or hasta
-    for c in ('B3', 'D3'):
-        ws[c].number_format = 'DD/MM/YYYY'
-        ws[c].alignment = Alignment(horizontal='left')
-    ws['A4'] = 'Subdiario de IVA Ventas'
-    ws['C4'] = 'C.U.I.T.:'
-    ws['D4'] = cuit_soc
-    ws['D4'].number_format = '@'
-    for c in ('A1', 'A2', 'A4'):
-        ws[c].font = negrita
+    cuit_fmt = f'{cuit_soc[:2]}-{cuit_soc[2:10]}-{cuit_soc[10:]}' if len(cuit_soc) == 11 else cuit_soc
+    d = fecha(desde)
+    mes = d.strftime('%m/%Y') if d else ''
+    ws['A1'] = f'{razon}  -  CUIT {cuit_fmt}  -  Subdiario de IVA Ventas {mes}'
 
-    FILA_TIT = 6
-    cabecera = [n for n, _ in COLUMNAS] + ['Cod.']
-    claves = [k for _, k in COLUMNAS] + ['cod']
-    relleno = PatternFill('solid', fgColor='FFD9E1F2')
-    borde = Border(bottom=Side(style='thin'))
-    for j, t in enumerate(cabecera, start=1):
-        c = ws.cell(FILA_TIT, j, t)
-        c.font = negrita
-        c.fill = relleno
-        c.border = borde
-
-    for i, r in enumerate(datos, start=FILA_TIT + 1):
-        for j, k in enumerate(claves, start=1):
-            c = ws.cell(i, j, r[k])
-            if k == 'fecha':
-                c.number_format = 'DD/MM/YYYY'
-            elif k in IMPORTES:
-                c.number_format = '#,##0.00'
-            else:
-                c.number_format = '@'
-
-    ultima = FILA_TIT + len(datos)
-    fila_total = ultima + 1
-    ws.cell(fila_total, 1, 'TOTAL').font = negrita
-    for j, k in enumerate(claves, start=1):
+    # Columnas de la solapa "Ventas Zetti" del papel de trabajo. "Nro. Comp."
+    # abarca D (punto de venta) y E (numero), E sin titulo propio. El papel no
+    # lleva P.IVA ni el codigo 901/902, ni fila de totales.
+    columnas = [('Fecha', 'fecha'), ('TC', 'tc'), ('M', 'm'), ('Nro. Comp.', 'pv'), (None, 'numero'),
+                ('Cliente', 'cliente'), ('CUIT', 'cuit'), ('RESP', 'resp'),
+                ('Exen', 'exen'), ('Grav', 'grav'), ('IVA', 'iva'), ('P.IB', 'pib'), ('Total', 'total')]
+    contable = '_-"$"\\ * #,##0.00_-;\\-"$"\\ * #,##0.00_-;_-"$"\\ * "-"??_-;_-@_-'
+    chica = Font(size=10)
+    for j, (t, k) in enumerate(columnas, start=1):
+        c = ws.cell(2, j, t)
         if k in IMPORTES:
-            col = get_column_letter(j)
-            c = ws.cell(fila_total, j, f'=SUM({col}{FILA_TIT + 1}:{col}{ultima})')
-            c.number_format = '#,##0.00'
-            c.font = negrita
-            c.border = Border(top=Side(style='thin'))
+            c.number_format = contable
+            c.font = chica
 
-    anchos = {'fecha': 12, 'tc': 6, 'm': 4, 'nro': 17, 'cliente': 42, 'cuit': 15, 'resp': 13, 'cod': 7}
-    for j, k in enumerate(claves, start=1):
-        ws.column_dimensions[get_column_letter(j)].width = anchos.get(k, 16)
-    ws.column_dimensions['A'].width = max(ws.column_dimensions['A'].width, 24)
-    ws.freeze_panes = ws.cell(FILA_TIT + 1, 1)
+    for i, r in enumerate(datos, start=3):
+        for j, (_, k) in enumerate(columnas, start=1):
+            v = r[k]
+            c = ws.cell(i, j, v if v != '' else None)
+            if k == 'fecha':
+                c.number_format = 'dd/mm/yyyy'
+            elif k in IMPORTES:
+                c.number_format = contable
+                c.font = chica
+
+    anchos = {'fecha': 11, 'tc': 5, 'm': 4, 'pv': 6, 'numero': 9, 'cliente': 40, 'cuit': 15, 'resp': 12,
+              'exen': 17, 'grav': 16, 'iva': 15, 'pib': 13, 'total': 17}
+    for j, (_, k) in enumerate(columnas, start=1):
+        ws.column_dimensions[get_column_letter(j)].width = anchos[k]
     wb.save(salida)
 
     por_tc = {}
@@ -224,6 +221,12 @@ def main():
         **({'diferencias_total_reporte': difs} if difs else {}),
         'fechas_fuera_de_periodo': fuera, 'xlsx': salida,
     }
+    # P.IVA no tiene columna en el papel: si viniera con importe, el Total no
+    # cerraria con Exen+Grav+IVA+P.IB. Se avisa (hasta ahora siempre vino en 0).
+    if suma['piva']:
+        res['aviso_piva'] = f'Hay P.IVA por {suma["piva"]:.2f} que no tiene columna en la hoja (esta incluida en Total).'
+    if sin_separar:
+        res['aviso_nro'] = f'{sin_separar} comprobantes con numero que no es PV-NUMERO: quedaron enteros en la columna D.'
     if graves:
         res['error'] = 'La suma de los comprobantes no coincide con el Total del reporte.'
     elif fuera:
