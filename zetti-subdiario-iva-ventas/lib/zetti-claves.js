@@ -28,6 +28,15 @@ function credencialesZetti({ cuit } = {}) {
   const propia = c && conZetti.find((r) => r.cuit === c);
   if (propia) return { usuario: propia.organismos.ZETTI.usuario, clave: propia.organismos.ZETTI.clave, origen: 'archivo' };
 
+  // La fila general se reconoce por el titular ("Zetti T&S Web (todas las
+  // sociedades)"). Otras filas sin CUIT pueden tener algo en estas columnas por
+  // ser las ultimas de la planilla (paso el 08/10/2026 con un acceso municipal):
+  // no se toman como usuario de Zetti.
+  const general = conZetti.filter((r) => !r.cuit && /zetti/i.test(r.titular));
+  if (general.length === 1) {
+    return { usuario: general[0].organismos.ZETTI.usuario, clave: general[0].organismos.ZETTI.clave, origen: 'archivo' };
+  }
+
   const pares = new Map(conZetti.map((r) => [`${r.organismos.ZETTI.usuario}\u0000${r.organismos.ZETTI.clave}`, r]));
   if (pares.size === 1) {
     const r = [...pares.values()][0];
