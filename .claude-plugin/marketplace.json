@@ -52,6 +52,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "zetti-subdiario-iva-ventas",
+      "source": "./zetti-subdiario-iva-ventas",
+      "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) de cada sociedad, lo pasa a Excel ordenado por tipo de comprobante y lo archiva en la carpeta IVA del mes. Login automático con la planilla de claves.",
+      "category": "contabilidad"
+    },
+    {
       "name": "facturacion-arca",
       "source": "./facturacion-arca",
       "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
