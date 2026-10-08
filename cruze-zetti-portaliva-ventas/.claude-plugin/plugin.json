@@ -1,0 +1,8 @@
+{
+  "name": "cruze-zetti-portaliva-ventas",
+  "description": "Circuito completo de ventas del mes: baja el Libro IVA Ventas del Portal IVA (ARCA) y el Subdiario de IVA Ventas de Zetti (T&S Web), los vuelca en las hojas 'Ventas Portal IVA' y 'Ventas Zetti' del papel de trabajo y arma la hoja 'cruze' con las diferencias. Login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["zetti", "portal iva", "ventas", "cruce", "papel de trabajo", "playwright", "argentina"]
+}

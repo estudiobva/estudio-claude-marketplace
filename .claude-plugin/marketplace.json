@@ -58,6 +58,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "cruze-zetti-portaliva-ventas",
+      "source": "./cruze-zetti-portaliva-ventas",
+      "description": "Circuito completo de ventas: baja Portal IVA y Zetti, los vuelca en las hojas del papel de trabajo y arma la hoja cruze con las diferencias.",
+      "category": "contabilidad"
+    },
+    {
       "name": "facturacion-arca",
       "source": "./facturacion-arca",
       "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
