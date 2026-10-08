@@ -34,7 +34,12 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/cruze-zetti-portaliva-ventas.js --
      nada: todas las columnas en el mismo orden (comprador, alicuotas, percepciones, etc.),
      encabezado en la fila 1 y una fila por comprobante, con fechas y numeros como tales.
      Verificado celda por celda contra el CSV crudo. (Sin la fila TOTAL ni la nota que trae
-     el archivo de la carpeta IVA.)
+     el archivo de la carpeta IVA.) A la derecha (columna AI) va el cuadro **LIQUIDACION DE
+     IVA - Ventas**, con formulas sobre esas columnas: por tipo de comprobante (1, 2, 7, 6, 81,
+     82, 83 / 3, 8, 110, mas cualquier otro que traiga el libro) Neto Gravado, No Gravado,
+     Exento, IVA (suma de "Importe IVA x%") y Total; Subtotal Debito Fiscal, Subtotal NC (en
+     negativo, como en el CSV), Ventas Netas = debito + NC, control contra el total del libro
+     (diferencia 0) y prorrateo Venta Gravada / Venta Exenta.
    - **cruze**: diferencias Zetti vs Portal (cruzar_ventas.py: facturas/NC una a una, tiques
      por dia y punto de venta contra la Z). Las NC B a Consumidor Final del controlador
      fiscal (PV chicos) van a **NC controlador (fuera)**: no estan en el Portal porque van

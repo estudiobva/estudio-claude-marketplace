@@ -12,6 +12,12 @@ Hojas que escribe:
                        (fechas, numeros). Sale de AAAAMM - PORTAL IVA - VENTAS.xlsx, que es
                        la conversion 1 a 1 del CSV (csv_a_excel.py); no se copian la fila
                        TOTAL ni la nota al pie que ese archivo agrega.
+                       A la derecha (desde la columna AI) el cuadro LIQUIDACION DE IVA -
+                       Ventas: por tipo de comprobante Neto Gravado, No Gravado, Exento,
+                       IVA (suma de "Importe IVA x%") y Total, con formulas SUMIFS sobre
+                       las columnas del CSV; subtotal debito, subtotal NC (en negativo,
+                       como en el CSV), ventas netas = debito + NC, control contra el
+                       total del libro y prorrateo gravado/exento.
   "Ventas Zetti"       la hoja de AAAAMM - ZETTI - VENTAS.xlsx tal cual (ya sale con el
                        formato del papel).
   "cruze"              el cruce de cruzar_ventas.py (modo dos archivos: separa las NC B
@@ -34,6 +40,7 @@ from copy import copy
 from datetime import datetime
 
 import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +81,122 @@ def filas_portal(ruta):
     while isinstance(ws.cell(n + 1, 1).value, datetime):
         n += 1
     return ws, n
+
+
+# Filas del cuadro de liquidacion (modelo del papel de trabajo). Los tipos que
+# aparezcan en el libro y no esten aca se agregan al final de su bloque.
+DEBITO = [(1, '1 - Factura A'), (2, '2 - Nota de Débito A'), (7, '7 - Nota de Débito B'),
+          (6, '6 - Factura B'), (81, '81 - Ticket Z'), (82, '82 - Tique Factura B'), (83, '83 - Tique')]
+CREDITO = [(3, '3 - Nota de Crédito A'), (8, '8 - Nota de Crédito B'), (110, '110 - Nota de Crédito Z')]
+NC_CODIGOS = {3, 8, 13, 21, 53, 110, 112, 113, 114, 119, 203, 208, 213}
+OTROS_TIPOS = {4: 'Recibo A', 9: 'Recibo B', 11: 'Factura C', 12: 'Nota de Débito C', 13: 'Nota de Crédito C',
+               19: 'Factura de Exportación E', 21: 'Nota de Crédito E', 51: 'Factura M', 52: 'Nota de Débito M',
+               53: 'Nota de Crédito M', 111: 'Tique Factura C', 112: 'Tique Nota de Crédito A',
+               113: 'Tique Nota de Crédito B', 114: 'Tique Nota de Crédito C', 115: 'Tique Nota de Débito A',
+               116: 'Tique Nota de Débito B', 201: 'Factura de Crédito MiPyMEs A', 203: 'NC MiPyMEs A',
+               206: 'Factura de Crédito MiPyMEs B', 208: 'NC MiPyMEs B'}
+AZUL, CELESTE = 'FF1F4E79', 'FFDDEBF7'
+NUM = '#,##0.00'
+PCT = '0.00%'
+
+
+def cuadro_liquidacion(ws, ultima, col0=35):
+    """Cuadro LIQUIDACION DE IVA - Ventas a la derecha del CSV (col0=35 -> AI)."""
+    tit = {str(c.value or '').strip(): c.column for c in ws[1]}
+    L = lambda nombre: get_column_letter(tit[nombre])
+    rango = lambda letra: f'${letra}$2:${letra}${ultima}'
+    tipo = rango(L('Tipo de Comprobante'))
+    ivas = [get_column_letter(c) for n, c in tit.items() if n.startswith('Importe IVA')]
+    presentes = set()
+    for r in range(2, ultima + 1):
+        try:
+            presentes.add(int(ws.cell(r, tit['Tipo de Comprobante']).value))
+        except (TypeError, ValueError):
+            pass
+    nombre = lambda k: f'{k} - {OTROS_TIPOS.get(k, "Comprobante")}'
+    debito = DEBITO + [(k, nombre(k)) for k in sorted(presentes) if k not in dict(DEBITO) and k not in NC_CODIGOS]
+    credito = CREDITO + [(k, nombre(k)) for k in sorted(presentes) if k not in dict(CREDITO) and k in NC_CODIGOS]
+
+    C = [get_column_letter(col0 + i) for i in range(6)]          # AI..AN
+    fino, grueso = Side(style='thin'), Side(style='medium')
+    negrita = Font(bold=True)
+
+    def fila(r, valores, bold=False, arriba=None, abajo=None, fmt=NUM):
+        for i, v in enumerate(valores):
+            c = ws[f'{C[i]}{r}']
+            c.value = v
+            if i:
+                c.number_format = fmt
+            if bold:
+                c.font = negrita
+            if arriba or abajo:
+                c.border = Border(top=arriba, bottom=abajo)
+
+    def suma(col, k):
+        return f'SUMIFS({rango(col)},{tipo},{k})'
+
+    def por_tipo(k):
+        iva = '+'.join(suma(x, k) for x in ivas) or '0'
+        return [f'={suma(L("Total Neto Gravado"), k)}', f'={suma(L("Importe No Gravado"), k)}',
+                f'={suma(L("Importe Exento"), k)}', f'={iva}', f'={suma(L("Importe Total"), k)}']
+
+    r = 1
+    ws[f'{C[0]}{r}'] = 'LIQUIDACIÓN DE IVA'
+    for x in C:
+        ws[f'{x}{r}'].fill = PatternFill('solid', fgColor=AZUL)
+        ws[f'{x}{r}'].font = Font(bold=True, color='FFFFFFFF', size=12)
+    r = 2
+    ws[f'{C[0]}{r}'] = 'Ventas'
+    for x in C:
+        ws[f'{x}{r}'].fill = PatternFill('solid', fgColor=CELESTE)
+        ws[f'{x}{r}'].font = Font(bold=True, color=AZUL)
+    r = 3
+    fila(r, ['Tipo de Comprobante', 'Neto Gravado', 'No Gravado', 'Exento', 'IVA', 'Total'], bold=True, abajo=grueso)
+    for i in range(1, 6):
+        ws[f'{C[i]}{r}'].alignment = Alignment(horizontal='center')
+
+    r = 4
+    ini = r
+    for k, etiqueta in debito:
+        fila(r, [etiqueta] + por_tipo(k))
+        r += 1
+    sub_deb = r
+    fila(r, ['Subtotal Débito Fiscal'] + [f'=SUM({x}{ini}:{x}{r - 1})' for x in C[1:]], bold=True, arriba=fino)
+    r += 1
+    ini = r
+    for k, etiqueta in credito:
+        fila(r, [etiqueta] + por_tipo(k))
+        r += 1
+    sub_nc = r
+    fila(r, ['Subtotal Notas de Crédito s/Ventas'] + [f'=SUM({x}{ini}:{x}{r - 1})' for x in C[1:]], bold=True, arriba=fino)
+    r += 1
+    netas = r
+    # Las NC vienen en negativo (como en el CSV): ventas netas = debito + NC.
+    fila(r, ['Ventas Netas (s/ Notas de Crédito)'] + [f'={x}{sub_deb}+{x}{sub_nc}' for x in C[1:]],
+         bold=True, arriba=fino, abajo=fino)
+    r += 1
+    fila(r, ['Control: total del libro', None, None, None, None, f'=SUM({rango(L("Importe Total"))})'])
+    ws[f'{C[0]}{r}'].font = Font(italic=True)
+    r += 1
+    fila(r, ['Diferencia (debe ser 0)', None, None, None, None, f'={C[5]}{netas}-{C[5]}{r - 1}'])
+    ws[f'{C[0]}{r}'].font = Font(italic=True)
+
+    r += 2
+    ws[f'{C[0]}{r}'] = 'Prorrateo para Crédito Fiscal (Compras de Servicios)'
+    for x in C[:2]:
+        ws[f'{x}{r}'].fill = PatternFill('solid', fgColor=CELESTE)
+        ws[f'{x}{r}'].font = Font(bold=True, color=AZUL)
+    r += 1
+    fila(r, ['Concepto', '%'], bold=True, abajo=fino)
+    n, ng, ex = (f'{C[i]}{netas}' for i in (1, 2, 3))
+    base = f'({n}+{ng}+{ex})'
+    fila(r + 1, ['Venta Gravada', f'=IF({base}=0,0,{n}/{base})'], fmt=PCT)
+    fila(r + 2, ['Venta Exenta', f'=IF({base}=0,0,({ng}+{ex})/{base})'], fmt=PCT)
+
+    ws.column_dimensions[C[0]].width = 36
+    for x in C[1:]:
+        ws.column_dimensions[x].width = 16
+    return {'tipos_debito': [k for k, _ in debito], 'tipos_nc': [k for k, _ in credito]}
 
 
 def limpiar(ws):
@@ -190,6 +313,7 @@ def main():
         copiar_hoja(ws_z, ws)
         ws = preparar('Ventas Portal IVA', destinos[1][1])
         copiar_hoja(ws_p, ws, max_row=filas_p)
+        cuadro_liquidacion(ws, filas_p)
         ws = preparar('cruze', destinos[2][1])
         copiar_hoja(wb_c[hojas_cruce[0]], ws)
         for nombre, existente in destinos[3:]:
