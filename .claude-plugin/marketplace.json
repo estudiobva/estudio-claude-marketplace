@@ -74,6 +74,12 @@
       "source": "./f931-descarga-arca",
       "description": "Baja los F.931 ya presentados de una sociedad desde Declaración en Línea (ARCA), con login automático desde la planilla de claves: un PDF por período (AAAAMM.pdf).",
       "category": "contabilidad"
+    },
+    {
+      "name": "auditor-eerr",
+      "source": "./auditor-eerr",
+      "description": "Audita los EERR 2026 de las sociedades con 15 controles (Portal IVA, Zetti, F.931, DJ ARBA, NCR, Maestro de Proveedores) y documenta los hallazgos en la hoja Auditorias del mismo EERR, con estado Pendiente/Resuelto/Aprobado.",
+      "category": "contabilidad"
     }
   ]
 }

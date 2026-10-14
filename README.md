@@ -16,6 +16,7 @@ un script de Playwright y la skill que lo usa.
 | `zetti-subdiario-iva-ventas` | Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) del mes, en Excel ordenado por tipo de comprobante, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `cruze-zetti-portaliva-ventas` | Circuito completo de ventas del mes: Portal IVA → Zetti → hojas del papel de trabajo → cruze con las diferencias. |
 | `facturacion-arca` | Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor desde la planilla mensual: validar, dry-run y emisión con código. **Escribe en ARCA.** |
+| `auditor-eerr` | Audita los EERR 2026 con 15 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR y el Maestro de Proveedores, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |
 
 ## Instalación
 
