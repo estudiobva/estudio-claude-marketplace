@@ -1,0 +1,15 @@
+{
+  "name": "zetti-subdiario-iva-compras",
+  "version": "1.0.0",
+  "description": "Baja el Subdiario de IVA Compras de Zetti (T&S Web), lo pasa a Excel con el formato del papel de trabajo y lo archiva en la unidad compartida.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "descarga": "node scripts/zetti-iva-compras.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

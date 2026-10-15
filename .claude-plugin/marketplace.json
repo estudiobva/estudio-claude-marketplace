@@ -64,6 +64,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "zetti-subdiario-iva-compras",
+      "source": "./zetti-subdiario-iva-compras",
+      "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) de cada sociedad, en Excel con el formato de la solapa 'Compras Zetti' del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático con la planilla de claves.",
+      "category": "contabilidad"
+    },
+    {
       "name": "cruze-zetti-portaliva-ventas",
       "source": "./cruze-zetti-portaliva-ventas",
       "description": "Circuito completo de ventas: baja Portal IVA y Zetti, los vuelca en las hojas del papel de trabajo y arma la hoja cruze con las diferencias.",
