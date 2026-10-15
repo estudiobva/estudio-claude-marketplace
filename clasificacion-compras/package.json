@@ -1,0 +1,10 @@
+{
+  "name": "clasificacion-compras",
+  "version": "1.0.0",
+  "description": "Clasifica las compras del Portal IVA con el Maestro de Proveedores del estudio.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "clasificar": "python scripts/clasificar-compras.py"
+  }
+}

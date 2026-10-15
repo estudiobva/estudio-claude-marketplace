@@ -28,6 +28,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "clasificacion-compras",
+      "source": "./clasificacion-compras",
+      "description": "Clasifica las compras del Portal IVA (sin NCR si está la conciliación) con el Maestro de Proveedores: cuenta y rubro del EERR por comprobante, resumen por rubro y proveedores pendientes.",
+      "category": "contabilidad"
+    },
+    {
       "name": "anticipos-sct",
       "source": "./anticipos-sct",
       "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
