@@ -61,25 +61,39 @@ function tabla(buf) {
   return filas.filter((f) => f && f.some((c) => String(c).trim() !== ''));
 }
 
-// Monroe: encabezado con "Tipo Linea"; filas "Detalle"; pie "Cantidad de Registros: N".
+// Monroe: encabezado con "Tipo Linea"; filas "Detalle"; pie "Cantidad de Registros: N"
+// (el formato 09/2026 ya no trae el pie). El importe viene en "Importe Total" o, desde
+// 09/2026, en "Base Excenta+Gravado" (mismo orden de preferencia que conciliar-ncr.py).
+const IMPORTE_MONROE = ['Importe Total', 'Base Excenta+Gravado'];
 function leerMonroe(buf) {
   const t = tabla(buf);
   const cab = t[0].map((c) => String(c).trim());
   const col = (n) => cab.indexOf(n);
   if (col('Tipo Linea') < 0 || col('Cuit') < 0 || col('Numero Formateado') < 0) return null;
+  const imp = IMPORTE_MONROE.map(col).find((i) => i >= 0);
+  if (imp === undefined) return null;
   const det = t.slice(1).filter((f) => f[col('Tipo Linea')] === 'Detalle');
   const pie = t.find((f) => /Cantidad de Registros/i.test(f[0] || ''));
   return {
     cuits: [...new Set(det.map((f) => digitos(f[col('Cuit')])))],
-    claves: det.map((f) => `${f[col('Numero Formateado')]}|${Number(f[col('Importe Total')]).toFixed(2)}`).sort(),
+    claves: det.map((f) => `${f[col('Numero Formateado')]}|${Number(f[imp]).toFixed(2)}`).sort(),
     leidas: det.length,
     declaradas: pie ? Number((pie[0].match(/(\d+)/) || [])[1]) : null,
   };
 }
 
-// Suizo: encabezado con CLIENTE, terminal, numero, total.
+// Suizo: encabezado con CLIENTE (o Cliente, desde 09/2026), terminal, numero, total.
+// Se busca en todas las hojas: el archivo de 09/2026 trae Hoja2/Hoja3 vacias.
 function leerSuizo(buf) {
-  const t = tabla(buf);
+  const wb = readWorkbook(buf);
+  for (const h of wb.sheetNames) {
+    const r = leerSuizoHoja(wb.rows(h).filter((f) => f && f.some((c) => String(c).trim() !== '')));
+    if (r) return r;
+  }
+  return null;
+}
+
+function leerSuizoHoja(t) {
   const i = t.findIndex((f) => f.some((c) => String(c).trim().toUpperCase() === 'CLIENTE'));
   if (i < 0) return null;
   const cab = t[i].map((c) => String(c).trim().toLowerCase());
@@ -198,13 +212,16 @@ function guardar(dir, nombre, buf, mismo, actualizar, soloRevisar) {
     if (!suizo) throw new Error(`El archivo de Suizo (${listaSuizo[0].nombre}) no tiene la columna CLIENTE.`);
 
     // ── CLIENTE de Suizo para cada farmacia ──
+    // El nombre igual primero y despues los alias (uno o una lista). Tiene que quedar un
+    // solo candidato en el archivo del mes: si estan el nombre viejo y el nuevo, no se adivina.
     const resueltos = [], sinResolver = [];
     for (const p of propios) {
-      const cliente = alias[p.farmacia] || p.farmacia;
-      if (suizo.clientes.has(cliente)) {
-        resueltos.push({ farmacia: p.farmacia, cliente, via: alias[p.farmacia] ? 'alias' : 'igual',
-                         ncr_suizo: suizo.clientes.get(cliente) });
-      } else sinResolver.push(p.farmacia);
+      const cand = [...new Set([p.farmacia, ...[].concat(alias[p.farmacia] || []).map(norm)])];
+      const hay = cand.filter((c) => suizo.clientes.has(c));
+      if (hay.length === 1) {
+        resueltos.push({ farmacia: p.farmacia, cliente: hay[0], via: hay[0] === p.farmacia ? 'igual' : 'alias',
+                         ncr_suizo: suizo.clientes.get(hay[0]) });
+      } else sinResolver.push(hay.length ? `${p.farmacia} (ambiguo: ${hay.join(' / ')})` : p.farmacia);
     }
     const clientes = resueltos.map((r) => r.cliente);
 

@@ -264,10 +264,21 @@ def ubicar_portal(soc, per, ncr):
 
 # ── NCR ─────────────────────────────────────────────────────────────────────
 def hoja_con(wb, columna):
+    """Hojas cuyo encabezado tiene `columna` (sin importar mayusculas: Suizo paso de
+    CLIENTE a Cliente en 09/2026). El encabezado vuelve con `columna` tal cual se pidio."""
     for ws in wb.worksheets:
         filas = list(ws.iter_rows(values_only=True))
-        if filas and columna in [str(c).strip() for c in filas[0] if c is not None]:
-            yield ws.title, [str(c).strip() if c is not None else '' for c in filas[0]], filas[1:]
+        if not filas:
+            continue                                # Suizo 09/2026 trae Hoja2/Hoja3 vacias
+        cab = [str(c).strip() if c is not None else '' for c in filas[0]]
+        if columna.upper() in [c.upper() for c in cab]:
+            yield ws.title, [columna if c.upper() == columna.upper() else c for c in cab], filas[1:]
+
+
+# Columna del importe en las exportaciones de Monroe, en orden de preferencia.
+# Hasta 08/2026 venia 'Importe Total'; desde 09/2026 solo 'Base Excenta+Gravado'
+# (en Norte 09/2026 coincidio al centavo con el Portal IVA en las 32 NCR).
+IMPORTE_MONROE = ('Importe Total', 'Base Excenta+Gravado')
 
 
 def leer_monroe(ruta, cuit_soc):
@@ -276,8 +287,12 @@ def leer_monroe(ruta, cuit_soc):
     if not hojas:
         return None
     _, cab, filas = hojas[0]
+    col_imp = next((c for c in IMPORTE_MONROE if c in cab), None)
+    if not col_imp:
+        fail(f'{os.path.basename(ruta)} no tiene columna de importe ({" ni ".join(IMPORTE_MONROE)}). '
+             'Cambio el formato de Monroe: revisar el archivo.', columnas=cab)
     filas = [dict(zip(cab, f)) for f in filas]
-    declarado = None
+    declarado = None   # el formato 09/2026 no trae la fila de pie 'Cantidad de Registros'
     for f in filas:
         m = re.search(r'Cantidad de Registros:\s*(\d+)', str(f.get('Tipo Linea') or ''))
         if m:
@@ -290,14 +305,16 @@ def leer_monroe(ruta, cuit_soc):
     ncr = []
     for f in det:
         pv, _, nro = str(f.get('Numero Formateado') or '').partition('-')
-        imp = f.get('Importe Total')
+        imp = f.get(col_imp)
+        if imp in (None, ''):
+            fail(f'{os.path.basename(ruta)}: la NCR {f.get("Numero Formateado")} no tiene "{col_imp}".')
         ncr.append({'_drog': 'MONROE', '_farmacia': base, '_cuit': CUIT_MONROE,
                     '_pv': int(pv), '_nro': int(nro),
                     # Monroe: TEXTO con punto decimal y sin miles (-79047.4). float() directo.
                     '_imp': round(float(imp), 2), '_fecha': fecha(f.get('Fecha')),
                     'concepto': str(f.get('Descripcion') or '').strip()})
     pie = {'archivo': base, 'leidas': len(det), 'declaradas': declarado,
-           'ok': declarado is None or declarado == len(det)}
+           'ok': declarado is None or declarado == len(det), 'columna_importe': col_imp}
     return base, ncr, pie
 
 
@@ -306,6 +323,7 @@ def leer_suizo(ruta):
     if len(hojas) != 1:
         fail(f'{os.path.basename(ruta)} tiene {len(hojas)} hojas con columna CLIENTE (se espera una).')
     _, cab, filas = hojas[0]
+    cab = [c if c == 'CLIENTE' else c.lower() for c in cab]   # terminal, numero, fecha, total, concepto
     out = []
     for f in filas:
         r = dict(zip(cab, f))
@@ -320,14 +338,24 @@ def leer_suizo(ruta):
 
 
 def resolver_clientes(farmacias, vocab):
+    """CLIENTE de Suizo de cada farmacia de Monroe: el mismo nombre o un alias de
+    lib/ncr-alias.json (uno o una lista: Suizo cambio nombres en 09/2026, p. ej.
+    F ALEMANA -> FRANCO ALEMANA). Tiene que haber exactamente un candidato en el
+    archivo del mes; si hay dos (nombre viejo y nuevo a la vez) no se adivina."""
     try:
-        alias = {norm(k): norm(v) for k, v in json.load(open(ALIAS_JSON, encoding='utf-8'))['alias'].items()}
+        alias = {norm(k): [norm(x) for x in (v if isinstance(v, list) else [v])]
+                 for k, v in json.load(open(ALIAS_JSON, encoding='utf-8'))['alias'].items()}
     except (OSError, KeyError, ValueError):
         alias = {}
     res, sin = [], []
     for f in farmacias:
-        c = alias.get(f, f)
-        (res if c in vocab else sin).append({'farmacia': f, 'cliente': c, 'via': 'alias' if f in alias else 'igual'})
+        cand = list(dict.fromkeys([f] + alias.get(f, [])))
+        hay = [c for c in cand if c in vocab]
+        if len(hay) == 1:
+            res.append({'farmacia': f, 'cliente': hay[0], 'via': 'igual' if hay[0] == f else 'alias'})
+        else:
+            sin.append({'farmacia': f, 'cliente': ' | '.join(hay or cand),
+                        'via': 'ambiguo' if hay else 'sin match'})
     return res, sin
 
 
@@ -519,7 +547,9 @@ def main():
         [],
         ['Fuente compras', os.path.basename(portal_ruta)],
         ['Fuente Suizo', suizos[0], ', '.join(clientes)],
-    ] + [[f'Monroe {pz["archivo"]}', f'{pz["leidas"]} de {pz["declaradas"]}', 'OK' if pz['ok'] else 'TRUNCADA'] for pz in pies] + [
+    ] + [[f'Monroe {pz["archivo"]}',
+          f'{pz["leidas"]} de {pz["declaradas"]}' if pz['declaradas'] is not None else f'{pz["leidas"]} (sin pie)',
+          'OK' if pz['ok'] else 'TRUNCADA'] for pz in pies] + [
         ['Generado por conciliar-ncr.py', datetime.datetime.now().strftime('%d/%m/%Y %H:%M')],
     ]
 

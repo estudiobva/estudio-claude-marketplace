@@ -169,28 +169,42 @@ todos con el mismo CUIT: son sucursales de la misma sociedad. Conciliar una soci
 farmacia que haya en su carpeta**.
 
 Suizo, en cambio, trae **una sola hoja** con las ~63 farmacias del grupo juntas
-y una columna `CLIENTE` para separarlas. Hay que **filtrar por las farmacias de
-esta sociedad**. El nombre de cada archivo de Monroe da la lista; el valor de
-`CLIENTE` en Suizo a veces esta abreviado:
+y una columna `CLIENTE` (desde 09/2026 el encabezado dice `Cliente`) para
+separarlas. Hay que **filtrar por las farmacias de esta sociedad**. El nombre de
+cada archivo de Monroe da la lista; se prueba primero el mismo nombre y despues
+los alias de `lib/ncr-alias.json`. Suizo cambia nombres de un mes a otro:
 
-| Archivo Monroe | `CLIENTE` en Suizo |
-|---|---|
-| FRANCO ALEMANA | `F ALEMANA` |
-| resto | igual al nombre del archivo |
+| Archivo Monroe | `CLIENTE` en Suizo hasta 08/2026 | desde 09/2026 |
+|---|---|---|
+| FRANCO ALEMANA | `F ALEMANA` | `FRANCO ALEMANA` |
+| NUEVA VENTURA / VENTURA | `N VENTURA` | `NUEVA VENTURA` |
+| SOL BERA | `BERAZATEGUI` | `SOL BERA` |
+| LA RECOVA | `RECOVA` | (sin NCR en 09/2026) |
+| NUEVA GENERACION | `N GENERACION` | (sin NCR en 09/2026) |
+| resto | igual al nombre del archivo | igual |
 
-Vocabulario completo de `CLIENTE` en el archivo de Suizo, para resolver
-cualquier sociedad: `ARENALES, ARGENTINA, ARTESANAL, AV MAYO, BELGRANO,
-BERAZATEGUI, BERNAL, CALLAO, CASEROS, CONGRESO, DIAMANDY, DLF, EL ALTO,
-F ALEMANA, LAIGLON, LUNA, MAGA SHOP, MEGASOL, N GENERACION, N VENTURA, NORTE,
-NUEVA 50, NUEVA NORTE, OBRAS, Q FACTORY, Q OESTE, RECOVA, SAINT ETIENNE,
+Los nombres viejos quedan como alias por si vuelven. Si en un mismo archivo
+aparecen el nombre viejo y el nuevo (p. ej. `F ALEMANA` y `FRANCO ALEMANA`),
+los scripts frenan como "ambiguo": preguntar, no elegir.
+
+Vocabulario de `CLIENTE` en el archivo de Suizo de 09/2026 (51 valores; solo
+aparecen las farmacias con NCR en el mes): `ARENALES, ARGENTINA, ARTESANAL,
+AV MAYO, BELGRANO, CALLAO, CASEROS, CERCANIAS, CONGRESO, DIAMANDY, FRANCO
+ALEMANA, LAIGLON, LARREA, LUNA, MAGA SHOP, MEGASOL, NUEVA 50, NUEVA ERA, NUEVA
+NORTE, NUEVA VENTURA, OBRAS, Q FACTORY, Q OESTE, ROSEDAL, SAINT ETIENNE,
 SALUD, SAN NICOLAS, SANAR 1, SANAR 10, SANAR 11, SANAR 12, SANAR 2, SANAR 3,
-SANAR 4, SANAR 5, SANAR 52, SANAR 59, SANAR 6, SANAR 60, SANAR 61, SANAR 62,
-SANAR 63, SANAR 64, SANAR 65, SANAR 68, SANAR 7, SANAR 8, SANAR 9, SOCIAL
-ONCE, SOL WILDE, SOLANO, SOY DEL SOL, SOY DEL SUR, SOY FAR, SOY QUILMES,
-TOFANELLI, VARELA, VITAL, ZAPIOLA, ZEUS`
+SANAR 4, SANAR 6, SANAR 60, SANAR 62, SANAR 64, SANAR 65, SANAR 68, SANAR 9,
+SOCIAL ONCE, SOL BERA, SOL WILDE, SOLANO, SOY DEL SOL, SOY FAR, TOFANELLI,
+VARELA, VITAL, ZEUS`. Nuevos respecto de 08/2026: `CERCANIAS, LARREA, NUEVA
+ERA, ROSEDAL` (y los renombrados de la tabla). Estaban en 08/2026 y no en
+09/2026 (sin NCR ese mes o renombrados): `BERAZATEGUI, BERNAL, DLF, EL ALTO,
+F ALEMANA, N GENERACION, N VENTURA, NORTE, RECOVA, SANAR 5, SANAR 52, SANAR 59,
+SANAR 61, SANAR 63, SANAR 7, SANAR 8, SOY DEL SUR, SOY QUILMES, ZAPIOLA`.
 
 Si un archivo de Monroe no resuelve contra ningun `CLIENTE`, **preguntar** a
-que farmacia corresponde. No adivinar por parecido de texto.
+que farmacia corresponde. No adivinar por parecido de texto. Si la farmacia
+es conocida pero ese mes no tiene NCR de Suizo (p. ej. NORTE en 09/2026), se
+concilia con `--clientes=<su CLIENTE>` y Suizo da 0.
 
 ## Las claves de matcheo (validadas, no suponer otras)
 
@@ -218,13 +232,21 @@ explican casi todos los errores:
 
 - **CSV del Portal IVA**: encoding **ISO-8859-1** (no UTF-8), separador `;`,
   decimal **coma** y punto de miles. Fecha en **ISO `YYYY-MM-DD`**.
-- **`Importe Total` de Monroe es TEXTO con punto decimal y sin separador de
+- **El importe de Monroe es TEXTO con punto decimal y sin separador de
   miles** (`-79047.4`). Castear con `float(x)` directo: aplicarle el criterio
-  argentino (punto = miles) infla el total unas 90 veces.
+  argentino (punto = miles) infla el total unas 90 veces. Hasta 08/2026 venia
+  en `Importe Total`; **desde 09/2026 esa columna no existe y el importe es
+  `Base Excenta+Gravado`** (en Norte 09/2026 coincidio al centavo con el
+  Portal IVA en las 32 NCR). Los scripts usan `Importe Total` si esta y si no
+  `Base Excenta+Gravado`.
 - **`fecha` de Suizo es TEXTO `DD/MM/YYYY`**; su `total` si es float real.
-- **Los archivos de Monroe traen una fila vacia penultima y una fila de pie**
-  (`Cantidad de Registros: N >>> Fin de la consulta <<<`). Filtrar por
-  `Tipo Linea == 'Detalle'`, que es lo robusto.
+- **Los archivos de Monroe hasta 08/2026 traen una fila vacia penultima y una
+  fila de pie** (`Cantidad de Registros: N >>> Fin de la consulta <<<`); los de
+  09/2026 no traen pie, asi que el control de exportacion truncada no aplica
+  (el Control muestra `N (sin pie)`). Filtrar por `Tipo Linea == 'Detalle'`,
+  que es lo robusto.
+- **El archivo de Suizo de 09/2026 trae hojas extra vacias (Hoja2, Hoja3) y una
+  fila de total al pie** sin `terminal`/`numero`: se ignoran.
 - La `Fecha` de Monroe es datetime real pero se **muestra** como `mm-dd-yy`. No
   leerla a ojo del Excel.
 
@@ -360,14 +382,20 @@ for f in sorted(glob.glob(os.path.join(dir_monroe, '*.xlsx'))):
     partes = d['Numero Formateado'].str.split('-', n=1, expand=True)
     d['_pv']  = pd.to_numeric(partes[0], errors='coerce')
     d['_nro'] = pd.to_numeric(partes[1], errors='coerce')
-    d['_imp'] = pd.to_numeric(d['Importe Total'], errors='coerce')   # punto decimal
+    col_imp = 'Importe Total' if 'Importe Total' in d.columns else 'Base Excenta+Gravado'  # 09/2026
+    d['_imp'] = pd.to_numeric(d[col_imp], errors='coerce')   # punto decimal
     d['_fecha'] = pd.to_datetime(d['Fecha'], errors='coerce')
     d['_drog'], d['_farmacia'], d['_cuit'] = 'MONROE', base, CUIT_MONROE
     mon.append(d)
 mon = pd.concat(mon, ignore_index=True) if mon else pd.DataFrame()
 
 # --- NCR Suizo: una hoja, filtrar por CLIENTE ------------------------------
-s = pd.read_excel(suizo_xlsx, sheet_name=0)
+# 09/2026: encabezado 'Cliente' (antes 'CLIENTE') y Hoja2/Hoja3 vacias.
+hojas = [h.rename(columns=lambda c: 'CLIENTE' if str(c).strip().upper() == 'CLIENTE' else str(c).strip().lower())
+         for h in pd.read_excel(suizo_xlsx, sheet_name=None).values()]
+hojas = [h for h in hojas if 'CLIENTE' in h.columns]
+assert len(hojas) == 1, f'{len(hojas)} hojas con columna CLIENTE en Suizo'
+s = hojas[0]
 s = s[s['CLIENTE'].astype(str).str.strip().str.upper().isin(clientes_suizo)].copy()
 s['_pv']  = pd.to_numeric(s['terminal'], errors='coerce')
 s['_nro'] = pd.to_numeric(s['numero'], errors='coerce')
