@@ -591,6 +591,7 @@ def main():
     ci = list(rows[0]).index(C_IMP)
     releido = round(sum((r[ci] or 0) for r in rows[1:]), 2)
     n_elim = sum(1 for r in wb['Eliminados'].iter_rows(min_row=2, values_only=True) if any(r))
+    wb.close()   # read_only deja el archivo abierto: en Windows el move a otra unidad no puede borrar el temporal
     if len(rows) - 1 != len(resto) or releido != total_resto or n_elim != len(elim):
         fail('El Excel escrito no cierra contra lo calculado. No lo dejo en ncr/.',
              releido={'comprobantes': len(rows) - 1, 'total': releido, 'eliminados': n_elim})
