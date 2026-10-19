@@ -1,11 +1,12 @@
 {
-  "_comentario": "Nombre del archivo de Monroe en el SharePoint (normalizado: mayusculas, sin espacios de mas) -> valor de CLIENTE en el archivo de Suizo, o lista de valores posibles. El nombre igual al de Monroe siempre se prueba primero: el alias solo hace falta cuando Suizo usa otro. Tiene que haber UN solo candidato en el archivo del mes; si aparecen dos (p. ej. F ALEMANA y FRANCO ALEMANA) los scripts frenan en vez de adivinar. En 09/2026 Suizo cambio nombres: F ALEMANA -> FRANCO ALEMANA, N VENTURA -> NUEVA VENTURA, BERAZATEGUI -> SOL BERA (los nombres viejos quedan como alias por si vuelven), y aparecieron NUEVA ERA, LARREA, ROSEDAL y CERCANIAS, que resuelven por nombre igual. Agregar SOLO alias confirmados. Casos ambiguos conocidos y a proposito sin alias: SALUD Y SANAR / SOY SALUD (Suizo tiene SALUD y CONGRESO), SOY LUNA (Suizo tiene LUNA, que podria ser Sanar 67), SANAR 69 (pendientes de confirmar con el estudio, 22/09/2026).",
+  "_comentario": "Nombre del archivo de Monroe en el SharePoint (normalizado: mayusculas, sin espacios de mas) -> valor de CLIENTE en el archivo de Suizo, o lista de valores posibles. El nombre igual al de Monroe siempre se prueba primero: el alias solo hace falta cuando Suizo usa otro. Tiene que haber UN solo candidato en el archivo del mes; si aparecen dos (p. ej. F ALEMANA y FRANCO ALEMANA) los scripts frenan en vez de adivinar. En 09/2026 Suizo cambio nombres: F ALEMANA -> FRANCO ALEMANA, N VENTURA -> NUEVA VENTURA, BERAZATEGUI -> SOL BERA (los nombres viejos quedan como alias por si vuelven), y aparecieron NUEVA ERA, LARREA, ROSEDAL y CERCANIAS, que resuelven por nombre igual. SOY LUNA -> LUNA confirmado por el estudio el 19/10/2026 (las NCR de LUNA de 09/2026 estan en el Portal IVA de Soy Luna de Quilmes, CUIT 30714211702). Agregar SOLO alias confirmados. Casos ambiguos conocidos y a proposito sin alias: SALUD Y SANAR / SOY SALUD (Suizo tiene SALUD y CONGRESO), SANAR 69 (pendientes de confirmar con el estudio, 22/09/2026).",
   "alias": {
     "FRANCO ALEMANA": "F ALEMANA",
     "LA RECOVA": "RECOVA",
     "NUEVA GENERACION": "N GENERACION",
     "NUEVA VENTURA": "N VENTURA",
     "SOL BERA": "BERAZATEGUI",
+    "SOY LUNA": "LUNA",
     "VENTURA": ["NUEVA VENTURA", "N VENTURA"]
   }
 }
