@@ -1,13 +1,17 @@
-# Auditor de EERR: corre 15 controles sobre cada "EERR ... .xlsx" de la carpeta EERR 2026 y documenta lo que encuentra
+# Auditor de EERR: corre 21 controles sobre cada "EERR ... .xlsx" de la carpeta EERR 2026 y documenta lo que encuentra
 # en la hoja "Auditorias" del mismo archivo (pedido del usuario 09/10/2026).
 #
 # Controles (de lo general a lo específico; KPIs de auditoría del equipo + NCR vs NC comerciales + compras = Portal IVA):
 #   Archivo ........ 1 Período del ejercicio · 2 Meses completos / valores repetidos · 3 Fórmulas
 #   Números grandes  4 Resultado / ventas · 5 Margen bruto · 6 Cada gasto / ventas
-#   Ingresos ....... 7 Ventas vs Portal IVA (y cruce Zetti si existe)
+#   Ingresos ....... 7 Ventas vs Portal IVA (y cruce Zetti: hoja "cruze" del papel del mes)
 #   Costo .......... 8 CMV y existencias · 9 NCR vs NC comerciales · 10 Compras clasificadas = Portal IVA compras
 #   Impuestos ...... 11 Sueldos vs F.931 · 12 IIBB vs DJ ARBA · 13 IVA prorrateo · 14 Tasas (S&H, matrícula, publicidad)
 #   Gastos ......... 15 Gastos fijos y financieros
+#   Papel de trabajo 16 Débito / crédito fiscal (y vs DDJJ) · 17 Signo de las NC · 18 Cómputo de NRF (NCR)
+#   (hoja MM-AAAA)   19 Prorrateo del papel · 20 Venta vs compra exenta y gravada · 21 NC de compras vs libro (NCR + NC)
+#   Lista de Meli, Ezequiel y Jaz (#automatizaciones-ai 14/10/2026); una sola auditoría con excepciones por sociedad
+#   (criterio de Javi): CFG['excepciones'] = {"<sociedad o CUIT>": [números de control que no corren]}.
 #
 # Hoja "Auditorias": una fila por hallazgo (fecha, nivel, control, mes, descripción, valores, link a la celda del EERR,
 # link al documento fuente en Drive, estado Pendiente/Resuelto/Aprobado, observaciones) + historial de ejecuciones.
@@ -90,6 +94,12 @@ CFG = dict(
     fijos_presencia=0.75,         # 15: si un gasto fijo está en al menos el 75% de los meses, los meses sin él son falta
     duplicado_factor=1.8,         # 15: un proveedor de gasto fijo que factura 1,8 veces su mediana = posible duplicado
     financieros=['gastos bancarios', 'intereses de prestamos', 'comisiones de tarjetas', 'intereses por facilidades de pago', 'rdos financieros (fci)'],
+    cf_df_desvio_pct=0.25,        # 16: crédito / débito fiscal que se aparta más de 25% de su mediana
+    prorrateo_pct_tol=0.01,       # 19: % de venta exenta del papel vs Portal IVA ventas (1 punto)
+    mix_exento_pts=0.15,          # 20: % exento de las ventas vs % exento de las compras de mercadería (15 puntos)
+    compra_venta_desvio_pct=0.30, # 20: compras / ventas (exentas o gravadas) que se aparta más de 30% de su mediana
+    nc_tol=100,                   # 21: tolerancia en pesos NC de compras del papel vs libro
+    excepciones={},               # {"<sociedad o CUIT>": [controles que no corren]}, p. ej. {"<sociedad>": [19]}
 )
 for _f in (os.path.join(SP, 'auditor_eerr_config.json'), os.path.join(FISCO, 'auditor_eerr_config.json')):
     if os.path.exists(_f): CFG.update(json.load(open(_f, encoding='utf-8')))
@@ -97,13 +107,15 @@ for _f in (os.path.join(SP, 'auditor_eerr_config.json'), os.path.join(FISCO, 'au
 CONTROLES = {1: 'Período del ejercicio', 2: 'Meses completos', 3: 'Fórmulas', 4: 'Resultado / ventas', 5: 'Margen bruto',
              6: 'Gastos / ventas', 7: 'Ventas vs Portal IVA', 8: 'CMV y existencias', 9: 'NCR vs NC comerciales',
              10: 'Compras clasificadas = Portal IVA', 11: 'Sueldos vs F.931', 12: 'IIBB vs DJ ARBA', 13: 'IVA prorrateo',
-             14: 'Tasas municipales', 15: 'Gastos fijos y financieros'}
+             14: 'Tasas municipales', 15: 'Gastos fijos y financieros', 16: 'Débito / crédito fiscal', 17: 'Signo de las NC',
+             18: 'Cómputo de NRF', 19: 'Prorrateo del papel', 20: 'Venta vs compra exenta/gravada', 21: 'NC de compras vs libro'}
 ALICS = ['2,5%', '5%', '10,5%', '21%', '27%']
 PERC = ['Importe de Per. o Pagos a Cta. de Otros Imp. Nac.', 'Importe de Percepciones de Ingresos Brutos', 'Importe de Impuestos Municipales',
         'Importe de Percepciones o Pagos a Cuenta de IVA', 'Importe de Impuestos Internos', 'Importe Otros Tributos']
 
 
 def num(v): return isinstance(v, (int, float)) and not isinstance(v, bool)
+def ndoc(v): return str(int(v)) if num(v) else re.sub(r'\D', '', str(v or ''))
 def nfc(s): return unicodedata.normalize('NFC', str(s or '')).strip()
 def norm(s): return re.sub(r'\s+', ' ', ''.join(c for c in unicodedata.normalize('NFD', nfc(s).lower()) if unicodedata.category(c) != 'Mn')).strip()
 def mm(per): return f"{per[4:]}/{per[:4]}"
@@ -158,7 +170,10 @@ def filas_libro(f):
     for r in it:
         if r[0] is None or r[1] is None: break
         g = lambda k: float(r[h[k]]) if k in h and num(r[h[k]]) else 0.0
-        yield dict(cuit=str(r[h.get('Nro. Doc. Vendedor', h.get('Nro. Doc. Comprador', 5))] or '').strip(),
+        n = lambda k: int(r[h[k]]) if k in h and num(r[h[k]]) else None
+        tipo = re.match(r'\s*(\d+)', str(r[h['Tipo de Comprobante']] if 'Tipo de Comprobante' in h else ''))
+        yield dict(cuit=ndoc(r[h.get('Nro. Doc. Vendedor', h.get('Nro. Doc. Comprador', 5))]),
+                   tipo=int(tipo[1]) if tipo else None, pv=n('Punto de Venta'), nro=n('Número de Comprobante'),
                    nograv=g('Importe No Gravado'), exento=g('Importe Exento'), total=g('Importe Total'), perc=sum(g(k) for k in PERC),
                    neto=sum(g(f'Neto Gravado IVA {a}') for a in ALICS), iva=sum(g(f'Importe IVA {a}') for a in ALICS),
                    neto0=g('Neto Gravado IVA 0%'), tot_neto=g('Total Neto Gravado'), tot_iva=g('Total IVA'))
@@ -177,6 +192,19 @@ def compras_libro(f):
         sin_discr = abs(iva) < 0.005 and abs(neto) < 0.005 and abs(x['nograv']) + abs(x['exento']) + abs(x['neto0']) < 0.005
         t += (x['total'] - x['perc']) if sin_discr else neto + x['nograv'] + x['exento'] + x['neto0']
     return t
+
+NC_COD = {3, 8, 13, 53, 110, 112, 113, 114, 203, 208, 213}     # códigos de ARCA de notas de crédito
+def nc_libro(f):
+    # NC del libro de compras con la misma base que la columna Total del papel (netos + no gravado + exento + IVA, sin
+    # percepciones) y las claves (CUIT, PV, número) para reconocer las NCR
+    t, claves = 0.0, set()
+    for x in filas_libro(f):
+        if x['tipo'] not in NC_COD: continue
+        neto = x['tot_neto'] or x['neto']; iva = x['tot_iva'] or x['iva']
+        base = neto + x['nograv'] + x['exento'] + x['neto0'] + iva
+        t += base if abs(base) >= 0.005 else x['total'] - x['perc']
+        claves.add((x['cuit'], x['pv'], x['nro']))
+    return t, claves
 
 def pdf_texto(f):
     import pypdf
@@ -285,6 +313,7 @@ class Ctx:
         self.carpeta = f"{U}/{carpetas[self.e.cuit]}" if self.e.cuit in carpetas else None
         self.meses = [p for p in self.e.meses if p <= hasta]
         self.h = []; self.scope = set(); self.log = []
+        self._papel, self._conc, self.papel_avisado = None, {}, False
         self.idx = collections.defaultdict(list)
         if self.carpeta:
             for sub in ('01-Impuestos Mensuales', '02-Sueldos y F.931'):
@@ -297,6 +326,12 @@ class Ctx:
             if rx.match(n): out += ps
         if per: out.sort(key=lambda p: (per not in p.replace(os.path.basename(p), ''), len(p)))
         return out
+
+    def en_mes(self, per, patron):
+        # archivos de la carpeta del mes (01-Impuestos Mensuales/AAAAMM o .../2026/AAAAMM, con sus subcarpetas IVA, ncr)
+        rx = re.compile(patron, re.I)
+        return sorted(p for n, ps in self.idx.items() if rx.search(n) for p in ps
+                      if per in os.path.relpath(os.path.dirname(p), self.carpeta).split(os.sep))
 
     def add(self, control, mes, concepto, nivel, desc, valor=None, control_val=None, dif=None, celda=None, fuente=None,
             comparar=None, es_pct=False):
@@ -466,10 +501,46 @@ def c06(x):
     x.ok(6)
 
 
+NO_PAPEL = re.compile(r'no va|no usar|agente|automatico')     # papeles que el equipo marcó para no usar y los generados
+
+def total_cruze(ws):
+    # fila TOTAL DIFERENCIAS, columna "Dif. Total": lo que el cruce no explica (sin las NC del controlador fiscal)
+    col = None
+    for r in ws.iter_rows(values_only=True):
+        if not r: continue
+        if col is None: col = next((i for i, v in enumerate(r) if nfc(v) == 'Dif. Total'), None)
+        if nfc(r[0]).upper().startswith('TOTAL DIFERENCIAS'):
+            v = r[col if col is not None else 13] if len(r) > (col if col is not None else 13) else None
+            return float(v) if num(v) else None
+    return None
+
+
+def cruce_zetti(x, p):
+    # Devuelve (diferencia Zetti - Portal IVA sin explicar, archivo, dónde está) o None si no se corrió el cruce.
+    # 1) hoja "cruze" del papel del mes (la deja la skill cruze-zetti-portaliva-ventas en AAAAMM-papeldetrabajo-X.xlsx),
+    # 2) cruce de 3 fuentes (AAAAMM - CRUCE VENTAS MC PORTAL ZETTI.xlsx), 3) archivo de cruce suelto (versiones anteriores)
+    for f in x.en_mes(p, r'papel.*\.xlsx$'):
+        if NO_PAPEL.search(norm(os.path.basename(f))) or os.path.basename(f).startswith('~$'): continue
+        wb = abrir(f, read_only=True, data_only=True)
+        h = next((n for n in wb.sheetnames if n.strip().lower() == 'cruze'), None)
+        if h: return total_cruze(wb[h]), f, f'hoja "{h}" de {os.path.basename(f)}'
+    for f in x.en_mes(p, rf'^{p} - CRUCE VENTAS MC PORTAL ZETTI\.xlsx$'):
+        wb = abrir(f, read_only=True, data_only=True)
+        if 'Resumen' not in wb.sheetnames: continue
+        for r in wb['Resumen'].iter_rows(values_only=True):
+            if r and nfc(r[0]) == 'Zetti - Portal IVA':
+                v = [c for c in r if num(c)]
+                return (v[-1] if v else None), f, os.path.basename(f)
+    for f in x.en_mes(p, rf'^{p} - CRUCE (VENTAS )?ZETTI VS PORTAL IVA\.xlsx$'):
+        return total_cruze(abrir(f, read_only=True, data_only=True).worksheets[0]), f, os.path.basename(f)
+    return None
+
+
 def c07(x):
     e = x.e
     for p in x.meses:
         f = next(iter(x.buscar(rf'^{p} - PORTAL IVA - VENTAS\.xlsx$', p)), None) or next(iter(x.buscar(rf'^{p} - PORTAL IVA - VENTAS.*\.xlsx$', p)), None)
+        tot = None
         if not f:
             x.add(7, p, 'Libro de ventas', 'Rojo', f"No está el libro {p} - PORTAL IVA - VENTAS.xlsx en la carpeta del mes: no se pueden controlar las ventas.",
                   fuente=x.carpeta and f"{x.carpeta}/01-Impuestos Mensuales")
@@ -483,20 +554,19 @@ def c07(x):
                     x.add(7, p, nfc(e.wf.cell(r, 1).value) if r else lab, 'Rojo' if tot and abs(v - lib) / tot > CFG['ventas_tol_pct'] else 'Amarillo',
                           f"{nfc(e.wf.cell(r, 1).value) if r else lab} de {mm(p)} no coincide con el Portal IVA ({os.path.basename(f)}).",
                           v, round(lib, 2), celda=e.ref(r, p), fuente=f)
-        cru = next(iter(x.buscar(rf'^{p} - CRUCE ZETTI VS PORTAL IVA\.xlsx$', p)), None)
+        try: cru = cruce_zetti(x, p)
+        except Exception as err: x.log.append(f"7 {mm(p)}: no se pudo leer el cruce Zetti ({err})"); continue
         if cru:
-            try:
-                t = str(abrir(cru, read_only=True, data_only=True).worksheets[0].cell(2, 1).value or '')
-                g = lambda k: float(re.search(k + r' \$ (-?[\d.]+,\d{2})', t)[1].replace('.', '').replace(',', '.'))
-                dif, port = g('Diferencia'), g('Total Portal IVA')
-                if abs(dif) > 1000:
-                    x.add(7, p, 'Zetti vs Portal IVA', 'Rojo' if port and abs(dif) / port > CFG['ventas_tol_pct'] else 'Amarillo',
-                          f"Las ventas de Zetti difieren {pesos(dif)} del Portal IVA en {mm(p)} (ver el detalle en el cruce).",
-                          round(port + dif, 2), port, dif, fuente=cru)
-            except Exception as err: x.log.append(f"7 {mm(p)}: no se pudo leer el cruce Zetti ({err})")
-        elif x.buscar(rf'^{p} - ZETTI - VENTAS\.xlsx$'):
-            x.add(7, p, 'Zetti vs Portal IVA', 'Amarillo', f"Está el subdiario de Zetti de {mm(p)} pero no se corrió el cruce con el Portal IVA.",
-                  fuente=x.buscar(rf'^{p} - ZETTI - VENTAS\.xlsx$')[0])
+            dif, fc, donde = cru
+            if dif is None:
+                x.log.append(f"7 {mm(p)}: el cruce ({donde}) no tiene la fila TOTAL DIFERENCIAS con la columna Dif. Total")
+            elif abs(dif) > 1000:
+                x.add(7, p, 'Zetti vs Portal IVA', 'Rojo' if tot and abs(dif) / tot > CFG['ventas_tol_pct'] else 'Amarillo',
+                      f"Las ventas de Zetti difieren {pesos(dif)} del Portal IVA en {mm(p)} y el cruce no lo explica (ver el detalle en la {donde}).",
+                      round(tot + dif, 2) if tot else None, round(tot, 2) if tot else None, dif, fuente=fc, comparar=round(dif, 2))
+        elif x.en_mes(p, rf'^{p} - ZETTI - VENTAS\.xlsx$'):
+            x.add(7, p, 'Zetti vs Portal IVA', 'Amarillo', f"Está el subdiario de Zetti de {mm(p)} pero no se corrió el cruce con el Portal IVA "
+                  "(no hay hoja \"cruze\" en el papel del mes).", fuente=x.en_mes(p, rf'^{p} - ZETTI - VENTAS\.xlsx$')[0])
         x.ok(7, p)
     x.ok(7)
 
@@ -512,22 +582,39 @@ def c08(x):
     x.ok(8)
 
 
+def conciliacion(x, p):
+    # AAAAMM-COMPRAS-SIN-NCR-*.xlsx de conciliacion-ncr: NCR eliminadas (en positivo), NC comerciales sin respaldo,
+    # cantidad de NCR no encontradas y {(CUIT, PV, número): importe} de cada NCR. None = no hay; False = no se pudo leer.
+    if p in x._conc: return x._conc[p]
+    f = next(iter(x.buscar(rf'^{p}-COMPRAS-SIN-NCR-.*\.xlsx$', p)), None); out = None
+    if f:
+        try:
+            wb = abrir(f, read_only=True, data_only=True)
+            def hoja(h):
+                filas = list(wb[h].iter_rows(values_only=True)) if h in wb.sheetnames else []
+                return (filas[0], [r for r in filas[1:] if any(v is not None for v in r)]) if filas else ((), [])
+            def col(h, nombre):
+                cab, filas = hoja(h); i = next((k for k, v in enumerate(cab) if nfc(v) == nombre), None)
+                return [r[i] for r in filas if i is not None and num(r[i])]
+            cab, el = hoja('Eliminados'); i = {nfc(v): k for k, v in enumerate(cab)}
+            ent = lambda v: int(float(v)) if re.match(r'^\s*\d+(\.0+)?\s*$', str(v if v is not None else '')) else None
+            claves = {(ndoc(r[i['_cuit']]), ent(r[i['_pv']]), ent(r[i['_nro']])): float(r[i['_imp']]) for r in el
+                      if {'_cuit', '_pv', '_nro', '_imp'} <= set(i) and num(r[i['_imp']])}
+            out = dict(f=f, ncr=-sum(col('Eliminados', '_imp')), nccom=-sum(col('NC sin respaldo', 'Importe Total')),
+                       no_enc=len(hoja('NCR no encontradas')[1]), claves=claves)
+        except Exception as err:
+            x.log.append(f"{mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); out = False
+    x._conc[p] = out
+    return out
+
+
 def c09(x):
     e = x.e; datos, sin = {}, []
     for p in x.meses:
-        f = next(iter(x.buscar(rf'^{p}-COMPRAS-SIN-NCR-.*\.xlsx$', p)), None)
-        if not f: sin.append(p); x.ok(9, p); continue
-        try:
-            wb = abrir(f, read_only=True, data_only=True)
-            def col(h, nombre):
-                if h not in wb.sheetnames: return [], 0
-                filas = list(wb[h].iter_rows(values_only=True))
-                if not filas: return [], 0
-                i = next((k for k, v in enumerate(filas[0]) if nfc(v) == nombre), None)
-                return ([r[i] for r in filas[1:] if i is not None and num(r[i])], len([r for r in filas[1:] if any(r)]))
-            ncr = -sum(col('Eliminados', '_imp')[0]); nccom = -sum(col('NC sin respaldo', 'Importe Total')[0])
-            no_enc = col('NCR no encontradas', '')[1]
-        except Exception as err: x.log.append(f"9 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); continue
+        cn = conciliacion(x, p)
+        if cn is None: sin.append(p); x.ok(9, p); continue
+        if cn is False: continue
+        ncr, nccom, no_enc, f = cn['ncr'], cn['nccom'], cn['no_enc'], cn['f']
         datos[p] = (ncr, nccom, f)
         if no_enc:
             x.add(9, p, 'NCR no encontradas', 'Amarillo', f"{no_enc} NCR del SharePoint no se encontraron en el Portal IVA de compras de {mm(p)}.",
@@ -771,13 +858,296 @@ def c15(x):
     x.ok(15)
 
 
-CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15]
+# ------------------------------------------------------------------ papel de trabajo (controles 16 a 21)
+# El papel de liquidaciones del equipo (01-Impuestos Mensuales/202600-liquidaciones-IVA, IIBB y Tasa Municipal-X.xlsx)
+# tiene una hoja por mes (MM-AAAA) con el mismo modelo en todas las sociedades: columna B = etiqueta, C a G = Neto
+# gravado, No gravado, Exento, IVA, Total; H = clasificación de cada compra (MERCADERIA / SERVICIOS AL x%); J y K =
+# cuadro de prorrateo. Se lee por etiqueta, no por número de fila. No se usa el "- AUTOMATICO" (lo genera el estudio).
+def leer_mes(rows):
+    d = dict(ventas=[], compras=[], sub={}, pct={}, k={}, det={}, ncr=None, total_nc=None, fila={})
+    sec, parte = None, 'cf'
+    for i, r in enumerate(rows, 1):
+        r = list(r) + [None] * max(0, 12 - len(r)); b = norm(r[1])
+        for c in range(1, len(r)):
+            if norm(r[c]) in ('ncr eliminadas', 'total nc') and num(r[c - 1]):
+                d['ncr' if norm(r[c]) == 'ncr eliminadas' else 'total_nc'] = float(r[c - 1]); d['fila'][norm(r[c])] = f"{CL(c)}{i}"
+        if norm(r[9]) and num(r[10]): d['k'][norm(r[9])] = float(r[10])
+        if b == 'ventas' and sec is None: sec = 'ventas'; continue
+        if b.startswith('prorrateo para credito fiscal'): sec = 'prorrateo'; continue
+        if b == 'compras' and sec == 'prorrateo': sec = 'compras'; continue
+        if b.startswith('determinacion del saldo de iva'): sec = 'det'; continue
+        if b.startswith('ingresos brutos') or b.startswith('retenciones y percepciones'): sec = 'fin'
+        if not b or b == 'tipo de comprobante' or b == 'concepto': continue
+        vals = [float(v) if num(v) else 0.0 for v in r[2:7]]
+        if sec in ('ventas', 'compras'):
+            if b.startswith(('subtotal', 'totales', 'ventas netas')):
+                d['sub'][(sec, b)] = vals; d['fila'][(sec, b)] = i
+                if b == 'subtotal credito fiscal': parte = 'nc'
+            else: d[sec].append(dict(lab=nfc(r[1]), b=b, vals=vals, clase=norm(r[7]), parte=parte, fila=i))
+        elif sec == 'prorrateo' and b in ('venta gravada', 'venta exenta'):
+            d['pct'][b] = float(r[2]) if num(r[2]) else None; d['fila'][('pct', b)] = i
+        elif sec == 'det':
+            d['det'][b] = float(r[2]) if num(r[2]) else None; d['fila'][('det', b)] = i
+    return d
+
+
+def papel_anual(x):
+    # {AAAAMM: datos de la hoja del mes, con 'f' = archivo y 'hoja'} para los meses auditados con datos cargados
+    if x._papel is not None: return x._papel
+    x._papel = {}
+    fs = sorted({q for n, ps in x.idx.items() if 'liquidaciones' in norm(n) and n.lower().endswith(('.xlsx', '.xls')) and
+                 not n.startswith('~$') and not NO_PAPEL.search(norm(n)) for q in ps if os.sep + '01-Impuestos Mensuales' in q})
+    for f in fs:
+        if f.lower().endswith('.xls'): x.log.append(f"papel {os.path.basename(f)}: es .xls, no se puede leer (guardarlo como .xlsx)"); continue
+        try: wb = abrir(f, read_only=True, data_only=True)
+        except Exception as err: x.log.append(f"papel: no se pudo abrir {os.path.basename(f)} ({err})"); continue
+        for n in wb.sheetnames:
+            m = re.match(r'^(\d{2})-(\d{4})$', n.strip())
+            if not m or f"{m[2]}{m[1]}" not in x.meses: continue
+            p = f"{m[2]}{m[1]}"
+            if p in x._papel and os.path.basename(x._papel[p]['f']).startswith(p[:4]): continue   # manda el papel de ese año
+            d = leer_mes(wb[n].iter_rows(max_col=12, values_only=True))
+            if not any(any(r['vals']) for r in d['ventas']): continue                              # mes sin cargar
+            if d['det'].get('subtotal debito fiscal') is None:
+                x.log.append(f"papel {mm(p)}: la hoja {n} no tiene los valores de las fórmulas (abrirlo y guardarlo con Excel)"); continue
+            d.update(f=f, hoja=n); x._papel[p] = d
+    return x._papel
+
+
+def celda_papel(d, clave, col='C'):
+    i = d['fila'].get(clave)
+    return f"{col}{i}" if isinstance(i, int) else i
+
+
+DDJJ_RX = dict(df=r'Total del d[ée]bito fiscal del per[ií]odo \$ ?(-?[\d\.]+,\d{2})',
+               cf=r'Total del cr[ée]dito fiscal del per[ií]odo \$ ?(-?[\d\.]+,\d{2})')
+def ddjj_iva(x, p):
+    # débito y crédito fiscal de la DDJJ de IVA presentada: AAAAMM-IVA-DDJJ-*.pdf de la carpeta del mes (el más nuevo,
+    # por las rectificativas) o, si no, el JSON de ddjj-iva.js en BVA-salidas/ddjj-iva/<CUIT>/AAAAMM.json
+    for f in sorted(x.en_mes(p, rf'^{p}-IVA-DDJJ-.*\.pdf$'), key=os.path.getmtime, reverse=True):
+        try: t = pdf_texto(f)
+        except Exception as err: x.log.append(f"16 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); continue
+        g = {k: re.search(rx, t, re.I) for k, rx in DDJJ_RX.items()}
+        if all(g.values()): return {k: float(v[1].replace('.', '').replace(',', '.')) for k, v in g.items()}, f
+    j = os.path.join(SALIDAS, 'ddjj-iva', x.e.cuit or '-', f'{p}.json')
+    if os.path.exists(j):
+        d = json.load(open(j, encoding='utf-8'))
+        if num(d.get('df')) and num(d.get('cf')): return dict(df=d['df'], cf=d['cf']), j
+    return None, None
+
+
+def sin_papel(x, control):
+    # un solo aviso (en el control 16) si la sociedad no tiene papel de liquidaciones legible; el resto no corre
+    if x.papel_avisado: return
+    x.papel_avisado = True
+    x.add(control, '-', 'Papel de trabajo', 'Amarillo', 'No hay papel de liquidaciones (202600-liquidaciones-IVA, IIBB y Tasa Municipal-X.xlsx, '
+          'una hoja MM-AAAA por mes) con meses del ejercicio cargados: no se pueden correr los controles del papel (16 a 21).',
+          fuente=x.carpeta and f"{x.carpeta}/01-Impuestos Mensuales")
+
+
+def c16(x):
+    P = papel_anual(x)
+    if not P: sin_papel(x, 16); return x.ok(16)
+    rat = {}
+    for p in x.meses:
+        d = P.get(p)
+        if not d: continue
+        df, cf = d['det'].get('subtotal debito fiscal'), d['det'].get('total credito fiscal')
+        dj, fdj = ddjj_iva(x, p)
+        if dj:
+            for k, nombre, v, et in (('df', 'Débito fiscal', df, 'subtotal debito fiscal'), ('cf', 'Crédito fiscal', cf, 'total credito fiscal')):
+                if num(v) and abs(v - dj[k]) > 1:
+                    x.add(16, p, f"{nombre} vs DDJJ", 'Rojo', f"El {nombre.lower()} del papel de {mm(p)} (celda {celda_papel(d, ('det', et))} de la hoja "
+                          f"{d['hoja']}) no coincide con la DDJJ de IVA presentada ({os.path.basename(fdj)}).", round(v, 2), dj[k], fuente=d['f'])
+        if num(df) and num(cf) and df > 0: rat[p] = cf / df
+        x.ok(16, p)
+    if len(rat) >= 3:
+        med = statistics.median(rat.values())
+        for p, q in rat.items():
+            motivos = []
+            if med > 0 and abs(q - med) / med > CFG['cf_df_desvio_pct']: motivos.append(f"lo habitual es {pct(med)} (mediana del ejercicio)")
+            if q > 1 and med <= 1: motivos.append('el crédito supera al débito (saldo técnico a favor)')
+            if motivos:
+                d = P[p]
+                x.add(16, p, 'Crédito / débito fiscal', 'Amarillo', f"En {mm(p)} el crédito fiscal es {pct(q)} del débito fiscal; " + '; '.join(motivos) +
+                      '. Revisar compras de mercadería sin cargar, duplicadas o mal clasificadas (mercadería / servicios).',
+                      round(q, 4), round(med, 4), es_pct=True, fuente=d['f'], comparar=round(q, 3))
+    x.ok(16)
+
+
+def es_nc(r):
+    m = re.match(r'^(\d+)', r['b'])
+    return 'credito' in r['b'] or bool(m and int(m[1]) in NC_COD)
+
+
+def c17(x):
+    P = papel_anual(x)
+    if not P: sin_papel(x, 17); return x.ok(17)
+    for p in x.meses:
+        d = P.get(p)
+        if not d: continue
+        for sec in ('ventas', 'compras'):
+            for r in d[sec]:
+                if not es_nc(r) or not any(v > 0.5 for v in r['vals'][:4]): continue
+                aviso = '' if 'credito' in r['b'] else f" (el código {r['b'].split()[0]} es de nota de crédito aunque la fila diga \"{r['lab']}\")"
+                x.add(17, p, f"NC en positivo: {r['lab']} ({sec})", 'Amarillo' if aviso else 'Rojo',
+                      f"En el papel de {mm(p)} la fila \"{r['lab']}\" de {sec} (fila {r['fila']} de la hoja {d['hoja']}) está en positivo{aviso}: las notas "
+                      "de crédito van en negativo; así suman en lugar de restar en el subtotal, el prorrateo y la liquidación.",
+                      round(sum(r['vals'][:4]), 2), fuente=d['f'])
+        x.ok(17, p)
+    x.ok(17)
+
+
+def c18(x):
+    # NRF = NC de recupero de las droguerías (NCR, SharePoint "NC por NRF"). Lo conciliado en COMPRAS-SIN-NCR tiene que
+    # estar en las NC de compras del papel y coincidir con lo que el papel informa como "NCR eliminadas".
+    P = papel_anual(x)
+    if not P: sin_papel(x, 18); return x.ok(18)
+    sin_bloque = []
+    for p in x.meses:
+        d, cn = P.get(p), conciliacion(x, p)
+        if not d or not cn: continue
+        ncr = cn['ncr']; nc = abs(d['sub'].get(('compras', 'subtotal notas de credito s/compras'), [0] * 5)[4])
+        if ncr >= 1:
+            if nc < ncr - 1:
+                x.add(18, p, 'NCR sin computar', 'Amarillo', f"Las NC de compras del papel de {mm(p)} suman {pesos(nc)} y las NCR conciliadas {pesos(ncr)} "
+                      f"({os.path.basename(cn['f'])}): el papel no incluye las NCR en las NC de compras (en los demás papeles se incluyen y se separan "
+                      "en \"NCR eliminadas\").", round(nc, 2), round(ncr, 2), fuente=d['f'])
+            if d['ncr'] is None: sin_bloque.append(p)
+            elif abs(abs(d['ncr']) - ncr) > 1:
+                x.add(18, p, 'NCR eliminadas', 'Rojo', f"El papel de {mm(p)} informa NCR eliminadas por {pesos(abs(d['ncr']))} (celda {d['fila']['ncr eliminadas']} "
+                      f"de la hoja {d['hoja']}) y la conciliación de NCR da {pesos(ncr)}.", round(abs(d['ncr']), 2), round(ncr, 2), fuente=d['f'])
+        x.ok(18, p)
+    if sin_bloque:
+        x.add(18, '-', 'NCR no identificadas en el papel', 'Amarillo', f"En {len(sin_bloque)} meses con conciliación de NCR el papel no separa las NCR de las "
+              f"NC comerciales (falta \"NCR eliminadas\" / \"TOTAL NC\" debajo de las compras): {', '.join(mm(p) for p in sin_bloque)}.",
+              len(sin_bloque), comparar=len(sin_bloque))
+    x.ok(18)
+
+
+def c19(x):
+    P = papel_anual(x)
+    if not P: sin_papel(x, 19); return x.ok(19)
+    r_eerr = x.e.ix.get('iva prorrateo')
+    for p in x.meses:
+        d = P.get(p)
+        if not d: continue
+        vn = d['sub'].get(('ventas', 'ventas netas (s/ notas de credito)')); pe = d['pct'].get('venta exenta')
+        cel = celda_papel(d, ('pct', 'venta exenta'))
+        if vn and num(pe) and vn[0] + vn[2]:
+            esp = vn[2] / (vn[0] + vn[2])
+            if abs(pe - esp) > 0.0005:
+                x.add(19, p, '% venta exenta', 'Rojo', f"El % de venta exenta del papel de {mm(p)} ({cel} de la hoja {d['hoja']}) no sale de las Ventas Netas "
+                      f"del mismo papel ({pct(esp)}): ¿se pisó la fórmula?", round(pe, 4), round(esp, 4), es_pct=True, fuente=d['f'])
+        f = next(iter(x.buscar(rf'^{p} - PORTAL IVA - VENTAS\.xlsx$', p)), None)
+        if f and num(pe):
+            try:
+                gr, ex = ventas_libro(f)
+                if gr + ex and abs(pe - ex / (gr + ex)) > CFG['prorrateo_pct_tol']:
+                    x.add(19, p, '% venta exenta vs Portal IVA', 'Amarillo', f"El papel de {mm(p)} prorratea con {pct(pe)} de venta exenta y el libro de "
+                          f"ventas del Portal IVA da {pct(ex / (gr + ex))} ({os.path.basename(f)}).", round(pe, 4), round(ex / (gr + ex), 4), es_pct=True, fuente=d['f'])
+            except Exception as err: x.log.append(f"19 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})")
+        serv = sum(r['vals'][3] for r in d['compras'] if r['parte'] == 'cf' and r['clase'].startswith('servicios'))
+        comp, nocomp = d['k'].get('total iva computable (servicios)'), d['k'].get('total iva no computable (servicios)')
+        if num(nocomp) and num(pe) and abs(nocomp - pe * serv) > 1:
+            x.add(19, p, 'IVA no computable', 'Rojo', f"El IVA no computable por prorrateo del papel de {mm(p)} ({pesos(nocomp)}) no es el % de venta exenta "
+                  f"({pct(pe)}) por el IVA de compras de servicios ({pesos(serv)}).", round(nocomp, 2), round(pe * serv, 2), fuente=d['f'])
+        if num(comp) and num(nocomp) and serv - comp - nocomp > 1:
+            sin = sorted({r['lab'] + ' / ' + r['clase'].upper() for r in d['compras'] if r['parte'] == 'cf' and r['clase'].startswith('servicios')
+                          and not re.search(r'\d+(,\d+)?\s*%', r['clase']) and r['vals'][3]})
+            x.add(19, p, 'IVA de servicios fuera del prorrateo', 'Rojo', f"En {mm(p)} hay {pesos(serv - comp - nocomp)} de IVA de servicios que no entra como "
+                  f"computable ni como no computable: la clasificación no dice la alícuota (\"SERVICIOS AL x%\")" + (f": {'; '.join(sin)}." if sin else '.'),
+                  round(comp + nocomp, 2), round(serv, 2), fuente=d['f'])
+        v = x.e.v(r_eerr, p) if r_eerr else 0
+        if r_eerr and num(nocomp) and abs(v - nocomp) > max(CFG['prorrateo_tol_min'], CFG['prorrateo_tol_pct'] * abs(nocomp)):
+            x.add(19, p, 'IVA Prorrateo del EERR vs papel', 'Rojo' if nocomp > 1 and not v else 'Amarillo',
+                  f"La fila IVA Prorrateo del EERR de {mm(p)} no es el IVA no computable del papel de trabajo (hoja {d['hoja']})" +
+                  (": está en cero." if not v else ": suele ser la clasificación mercadería / servicios del Maestro distinta de la del papel."),
+                  v, round(nocomp, 2), celda=x.e.ref(r_eerr, p), fuente=d['f'])
+        x.ok(19, p)
+    x.ok(19)
+
+
+def c20(x):
+    P = papel_anual(x)
+    if not P: sin_papel(x, 20); return x.ok(20)
+    rat = {'exentas': {}, 'gravadas': {}}; ventas = {}
+    for p in x.meses:
+        d = P.get(p)
+        if not d: continue
+        # compras de mercadería sin las NC: las NCR restan exento en montos que cambian mucho de un mes a otro
+        vn = d['sub'].get(('ventas', 'ventas netas (s/ notas de credito)'))
+        merc = [r['vals'] for r in d['compras'] if r['clase'] == 'mercaderia' and r['parte'] == 'cf']
+        if not vn: continue
+        vg, ve = vn[0], vn[1] + vn[2]; cg, ce = sum(v[0] for v in merc), sum(v[1] + v[2] for v in merc)
+        if vg + ve <= 0 or cg + ce <= 0: x.ok(20, p); continue
+        sv, sc = ve / (vg + ve), ce / (cg + ce)
+        if abs(sv - sc) > CFG['mix_exento_pts']:
+            x.add(20, p, 'Mezcla exento / gravado', 'Amarillo', f"En {mm(p)} las ventas exentas son {pct(sv)} de las ventas y las compras exentas de mercadería "
+                  f"{pct(sc)} de las compras de mercadería (sin NC): revisar compras gravadas o exentas mal cargadas en el papel.", round(sc, 4), round(sv, 4),
+                  es_pct=True, fuente=d['f'], comparar=round(sc - sv, 2))
+        if ve > 0: rat['exentas'][p] = ce / ve
+        if vg > 0: rat['gravadas'][p] = cg / vg
+        ventas[p] = (ve, vg); x.ok(20, p)
+    for tipo, rr in rat.items():
+        if len(rr) < 3: continue
+        med = statistics.median(rr.values())
+        for p, q in rr.items():
+            v = ventas[p][0 if tipo == 'exentas' else 1]
+            if med > 0 and abs(q - med) / med > CFG['compra_venta_desvio_pct'] and abs(q - med) * v > CFG['materialidad_min']:
+                x.add(20, p, f"Compras / ventas {tipo}", 'Amarillo', f"En {mm(p)} las compras {tipo[:-1]}s de mercadería (sin NC) son {pct(q)} de las ventas {tipo}; "
+                      f"lo habitual es {pct(med)} (mediana del ejercicio).", round(q, 4), round(med, 4), es_pct=True, fuente=P[p]['f'], comparar=round(q, 2))
+    x.ok(20)
+
+
+def c21(x):
+    P = papel_anual(x)
+    if not P: sin_papel(x, 21); return x.ok(21)
+    sin_ident = []
+    for p in x.meses:
+        d = P.get(p)
+        f = next(iter(x.buscar(rf'^{p} - PORTAL IVA - COMPRAS\.xlsx$', p)), None) or next(iter(x.buscar(rf'^{p} - PORTAL IVA - COMPRAS.*\.xlsx$', p)), None)
+        if not d or not f: continue
+        try: lib, claves = nc_libro(f)
+        except Exception as err: x.log.append(f"21 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); continue
+        # el libro puede tener las NCR o no (después del paso 4 de conciliacion-ncr se eliminan): el papel las incluye
+        cn = conciliacion(x, p) or {}; lib = abs(lib)
+        pap = abs(d['sub'].get(('compras', 'subtotal notas de credito s/compras'), [0] * 5)[4])
+        tol = lambda esp: max(CFG['nc_tol'], 0.001 * esp)
+        if cn.get('claves'):
+            ya = abs(sum(v for k, v in cn['claves'].items() if k not in claves)); ncr = cn['ncr']   # NCR ya eliminadas del libro
+        elif d['ncr'] is not None:
+            ncr = abs(d['ncr']); ya = ncr if abs(pap - ncr - lib) < abs(pap - lib) else 0      # el libro sin las NCR
+        elif pap > lib + tol(lib):
+            sin_ident.append((p, pap - lib)); x.ok(21, p); continue
+        else: ya = ncr = 0
+        esp = lib + ya
+        if ncr and abs(pap - (esp - ncr)) <= tol(esp): x.ok(21, p); continue        # papel sin las NCR: lo informa el 18
+        if abs(pap - esp) > tol(esp):
+            partes = f" NCR: {pesos(ncr)} · NC comerciales: {pesos(pap - ncr)}." if ncr and pap >= ncr else ''
+            x.add(21, p, 'NC de compras vs libro', 'Rojo' if esp and abs(pap - esp) / esp > CFG['ventas_tol_pct'] else 'Amarillo',
+                  f"Las NC de compras del papel de {mm(p)} suman {pesos(pap)} y las del libro de compras del Portal IVA {pesos(lib)}" +
+                  (f" más {pesos(ya)} de NCR ya eliminadas del libro" if ya else '') + f" ({os.path.basename(f)})." + partes,
+                  round(pap, 2), round(esp, 2), fuente=d['f'])
+        x.ok(21, p)
+    if sin_ident:
+        x.add(21, '-', 'NC de compras sin NCR identificadas', 'Amarillo',
+              f"En {len(sin_ident)} meses las NC de compras del papel superan a las del libro del Portal IVA y no hay cómo saber si la diferencia son "
+              "las NCR eliminadas del libro (no hay conciliación de NCR ni \"NCR eliminadas\" en el papel): " +
+              ', '.join(f"{mm(p)} {pesos(v)}" for p, v in sin_ident) + '.', len(sin_ident), comparar=len(sin_ident))
+    x.ok(21)
+
+
+CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21]
 
 
 def analizar(args):
     f, hasta = args
     x = Ctx(f, hasta)
+    nombre = norm(re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5])
+    exc = {int(c) for k, cs in CFG['excepciones'].items() if norm(k) == nombre or re.sub(r'\D', '', k) == (x.e.cuit or '-') for c in cs}
     for i, chk in enumerate(CHECKS, 1):
+        if i in exc: x.log.append(f"Control {i} no corre para esta sociedad (excepción en la configuración)"); continue
         try: chk(x)
         except Exception as err:
             import traceback
@@ -948,7 +1318,8 @@ def escribir(wb, res, hasta, hoy):
         c = ws.cell(H, HC + i, n); c.font = Font(bold=True); c.fill = GRIS; c.alignment = Alignment(wrap_text=True)
     avisos = ' | '.join(l for l in res['log'] if not l.startswith('Traceback') and 'File "' not in l)[:1000]
     corridos = sorted({s[0] for s in res['scope'] if s[1] == '*'})
-    hist.append([hoy, mm(hasta), f"{len(corridos)} de 15" + ('' if len(corridos) == 15 else f" (faltan {', '.join(str(i) for i in range(1, 16) if i not in corridos)})"),
+    n = len(CONTROLES)
+    hist.append([hoy, mm(hasta), f"{len(corridos)} de {n}" + ('' if len(corridos) == n else f" (faltan {', '.join(str(i) for i in range(1, n + 1) if i not in corridos)})"),
                  cont['nuevos'], cont['pendientes'], cont['resueltos'], cont['reabiertos'], cont['aprobados'], avisos or None])
     for j, h in enumerate(hist):
         for i, v in enumerate(h):

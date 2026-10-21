@@ -90,7 +90,7 @@
     {
       "name": "auditor-eerr",
       "source": "./auditor-eerr",
-      "description": "Audita los EERR 2026 de las sociedades con 15 controles (Portal IVA, Zetti, F.931, DJ ARBA, NCR, Maestro de Proveedores) y documenta los hallazgos en la hoja Auditorias del mismo EERR, con estado Pendiente/Resuelto/Aprobado.",
+      "description": "Audita los EERR 2026 de las sociedades con 21 controles (Portal IVA, Zetti, F.931, DJ ARBA, NCR, Maestro de Proveedores y papel de trabajo) y documenta los hallazgos en la hoja Auditorias del mismo EERR, con estado Pendiente/Resuelto/Aprobado.",
       "category": "contabilidad"
     }
   ]

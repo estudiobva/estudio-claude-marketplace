@@ -1,6 +1,6 @@
 {
   "name": "auditor-eerr",
-  "description": "Audita los Estados de Resultados (EERR 2026) de las sociedades con 15 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR y el Maestro de Proveedores, y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR con estado Pendiente/Resuelto/Aprobado.",
+  "description": "Audita los Estados de Resultados (EERR 2026) de las sociedades con 21 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR, el Maestro de Proveedores y el papel de trabajo (DDJJ de IVA, signo de NC, NRF, prorrateo), y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR con estado Pendiente/Resuelto/Aprobado.",
   "version": "1.1.0",
   "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
   "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
