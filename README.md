@@ -8,12 +8,14 @@ un script de Playwright y la skill que lo usa.
 | `setup-bva` | Prepara la computadora: programas, marketplace, dependencias, `.env` y diagnóstico. Avisa al abrir Claude si falta algo. |
 | `planes-facilidades-arca` | Releva los planes de facilidades de pago en Mis Facilidades (ARCA). |
 | `conciliacion-ncr` | Concilia el Portal IVA contra las NCR de Suizo y Monroe y las saca del Libro Compras. |
+| `clasificacion-compras` | Clasifica las compras del mes (sin NCR) con el Maestro de Proveedores: cuenta y rubro del EERR, resumen por rubro y proveedores pendientes. |
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
 | `f931-descarga-arca` | Baja los F.931 presentados desde Declaración en Línea (ARCA), un PDF por período, con login automático desde la planilla de claves. |
 | `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
 | `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
 | `zetti-subdiario-iva-ventas` | Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) del mes, en Excel ordenado por tipo de comprobante, y lo archiva en la carpeta IVA del mes. Login automático. |
+| `zetti-subdiario-iva-compras` | Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) del mes, con el formato de la solapa "Compras Zetti" del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `cruze-zetti-portaliva-ventas` | Circuito completo de ventas del mes: Portal IVA → Zetti → hojas del papel de trabajo → cruze con las diferencias. |
 | `facturacion-arca` | Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor desde la planilla mensual: validar, dry-run y emisión con código. **Escribe en ARCA.** |
 | `auditor-eerr` | Audita los EERR 2026 con 15 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR y el Maestro de Proveedores, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |

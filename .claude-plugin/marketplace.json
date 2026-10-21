@@ -28,6 +28,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "clasificacion-compras",
+      "source": "./clasificacion-compras",
+      "description": "Clasifica las compras del Portal IVA (sin NCR si está la conciliación) con el Maestro de Proveedores: cuenta y rubro del EERR por comprobante, resumen por rubro y proveedores pendientes.",
+      "category": "contabilidad"
+    },
+    {
       "name": "anticipos-sct",
       "source": "./anticipos-sct",
       "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
@@ -55,6 +61,12 @@
       "name": "zetti-subdiario-iva-ventas",
       "source": "./zetti-subdiario-iva-ventas",
       "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) de cada sociedad, lo pasa a Excel ordenado por tipo de comprobante y lo archiva en la carpeta IVA del mes. Login automático con la planilla de claves.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "zetti-subdiario-iva-compras",
+      "source": "./zetti-subdiario-iva-compras",
+      "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) de cada sociedad, en Excel con el formato de la solapa 'Compras Zetti' del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático con la planilla de claves.",
       "category": "contabilidad"
     },
     {

@@ -1,0 +1,8 @@
+{
+  "name": "clasificacion-compras",
+  "description": "Clasifica las compras del Portal IVA (ya depuradas de NCR si está la conciliación) con el Maestro de Proveedores: cuenta contable y rubro del EERR por comprobante, resumen por rubro y proveedores pendientes de clasificar. No toca ARCA ni el Maestro.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["portal iva", "compras", "maestro de proveedores", "clasificacion", "eerr", "argentina"]
+}

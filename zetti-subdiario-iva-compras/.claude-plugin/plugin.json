@@ -1,0 +1,8 @@
+{
+  "name": "zetti-subdiario-iva-compras",
+  "description": "Baja de Zetti (T&S Web) el Subdiario de IVA Compras (reporte 5.6.4) de una, varias o todas las sociedades para un mes, lo pasa a Excel con el formato de la solapa 'Compras Zetti' del papel de trabajo y lo archiva en la carpeta IVA del mes como 'AAAAMM - ZETTI - COMPRAS.xlsx'. Login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["zetti", "t&s web", "subdiario", "iva compras", "playwright", "argentina"]
+}
