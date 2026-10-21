@@ -796,8 +796,15 @@ def analizar(args):
 
 
 # ------------------------------------------------------------------ hoja Auditorias
-COLS = ['N°', 'Fecha detección', 'Nivel', 'Control', 'Mes', 'Concepto', 'Descripción', 'Valor EERR', 'Valor de control', 'Diferencia',
-        'Ir a la celda', 'Documento fuente', 'Estado', 'Fecha estado', 'Observaciones', 'Última auditoría', 'Clave', 'Comparar']
+# Estado va en la columna B para que se vea sin scroll (pedido de Javi 09/10/2026). La hoja se lee por el nombre del
+# encabezado, así que las hojas escritas con el orden anterior (Estado en M) se migran solas en la próxima auditoría.
+COLS = ['N°', 'Estado', 'Nivel', 'Fecha detección', 'Control', 'Mes', 'Concepto', 'Descripción', 'Valor EERR', 'Valor de control',
+        'Diferencia', 'Ir a la celda', 'Documento fuente', 'Fecha estado', 'Observaciones', 'Última auditoría', 'Clave', 'Comparar']
+CI = {n: i for i, n in enumerate(COLS, 1)}            # nombre -> número de columna
+def CC(n): return CL(CI[n])                            # nombre -> letra de columna
+ANCHOS = {'N°': 5, 'Estado': 11, 'Nivel': 9, 'Fecha detección': 11, 'Control': 24, 'Mes': 9, 'Concepto': 26, 'Descripción': 70,
+          'Valor EERR': 15, 'Valor de control': 15, 'Diferencia': 15, 'Ir a la celda': 10, 'Documento fuente': 26,
+          'Fecha estado': 11, 'Observaciones': 30, 'Última auditoría': 11, 'Clave': 10, 'Comparar': 10}
 HIST = ['Fecha', 'Meses hasta', 'Controles corridos', 'Nuevos', 'Siguen pendientes', 'Resueltos solos', 'Reabiertos', 'Aprobados (no se informan)', 'Avisos']
 HC = len(COLS) + 2   # columna donde empieza el historial
 ROJO, AMAR = PatternFill('solid', fgColor='FFC7CE'), PatternFill('solid', fgColor='FFEB9C')
@@ -818,8 +825,8 @@ def leer_hoja(wb):
     for r in range(hdr + 1, ws.max_row + 1):
         d = {n: ws.cell(r, c + 1).value for c, n in enumerate(nombres) if n}
         if d.get('Clave'):
-            d['_link'] = ws.cell(r, COLS.index('Ir a la celda') + 1).hyperlink
-            d['_fuente'] = ws.cell(r, COLS.index('Documento fuente') + 1).hyperlink
+            for k, n in (('_link', 'Ir a la celda'), ('_fuente', 'Documento fuente')):
+                d[k] = ws.cell(r, nombres.index(n) + 1).hyperlink if n in nombres else None
             filas.append(d)
         h = [ws.cell(r, HC + i).value for i in range(len(HIST))]
         if h[0]: hist.append(h)
@@ -874,64 +881,67 @@ def escribir(wb, res, hasta, hoy):
     filas, cont = fusionar(previas, res['h'], res['scope'], hoy)
     if HOJA in wb.sheetnames: del wb[HOJA]
     ws = wb.create_sheet(HOJA)
+    H = 5; H0 = H + 1                                   # fila de encabezados y primera fila de hallazgos
     ws['A1'] = f"Auditoría del EERR — {res['denominacion']} (CUIT {res['cuit']})"; ws['A1'].font = Font(bold=True, size=13)
     ws['A2'] = ("Estado: Pendiente = a revisar · Resuelto = se corrigió (el auditor lo marca solo cuando deja de detectarlo) · "
-                "Aprobado = revisado y aceptado: no se vuelve a informar mientras el valor no cambie. Cambiar el estado en la columna M.")
+                "Aprobado = revisado y aceptado: no se vuelve a informar mientras el valor no cambie. Cambiar el estado en la columna B.")
     ws['A2'].font = Font(italic=True, size=9)
-    ws['A3'] = 'Pendientes'; ws['B3'] = '=COUNTIF(M:M,"Pendiente")'
-    ws['C3'] = 'Resueltos'; ws['D3'] = '=COUNTIF(M:M,"Resuelto")'
-    ws['E3'] = 'Aprobados'; ws['F3'] = '=COUNTIF(M:M,"Aprobado")'
+    E = CC('Estado')
+    ws['A3'] = 'Pendientes'; ws['B3'] = f'=COUNTIF({E}{H0}:{E}100000,"Pendiente")'
+    ws['C3'] = 'Resueltos'; ws['D3'] = f'=COUNTIF({E}{H0}:{E}100000,"Resuelto")'
+    ws['E3'] = 'Aprobados'; ws['F3'] = f'=COUNTIF({E}{H0}:{E}100000,"Aprobado")'
     ws['G3'] = f"Última auditoría: {hoy:%d/%m/%Y %H:%M} — meses hasta {mm(hasta)}"
     for c in ('A3', 'C3', 'E3'): ws[c].font = Font(bold=True)
-    H = 5
     for i, n in enumerate(COLS, 1):
         c = ws.cell(H, i, n); c.font = Font(bold=True); c.fill = GRIS; c.alignment = Alignment(wrap_text=True, vertical='center')
     r = H
     for n, d in enumerate(filas, 1):
         r += 1; h = d.get('_nuevo')
         g = lambda k, kh: (h[kh] if h else d.get(k))
-        vals = [n, d.get('Fecha detección'), g('Nivel', 'nivel'),
-                (f"{h['control']}. {CONTROLES[h['control']]}" if h else d.get('Control')), g('Mes', 'mes'), g('Concepto', 'concepto'),
-                g('Descripción', 'desc'), g('Valor EERR', 'valor'), g('Valor de control', 'control_val'), g('Diferencia', 'dif'),
-                None, None, d.get('Estado'), d.get('Fecha estado'), d.get('Observaciones'), d.get('Última auditoría'), d['Clave'],
-                g('Comparar', 'comparar')]
-        for i, v in enumerate(vals, 1): ws.cell(r, i, v)
-        es_pct = h['es_pct'] if h else (ws.cell(r, 8).value is not None and num(ws.cell(r, 8).value) and abs(ws.cell(r, 8).value) < 5 and '%' in str(d.get('Descripción') or ''))
-        for i in (8, 9, 10): ws.cell(r, i).number_format = '0.0%' if es_pct else FMT
-        for i in (2, 14, 16): ws.cell(r, i).number_format = 'dd/mm/yyyy'
-        ws.cell(r, 7).alignment = Alignment(wrap_text=True, vertical='top')
-        nivel = ws.cell(r, 3).value
-        ws.cell(r, 3).fill = ROJO if nivel == 'Rojo' else AMAR if nivel == 'Amarillo' else PatternFill()
+        vals = {'N°': n, 'Estado': d.get('Estado'), 'Nivel': g('Nivel', 'nivel'), 'Fecha detección': d.get('Fecha detección'),
+                'Control': (f"{h['control']}. {CONTROLES[h['control']]}" if h else d.get('Control')), 'Mes': g('Mes', 'mes'),
+                'Concepto': g('Concepto', 'concepto'), 'Descripción': g('Descripción', 'desc'), 'Valor EERR': g('Valor EERR', 'valor'),
+                'Valor de control': g('Valor de control', 'control_val'), 'Diferencia': g('Diferencia', 'dif'),
+                'Fecha estado': d.get('Fecha estado'), 'Observaciones': d.get('Observaciones'),
+                'Última auditoría': d.get('Última auditoría'), 'Clave': d['Clave'], 'Comparar': g('Comparar', 'comparar')}
+        for k, v in vals.items(): ws.cell(r, CI[k], v)
+        ve = vals['Valor EERR']
+        es_pct = h['es_pct'] if h else (ve is not None and num(ve) and abs(ve) < 5 and '%' in str(d.get('Descripción') or ''))
+        for k in ('Valor EERR', 'Valor de control', 'Diferencia'): ws.cell(r, CI[k]).number_format = '0.0%' if es_pct else FMT
+        for k in ('Fecha detección', 'Fecha estado', 'Última auditoría'): ws.cell(r, CI[k]).number_format = 'dd/mm/yyyy'
+        ws.cell(r, CI['Descripción']).alignment = Alignment(wrap_text=True, vertical='top')
+        nivel = vals['Nivel']
+        ws.cell(r, CI['Nivel']).fill = ROJO if nivel == 'Rojo' else AMAR if nivel == 'Amarillo' else PatternFill()
         # links: a la celda del EERR (o de otra hoja del archivo) y al documento fuente en Drive
         celda = h['celda'] if h else None; fuente = h['fuente'] if h else None
+        CK, CF = CI['Ir a la celda'], CI['Documento fuente']
         if h:
             if celda:
-                ws.cell(r, 11, 'Ver celda').hyperlink = Hyperlink(ref=f"K{r}", location=celda)
+                ws.cell(r, CK, 'Ver celda').hyperlink = Hyperlink(ref=f"{CL(CK)}{r}", location=celda)
             if fuente:
                 if fuente.startswith("'"):
-                    ws.cell(r, 12, 'Ver hoja de control').hyperlink = Hyperlink(ref=f"L{r}", location=fuente)
+                    ws.cell(r, CF, 'Ver hoja de control').hyperlink = Hyperlink(ref=f"{CL(CF)}{r}", location=fuente)
                 else:
                     url = drive_url(fuente)
-                    if url: ws.cell(r, 12, os.path.basename(fuente.rstrip('/\\')) or fuente).hyperlink = url
-                    else: ws.cell(r, 12, os.path.relpath(fuente, U) if fuente.startswith(U) else fuente)
+                    if url: ws.cell(r, CF, os.path.basename(fuente.rstrip('/\\')) or fuente).hyperlink = url
+                    else: ws.cell(r, CF, os.path.relpath(fuente, U) if fuente.startswith(U) else fuente)
         else:
-            for col, hl in ((11, d.get('_link')), (12, d.get('_fuente'))):
+            for col, hl in ((CK, d.get('_link')), (CF, d.get('_fuente'))):
                 if hl is not None:
-                    ws.cell(r, col, d.get(COLS[col - 1]) or ('Ver celda' if col == 11 else 'Documento'))
+                    ws.cell(r, col, d.get(COLS[col - 1]) or ('Ver celda' if col == CK else 'Documento'))
                     ws.cell(r, col).hyperlink = Hyperlink(ref=f"{CL(col)}{r}", location=hl.location, target=hl.target) if (hl.location or hl.target) else None
                 else: ws.cell(r, col, d.get(COLS[col - 1]))
-        for col in (11, 12):
+        for col in (CK, CF):
             if ws.cell(r, col).hyperlink: ws.cell(r, col).font = Font(color='0563C1', underline='single')
     ultima = max(r, H + 1)
     dv = DataValidation(type='list', formula1='"Pendiente,Resuelto,Aprobado"', allow_blank=False)
-    ws.add_data_validation(dv); dv.add(f"M{H + 1}:M{max(ultima + 500, 1000)}")
+    rango = f"{E}{H0}:{E}{max(ultima + 500, 1000)}"
+    ws.add_data_validation(dv); dv.add(rango)
     for txt, color in (('Pendiente', 'F8CBAD'), ('Resuelto', 'C6EFCE'), ('Aprobado', 'BDD7EE')):
-        ws.conditional_formatting.add(f"M{H + 1}:M{max(ultima + 500, 1000)}",
-                                      FormulaRule(formula=[f'$M{H + 1}="{txt}"'], fill=PatternFill('solid', fgColor=color)))
-    anchos = [5, 11, 9, 24, 9, 26, 70, 15, 15, 15, 10, 26, 11, 11, 30, 11, 10, 10]
-    for i, w in enumerate(anchos, 1): ws.column_dimensions[CL(i)].width = w
-    ws.column_dimensions['Q'].hidden = True; ws.column_dimensions['R'].hidden = True
-    ws.freeze_panes = f"A{H + 1}"; ws.auto_filter.ref = f"A{H}:{CL(len(COLS))}{ultima}"
+        ws.conditional_formatting.add(rango, FormulaRule(formula=[f'${E}{H0}="{txt}"'], fill=PatternFill('solid', fgColor=color)))
+    for n, w in ANCHOS.items(): ws.column_dimensions[CC(n)].width = w
+    for n in ('Clave', 'Comparar'): ws.column_dimensions[CC(n)].hidden = True
+    ws.freeze_panes = f"C{H0}"; ws.auto_filter.ref = f"A{H}:{CL(len(COLS))}{ultima}"
     # historial de ejecuciones
     ws.cell(H - 1, HC, 'Historial de auditorías').font = Font(bold=True)
     for i, n in enumerate(HIST):

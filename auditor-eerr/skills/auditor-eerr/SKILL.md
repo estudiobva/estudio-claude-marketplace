@@ -31,10 +31,11 @@ pisa y deja la copia en `no-guardados/`. Pedir que el EERR esté cerrado en Exce
 
 ## Hoja "Auditorias"
 
-Una fila por hallazgo: N°, fecha de detección, nivel (**Rojo** = no cierra contra una fuente o falta algo
-indispensable; **Amarillo** = desvío a revisar), control, mes, concepto, descripción, valor EERR, valor de control,
-diferencia, link a la celda del EERR, link al documento fuente, **Estado**, fecha de estado, observaciones y última
-auditoría. A la derecha, el historial de cada ejecución.
+Una fila por hallazgo: N°, **Estado** (columna B, fija al scrollear junto con N°), nivel (**Rojo** = no cierra contra
+una fuente o falta algo indispensable; **Amarillo** = desvío a revisar), fecha de detección, control, mes, concepto,
+descripción, valor EERR, valor de control, diferencia, link a la celda del EERR, link al documento fuente, fecha de
+estado, observaciones y última auditoría. A la derecha, el historial de cada ejecución. Las hojas escritas con la 1.0.0
+(Estado en la columna M) se reordenan solas en la próxima auditoría, sin perder estados, observaciones ni links.
 
 - Nuevo → **Pendiente**. Pendiente que deja de detectarse → **Resuelto** (solo).
 - **Aprobado** (lo pone el equipo) → no se vuelve a informar mientras el valor no cambie; si cambia, entra como nuevo.
@@ -64,7 +65,7 @@ Umbrales en `CFG` del script; se pisan con `~/.fisco-ar/auditor_eerr_config.json
 
 Por sociedad: cantidad de nuevos, siguen pendientes, resueltos solos y aprobados omitidos; después los **rojos**
 (lo que no cierra contra una fuente) y un resumen de los amarillos por control. No pegar la hoja entera. Recordar que
-el estado se cambia en la columna Estado de la hoja "Auditorias".
+el estado se cambia en la columna Estado (B) de la hoja "Auditorias".
 
 **Plugin instalado:** la primera vez y después de cada actualización, `python -m pip install -r requirements.txt`
 (o "revisá el setup del estudio"). Usa el mismo `~/.fisco-ar/.env` que los demás plugins (`BVA_UNIDAD_PATH`; en

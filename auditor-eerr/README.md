@@ -12,6 +12,8 @@ python scripts/auditor_eerr.py --todas [--hasta=AAAAMM] [--simular] [--procesos=
 - **Controles:** período, meses completos, fórmulas, resultado / ventas, margen bruto, gastos / ventas, ventas vs
   Portal IVA y Zetti, existencias, NCR vs NC comerciales, compras clasificadas = Portal IVA compras, sueldos vs F.931,
   IIBB vs DJ ARBA, IVA prorrateo, tasas municipales, gastos fijos y financieros. Detalle en la skill.
+- **Hoja Auditorias:** la columna Estado va en B y queda fija al scrollear (desde 1.1.0; las hojas viejas se
+  reordenan solas).
 - **Estados:** Pendiente → Resuelto (solo, cuando deja de detectarse). Aprobado (equipo) no se vuelve a informar
   mientras el valor no cambie. Historial de ejecuciones a la derecha de la hoja.
 - **Requisitos:** Python 3 con `openpyxl` y `pypdf` (`requirements.txt`) y Microsoft Excel (Windows: PowerShell +
