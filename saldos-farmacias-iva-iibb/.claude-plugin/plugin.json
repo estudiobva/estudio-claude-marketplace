@@ -1,0 +1,8 @@
+{
+  "name": "saldos-farmacias-iva-iibb",
+  "description": "Arma los saldos de IVA (F.2051) e IIBB (ARBA R-606M, AGIP SICOL o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y prepara las DDJJ para subirlas a la carpeta DDJJ IVA-IIBB del SharePoint. Solo lee la unidad; no entra a ARCA ni sube nada solo.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["iva", "iibb", "arba", "agip", "convenio multilateral", "saldos", "sharepoint", "ddjj", "argentina"]
+}

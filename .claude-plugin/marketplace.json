@@ -110,6 +110,12 @@
       "source": "./ddjj-sshh-quilmes",
       "description": "Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene (TISEH) de cada sociedad: lo declarado en la actividad 477320 contra el papel de trabajo y la DJ de IIBB de ARBA, y archiva la boleta en la carpeta TSH del mes.",
       "category": "contabilidad"
+    },
+    {
+      "name": "saldos-farmacias-iva-iibb",
+      "source": "./saldos-farmacias-iva-iibb",
+      "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",
+      "category": "contabilidad"
     }
   ]
 }

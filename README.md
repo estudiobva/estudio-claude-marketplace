@@ -22,6 +22,7 @@ un script de Playwright y la skill que lo usa.
 | `auditor-eerr` | Audita los EERR 2026 con 21 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR, el Maestro de Proveedores y el papel de trabajo, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |
 | `recibo-pyp-quilmes` | Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento. Login automático. |
 | `ddjj-sshh-quilmes` | Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene de cada sociedad (actividad 477320) contra el papel de trabajo y la DJ de IIBB de ARBA, avisa las que faltan con el monto a declarar y archiva la boleta en la carpeta TSH del mes. Login automático. |
+| `saldos-farmacias-iva-iibb` | Arma los saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO del SharePoint, con controles y DJ faltantes, y deja las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del mes. Solo lee la unidad. |
 
 ## Instalación
 
