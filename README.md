@@ -19,6 +19,7 @@ un script de Playwright y la skill que lo usa.
 | `cruze-zetti-portaliva-ventas` | Circuito completo de ventas del mes: Portal IVA → Zetti → hojas del papel de trabajo → cruze con las diferencias. |
 | `facturacion-arca` | Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor desde la planilla mensual: validar, dry-run y emisión con código. **Escribe en ARCA.** |
 | `auditor-eerr` | Audita los EERR 2026 con 21 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR, el Maestro de Proveedores y el papel de trabajo, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |
+| `recibo-pyp-quilmes` | Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento. Login automático. |
 | `ddjj-sshh-quilmes` | Controla y carga la DDJJ mensual de Seguridad e Higiene en ARQui Quilmes (actividad 477320) con el monto del papel de trabajo y control contra la DJ de IIBB de ARBA. **Sin script:** usa Claude in Chrome con login a mano. **Escribe en ARQui** (con confirmación). |
 
 ## Instalación
