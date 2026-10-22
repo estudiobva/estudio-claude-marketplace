@@ -98,6 +98,12 @@
       "source": "./recibo-pyp-quilmes",
       "description": "Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento.",
       "category": "contabilidad"
+    },
+    {
+      "name": "seguimiento-pedidos",
+      "source": "./seguimiento-pedidos",
+      "description": "Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la planilla compartida de seguimiento y le manda a la persona sus pendientes por Slack.",
+      "category": "gestion"
     }
   ]
 }

@@ -20,6 +20,7 @@ un script de Playwright y la skill que lo usa.
 | `facturacion-arca` | Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor desde la planilla mensual: validar, dry-run y emisión con código. **Escribe en ARCA.** |
 | `auditor-eerr` | Audita los EERR 2026 con 21 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR, el Maestro de Proveedores y el papel de trabajo, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |
 | `recibo-pyp-quilmes` | Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento. Login automático. |
+| `seguimiento-pedidos` | Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la planilla compartida de seguimiento (sin duplicar, con reclamos) y le manda a la persona sus pendientes por mensaje privado de Slack. |
 
 ## Instalación
 
