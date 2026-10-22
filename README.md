@@ -14,6 +14,7 @@ un script de Playwright y la skill que lo usa.
 | `f931-descarga-arca` | Baja los F.931 presentados desde Declaración en Línea (ARCA), un PDF por período, con login automático desde la planilla de claves. |
 | `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
 | `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
+| `ddjj-iva` | Lee las DDJJ de IVA (F.2051) ya presentadas de un rango de meses: vista previa en PDF e importes de la determinación (débito, crédito, saldos y retenciones) en JSON, y archiva el PDF en la carpeta IVA del mes si falta. Solo lectura. |
 | `zetti-subdiario-iva-ventas` | Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) del mes, en Excel ordenado por tipo de comprobante, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `zetti-subdiario-iva-compras` | Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) del mes, con el formato de la solapa "Compras Zetti" del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `cruze-zetti-portaliva-ventas` | Circuito completo de ventas del mes: Portal IVA → Zetti → hojas del papel de trabajo → cruze con las diferencias. |
