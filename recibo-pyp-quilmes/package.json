@@ -1,0 +1,15 @@
+{
+  "name": "recibo-pyp-quilmes",
+  "version": "1.0.0",
+  "description": "Baja el recibo actual de Derechos de Publicidad y Propaganda de ARQui Quilmes y lo archiva en la carpeta de la sociedad.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "recibo": "node scripts/recibo-pyp-quilmes.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

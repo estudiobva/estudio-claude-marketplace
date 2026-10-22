@@ -92,6 +92,12 @@
       "source": "./auditor-eerr",
       "description": "Audita los EERR 2026 de las sociedades con 21 controles (Portal IVA, Zetti, F.931, DJ ARBA, NCR, Maestro de Proveedores y papel de trabajo) y documenta los hallazgos en la hoja Auditorias del mismo EERR, con estado Pendiente/Resuelto/Aprobado.",
       "category": "contabilidad"
+    },
+    {
+      "name": "recibo-pyp-quilmes",
+      "source": "./recibo-pyp-quilmes",
+      "description": "Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento.",
+      "category": "contabilidad"
     }
   ]
 }

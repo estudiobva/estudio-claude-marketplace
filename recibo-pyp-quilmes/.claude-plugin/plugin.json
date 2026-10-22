@@ -1,0 +1,8 @@
+{
+  "name": "recibo-pyp-quilmes",
+  "description": "Baja de ARQui (Municipio de Quilmes) el recibo actual de Derechos de Publicidad y Propaganda (marquesinas) de una, varias o todas las sociedades, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento en Excel. Login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["quilmes", "arqui", "publicidad y propaganda", "marquesinas", "tasas municipales", "playwright", "argentina"]
+}
