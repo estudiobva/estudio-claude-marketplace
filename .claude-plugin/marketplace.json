@@ -130,6 +130,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "constancias-anticipo-arba",
+      "source": "./constancias-anticipo-arba",
+      "description": "Baja de ARBA las constancias de las DDJJ de anticipo de IIBB ya presentadas, con el detalle de bases e impuesto, y las archiva en la carpeta IIBB del mes.",
+      "category": "contabilidad"
+    },
+    {
       "name": "saldos-farmacias-iva-iibb",
       "source": "./saldos-farmacias-iva-iibb",
       "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",
