@@ -1,0 +1,8 @@
+{
+  "name": "papel-trabajo-compras",
+  "description": "Completa las compras del mes en el papel de trabajo: lee el Libro Compras actual del Portal IVA (sin importar, sin NCR) y el Subdiario de IVA Compras de Zetti, controla servicios y NCR, y agrega Compras Zetti, Compras Portal IVA con el cuadro de prorrateo, Cruce compras, Resumen y Clasificacion por proveedor en el mismo papel. Login automático y navegador oculto. Nunca escribe en ARCA ni en Zetti.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["zetti", "portal iva", "compras", "cruce", "papel de trabajo", "prorrateo", "ncr", "playwright", "argentina"]
+}

@@ -76,6 +76,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "papel-trabajo-compras",
+      "source": "./papel-trabajo-compras",
+      "description": "Circuito completo de compras: Libro Compras actual del Portal IVA (sin importar, sin NCR) y Zetti 5.6.4, servicios y NCR controlados, cruce, clasificación por proveedor y cuadro de prorrateo, en el mismo papel de trabajo.",
+      "category": "contabilidad"
+    },
+    {
       "name": "facturacion-arca",
       "source": "./facturacion-arca",
       "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
