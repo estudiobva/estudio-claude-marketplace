@@ -34,6 +34,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "correos-organismos",
+      "source": "./correos-organismos",
+      "description": "Releva el correo declarado de cada sociedad en ARCA (Sistema Registral y DFE) y ARBA, en un Excel con lo que hay que revisar y lo que falta.",
+      "category": "contabilidad"
+    },
+    {
       "name": "anticipos-sct",
       "source": "./anticipos-sct",
       "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
