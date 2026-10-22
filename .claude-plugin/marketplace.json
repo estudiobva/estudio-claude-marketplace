@@ -98,6 +98,12 @@
       "source": "./recibo-pyp-quilmes",
       "description": "Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento.",
       "category": "contabilidad"
+    },
+    {
+      "name": "ddjj-sshh-quilmes",
+      "source": "./ddjj-sshh-quilmes",
+      "description": "Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene (TISEH) de cada sociedad: lo declarado en la actividad 477320 contra el papel de trabajo y la DJ de IIBB de ARBA, y archiva la boleta en la carpeta TSH del mes.",
+      "category": "contabilidad"
     }
   ]
 }
