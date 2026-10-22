@@ -683,7 +683,7 @@ def cmd_pendientes(a):
                           'vencidos': sum(i['vencido'] for i in items), 'items': items}, ensure_ascii=False, indent=1))
         return
     slack = fmt == 'slack'
-    b = (lambda s: f'*{s}*') if slack else (lambda s: s.upper())
+    b = (lambda s: f'**{s}**') if slack else (lambda s: s.upper())  # el conector de Slack usa markdown estándar
 
     def renglon(x):
         partes = [f'{x["id"]}', x['texto'] or '']
