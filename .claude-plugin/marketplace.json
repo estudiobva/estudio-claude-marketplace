@@ -76,6 +76,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "cruce-ventas-3-fuentes",
+      "source": "./cruce-ventas-3-fuentes",
+      "description": "Ventas del mes desde Mis Comprobantes (ARCA), Portal IVA y Zetti, y el cruce de las tres con las diferencias explicadas, en la carpeta IVA del mes.",
+      "category": "contabilidad"
+    },
+    {
       "name": "papel-trabajo-compras",
       "source": "./papel-trabajo-compras",
       "description": "Circuito completo de compras: Libro Compras actual del Portal IVA (sin importar, sin NCR) y Zetti 5.6.4, servicios y NCR controlados, cruce, clasificación por proveedor y cuadro de prorrateo, en el mismo papel de trabajo.",
