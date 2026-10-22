@@ -19,7 +19,7 @@ Tarda unos minutos por sociedad (ARCA + Zetti + Excel). Correrlo en segundo plan
 | `--periodo` | `MM/AAAA` o `AAAAMM`. Default: el mes anterior. |
 | `--si-existe` | `abortar` (default) o `reemplazar`: si el papel ya tiene las hojas de compras, las rehace (se pierde lo escrito a mano en esas 5 hojas; el resto del papel no se toca). |
 | `--no-es-ncr=PV-NRO;...` | NC de Suizo/Monroe que el estudio confirmo que NO son NCR (ej. `503-86152`). |
-| `--login-nombre=<titular>` | Si la clave de la sociedad no tiene la representada en el Portal IVA (paso con Sanar 3, Mega Sol y Tofanelli: `--login-nombre=eduardo`). Tambien `BVA_ARCA_LOGIN_NOMBRE` en el .env. |
+| `--login-nombre=<titular>` | Si la clave de la sociedad no tiene la representada en el Portal IVA (paso con Sanar 3, Mega Sol y Tofanelli: entrar con un titular de la planilla que las represente). Tambien `BVA_ARCA_LOGIN_NOMBRE` en el .env. |
 | `--papel=<ruta>` | Papel a usar si en la carpeta del mes hay mas de uno. |
 | `--zetti-unidad` | Usa el `AAAAMM - ZETTI - COMPRAS.xlsx` de la carpeta IVA en vez de bajarlo de nuevo. |
 | `--no-archivar` | Arma y controla, pero no toca la unidad: el resultado queda en la carpeta de trabajo. |
