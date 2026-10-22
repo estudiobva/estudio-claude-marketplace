@@ -1,0 +1,17 @@
+{
+  "name": "papel-trabajo-compras",
+  "version": "1.0.0",
+  "description": "Completa las compras del mes en el papel de trabajo: Portal IVA (borrador o DDJJ presentada) + Zetti 5.6.4, cruce, clasificacion y cuadro de prorrateo.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "papel": "node scripts/papel-trabajo-compras.js",
+    "borrador": "node scripts/leer-borrador-compras.js",
+    "zetti": "node scripts/zetti-iva-compras.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
