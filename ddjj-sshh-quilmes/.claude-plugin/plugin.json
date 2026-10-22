@@ -1,0 +1,8 @@
+{
+  "name": "ddjj-sshh-quilmes",
+  "description": "Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene (TISEH) de cada sociedad: lo declarado en la actividad 477320 contra el papel de trabajo y la DJ de IIBB de ARBA, y archiva la boleta en TSH. Login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["seguridad e higiene", "tiseh", "sshh", "arqui", "quilmes", "tasas municipales", "iibb", "argentina"]
+}

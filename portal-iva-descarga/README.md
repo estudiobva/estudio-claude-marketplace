@@ -41,6 +41,21 @@ Se trabaja a mes vencido: sin `--periodo` toma el mes anterior. `--ver` muestra 
 navegador. `--no-archivar` deja los Excel en `~/Documents/BVA-salidas/portal-iva/`
 (se cambia con `BVA_SALIDAS_PATH`).
 
+## Agregar comprobantes al Libro Compras
+
+`scripts/portal-iva-agregar.js` carga en el borrador del Libro Compras las facturas
+que no vinieron con la importacion (Edesur, Metrogas, AySA...), tomadas del Excel de
+compras de Zetti, con el boton AGREGAR COMPROBANTE. Sin `--ejecutar` solo simula
+(completa el formulario, saca captura y cancela).
+
+```bash
+node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026
+node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026 --ejecutar
+```
+
+No carga lo que ya esta en el libro ni nada si la DDJJ del periodo esta presentada.
+Detalle en el SKILL.md.
+
 ## Reglas
 
 - No entra si la DDJJ IVA del periodo ya tiene acuse en la carpeta del mes
@@ -53,6 +68,7 @@ navegador. `--no-archivar` deja los Excel en `~/Documents/BVA-salidas/portal-iva
 ## Estructura
 
 - `scripts/portal-iva-descarga.js`: el flujo, una o varias sociedades.
+- `scripts/portal-iva-agregar.js`: carga manual de comprobantes en el Libro Compras.
 - `scripts/csv_a_excel.py`: CSV de ARCA a Excel.
 - `lib/portal-iva.js`: pantallas del Portal IVA (compartido con conciliacion-ncr).
 - `lib/rutas-bva.js`: carpetas de la unidad compartida.

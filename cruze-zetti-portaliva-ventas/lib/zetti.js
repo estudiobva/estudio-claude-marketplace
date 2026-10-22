@@ -28,7 +28,8 @@ async function login(ctx, { usuario, clave }, log = () => {}) {
   await page.goto(`${BASE}/tysweb/home/#/login`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.locator('input[type=text]').first().fill(usuario);
   await page.locator('input[type=password]').fill(clave);
-  await page.getByRole('button', { name: 'Login' }).click();
+  // Zetti cambio el login (oct-2026): el boton ahora dice "Ingresar".
+  await page.getByRole('button', { name: /^(Login|Ingresar)$/ }).click();
 
   const ok = await page.waitForURL(/#\/select-entity/, { timeout: 60000 }).then(() => true).catch(() => false);
   if (!ok) {
@@ -122,7 +123,11 @@ async function subdiarioIvaVentas(ctx, auth, entidad, { desde, hasta }, destino)
     await f.selectOption('select[name=orden]', { label: 'Tipo Comprobante' });
     await f.selectOption('select[name=tipo_codif]', { label: 'Mostrar todos' });
     for (const n of ['agruparFeB', 'zeta', 'zetanc', 'resumen', 'detallar', 'afectarZ', 'anulNoFiscal', 'hideHeader']) {
-      await f.locator(`input[name=${n}]`).setChecked(false);
+      // Algunos tildes vienen como input hidden (value OFF) en vez de checkbox.
+      const chk = f.locator(`input[name=${n}][type=checkbox]`);
+      if (await chk.count()) { await chk.first().setChecked(false); continue; }
+      const val = await f.locator(`input[name=${n}]`).first().inputValue().catch(() => null);
+      if (val !== null && val !== 'OFF') throw new Error(`El campo ${n} vino como hidden con valor ${val}`);
     }
     await f.selectOption('select[name=tipo]', 'csv');
 
