@@ -1,6 +1,6 @@
 ---
 name: portal-iva-descarga
-description: "Baja del Portal IVA de ARCA el Libro IVA Compras y el Libro IVA Ventas de una o varias sociedades para un periodo (por defecto el mes anterior), importando primero desde ARCA al borrador, los convierte a Excel y los archiva en la unidad compartida como 'AAAAMM - PORTAL IVA - COMPRAS.xlsx' y 'AAAAMM - PORTAL IVA - VENTAS.xlsx' en la carpeta IVA del mes, sin dejar el CSV. Corre un script de Playwright que se loguea solo con la planilla de claves del estudio. Usar SIEMPRE que pidan \"bajar el Portal IVA\", \"descargar compras y ventas del Portal IVA\", \"bajar el libro IVA de [sociedad] [mes]\", \"traer las compras/ventas de ARCA\" o \"preparar el IVA del mes\". Es el paso 1 del circuito conciliacion-ncr: conciliar-ncr.py lee este Excel de compras igual que el CSV. Con --presentada baja los libros de una DDJJ YA PRESENTADA (ultima secuencia, solo lectura, controlados contra la vista previa): usarlo cuando pidan \"los libros de la DDJJ presentada\", \"el libro IVA presentado de [mes]\" o un periodo ya presentado. No confundir con portal-iva-compras (carga CSV ya bajados en el template input_portal) ni con arca-portal-iva de fisco-ar (solo totales)."
+description: "Baja del Portal IVA de ARCA el Libro IVA Compras y el Libro IVA Ventas de una o varias sociedades para un periodo (por defecto el mes anterior), importando primero desde ARCA al borrador, los convierte a Excel y los archiva en la unidad compartida como 'AAAAMM - PORTAL IVA - COMPRAS.xlsx' y 'AAAAMM - PORTAL IVA - VENTAS.xlsx' en la carpeta IVA del mes, sin dejar el CSV. Corre un script de Playwright que se loguea solo con la planilla de claves del estudio. Usar SIEMPRE que pidan \"bajar el Portal IVA\", \"descargar compras y ventas del Portal IVA\", \"bajar el libro IVA de [sociedad] [mes]\", \"traer las compras/ventas de ARCA\" o \"preparar el IVA del mes\". Es el paso 1 del circuito conciliacion-ncr: conciliar-ncr.py lee este Excel de compras igual que el CSV. Con --presentada baja los libros de una DDJJ YA PRESENTADA (ultima secuencia, solo lectura, controlados contra la vista previa): usarlo cuando pidan \"los libros de la DDJJ presentada\", \"el libro IVA presentado de [mes]\" o un periodo ya presentado. Con scripts/portal-iva-agregar.js carga en el borrador del Libro Compras las facturas de servicios (Edesur, Metrogas, AySA) que estan en Zetti y no vinieron con la importacion, con el boton AGREGAR COMPROBANTE: usarlo cuando pidan \"cargar/agregar comprobantes en el Portal IVA\", \"cargar la factura de Edesur/Metrogas/AySA en el libro compras\" o \"agregar las facturas que faltan en el Portal\". No confundir con portal-iva-compras (carga CSV ya bajados en el template input_portal) ni con arca-portal-iva de fisco-ar (solo totales)."
 ---
 
 # Descarga del Portal IVA — Compras y Ventas
@@ -84,6 +84,52 @@ de año (`01-Impuestos Mensuales/2026/202608`), el mes va adentro del año.
 Por stdout sale un JSON con, por libro, los registros importados, las filas
 bajadas, las filas con fecha fuera del periodo y la ruta del archivo. Reportarle al
 usuario sociedad, periodo, comprobantes de cada libro y donde quedo.
+
+## Agregar comprobantes al Libro Compras (`portal-iva-agregar.js`)
+
+Carga en el **borrador** del Libro Compras las facturas que ARCA no trajo con la
+importacion (tipicamente servicios: Edesur, Metrogas, AySA), una por una con el boton
+**AGREGAR COMPROBANTE...** del libro, como a mano. Va despues de esta descarga y
+antes de presentar.
+
+```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026                 # simulacion
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026 --ejecutar
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026 --archivo=servicios.xlsx --ejecutar
+```
+
+| Argumento | Para que |
+|---|---|
+| `--nombre` / `--cuit` | La sociedad. |
+| `--periodo` | `MM/AAAA` o `AAAAMM`. Default: el mes anterior. |
+| `--proveedores` | Nombres a buscar en la columna Proveedor, separados por `;`. Default `EDESUR;METROGAS;AYSA;AGUA Y SANEAMIENTOS`; `*` = todos. |
+| `--archivo` | Excel con las columnas de la solapa "Compras Zetti". Default: `AAAAMM - ZETTI - COMPRAS.xlsx` de la carpeta IVA (o suelto en la del mes). Para facturas que no estan en Zetti se arma uno con esas columnas desde el PDF. |
+| `--ejecutar` | Guarda de verdad. **Sin este flag solo simula**: completa el formulario, lo controla, saca una captura y cancela. |
+| `--limite=N` | Solo los primeros N (pilotos). |
+| `--cred-fiscal` | `arca` (default: lo calcula ARCA, igual que en la importacion), `iva` o `0`. |
+| `--ver` | Navegador visible. |
+
+Lee los dos formatos del Excel de Zetti (el de `zetti-subdiario-iva-compras` y el
+viejo del papel, con punto de venta y numero en dos columnas y P/R IG). Mapea
+FC/ND/NC A, B y C a los codigos de ARCA, el IVA a su alicuota (2,5 a 27%), las
+percepciones de IVA, IIBB y Ganancias (esta a "Otros Imp. Nac.") y el total.
+
+**Correr siempre primero sin `--ejecutar`** y mostrarle al usuario que cargaria;
+`--ejecutar` solo con su confirmacion, por sociedad.
+
+No carga un comprobante si ya esta en el libro (CUIT, tipo, punto de venta y
+numero), si los importes no suman el total, si el IVA no corresponde a una sola
+alicuota o si el numero no tiene punto de venta (`error_datos`). No hace nada si la
+DDJJ del periodo ya esta presentada (acuse o `iva-dj` en la carpeta, o ARCA no
+ofrece el periodo: `ddjj_presentada` / `periodo_presentado`; agregar seria
+rectificar y eso es a mano), si el borrador no esta iniciado (`borrador_sin_iniciar`:
+correr antes la descarga) o si el libro no es de esa sociedad y periodo.
+
+Despues de guardar relee el libro desde ARCA y confirma cada comprobante. Deja
+`AAAAMM-CARGA-MANUAL-PORTAL-<fecha>.csv` en la carpeta IVA (las simulaciones, con
+las capturas, en `~/Documents/BVA-salidas/portal-iva-agregar/`). Reportar por
+comprobante: proveedor, numero, total y accion (`cargaria`, `agregado`, `ya_esta`,
+`rechazado` con el motivo de ARCA, `error_datos`).
 
 ## Reglas
 
