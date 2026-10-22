@@ -1,0 +1,15 @@
+{
+  "name": "ddjj-sshh-quilmes",
+  "version": "1.0.0",
+  "description": "Controla y carga la DDJJ mensual de Seguridad e Higiene de ARQui Quilmes y archiva la boleta en la carpeta de la sociedad.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "sshh": "node scripts/ddjj-sshh-quilmes.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
