@@ -54,19 +54,28 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
 2. Meses completos: ventas, CMV y sueldos en cada mes; importes repetidos entre meses (y entre sociedades con `--todas`).
 3. Fórmulas: errores, filas de totales y resultado con fórmula, rango del TOTAL de gastos, TOTAL = suma de filas.
 4. Resultado / ventas: pérdidas 2+ meses seguidos; utilidad mayor al 25%.
-5. Margen bruto: banda 20–40% (provisoria), ±5 pts vs mes anterior y vs mediana.
+5. Margen bruto y operativo: margen bruto en la banda 20–40% (provisoria), ±5 pts vs mes anterior y vs mediana; pérdida
+   operativa (utilidad bruta − gastos sin bancarios ni intereses) en cualquier mes. Desde 1.2.0 escribe además la hoja
+   **"Utilidades"**: ventas, CMV, utilidad bruta y margen, gastos operativos, utilidad operativa y margen, financieros y
+   resultado antes de impuesto por mes y del ejercicio (fórmulas sobre la hoja EERR, se actualizan solas).
 6. Cada gasto / ventas: salto de más de 20% vs mediana y vs mes anterior, con materialidad.
-7. Ventas vs Portal IVA (tolerancia 1%) y cruce Zetti: lo que queda sin explicar en la fila TOTAL DIFERENCIAS de la hoja "cruze"
+7. Ventas vs Portal IVA (rojo si pasa el 1%) y cruce Zetti, **sin tolerancia** (desde 1.2.0: cualquier diferencia de más de $1 es rojo): lo que queda sin explicar en la fila TOTAL DIFERENCIAS de la hoja "cruze"
    del papel del mes (`AAAAMM-papeldetrabajo-X.xlsx`, la deja cruze-zetti-portaliva-ventas); si no, el cruce de 3 fuentes o el
-   archivo de cruce suelto. Papeles con "no va" / "no usar" en el nombre no se leen.
+   archivo de cruce suelto. Papeles con "no va" / "no usar" en el nombre no se leen. Los meses sin cruce ni subdiario de
+   Zetti se informan juntos (amarillo).
 8. Existencias inicial y final.
-9. NCR vs NC comerciales (desvío de 30% vs su mediana); NCR no encontradas; meses sin conciliar.
+9. NCR vs NC comerciales (desvío de 30% vs su mediana); NCR no encontradas; meses sin conciliar; **NCR con gravado**
+   (desde 1.2.0, rojo): las NCR conciliadas se buscan en el libro de compras del Portal IVA y no pueden tener neto gravado
+   ni IVA (si ya se eliminaron del libro no se puede ver: queda en el historial).
 10. Compras clasificadas por cuenta = Portal IVA compras; cada rubro llega a su fila; proveedores sin clasificar o reclasificados en el Maestro; peso de GASTOS VARIOS.
 11. Sueldos vs F.931 (remuneraciones + 351 + 352 + 312 + 028); costo laboral / ventas.
 12. IIBB vs impuesto determinado de la DJ de ARBA; alícuota efectiva 1,5–5%.
 13. IVA prorrateo vs la hoja de control "IVA prorrateo".
 14. Seguridad e Higiene, matrícula, publicidad y marquesinas.
-15. Gastos fijos faltantes, posibles facturas duplicadas y financieros sin cargar.
+15. Gastos fijos: desde 1.2.0 se **detectan solos** en los últimos 6 meses auditados: una cuenta del EERR o un proveedor
+    de gastos que está en 5 de esos 6 es fijo, y cada mes sin él (desde que aparece) es alerta. No cuentan IIBB, S&H, IVA
+    prorrateo, sueldos, amortización e indemnización (los controlan otros puntos). Además: Edesur e internet en todo el
+    ejercicio, posibles facturas duplicadas de los proveedores fijos y financieros sin cargar.
 
 Controles del papel de trabajo (lista de Meli, Ezequiel y Jaz del 14/10/2026). Leen la hoja `MM-AAAA` del papel de
 liquidaciones del equipo por etiqueta (no el "- AUTOMATICO"); los `.xls` no se leen (aviso en el historial).
