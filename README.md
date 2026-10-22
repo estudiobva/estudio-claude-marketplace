@@ -12,7 +12,7 @@ un script de Playwright y la skill que lo usa.
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
 | `f931-descarga-arca` | Baja los F.931 presentados desde Declaración en Línea (ARCA), un PDF por período, con login automático desde la planilla de claves. |
-| `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
+| `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. Con `cuadro-marcha.js` baja el plan de cuotas de los préstamos vigentes (hoy Macro, Nación, Patagonia y Provincia). |
 | `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
 | `zetti-subdiario-iva-ventas` | Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) del mes, en Excel ordenado por tipo de comprobante, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `zetti-subdiario-iva-compras` | Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) del mes, con el formato de la solapa "Compras Zetti" del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático. |

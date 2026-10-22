@@ -21,11 +21,12 @@
  *                       o $BVA_SALIDAS_PATH/extractos).
  *   --unidad            Archiva directo en la unidad compartida, en
  *                       [N] - [Sociedad] - [CUIT]/03-Bancos y Conciliaciones/[BANCO]/[AAAA]/.
- *   --ver               Navegador visible. Sin --ver corre oculto, salvo que algun banco
- *                       pedido no tenga descarga automatica (hoy ninguno): ahi se abre
- *                       visible igual, porque hay que navegar el banco en la ventana.
- *   --control           Despues del login deja la ventana abierta a un puerto local
- *                       (127.0.0.1, --puerto=9333 por defecto) para que Claude la maneje con
+ *   --ver               Navegador visible. Sin --ver corre SIEMPRE oculto (tambien con
+ *                       --control y con bancos sin descarga automatica): solo se abre una
+ *                       ventana si el usuario lo pide. Oculto, un captcha o token corta ese
+ *                       banco con code captcha / segundo_factor y se sigue con el proximo.
+ *   --control           Despues del login deja el navegador (oculto) abierto a un puerto local
+ *                       (127.0.0.1, --puerto=9333 por defecto) para que Claude lo maneje con
  *                       scripts/control.js: navega y descarga; el script sigue renombrando y
  *                       archivando. El login lo sigue haciendo este script.
  *
@@ -64,8 +65,8 @@ const CONTROL = 'control' in args;
 const PUERTO = Number(args['puerto'] || 9333);
 const { launchOptions, HEADLESS: HEADLESS_ENV } = require('../lib/launch');
 const SALIDA = ex.salidaBase(args['salida']);
-// Se decide en main(), cuando ya se sabe que bancos se piden.
-let VISIBLE = VER || !HEADLESS_ENV;
+// Oculto siempre, salvo que el usuario pida la ventana (--ver o PLAYWRIGHT_HEADLESS=false).
+const VISIBLE = VER || !HEADLESS_ENV;
 
 // Que hacer ante cada error, para el JSON (como en los scripts de ARCA).
 const QUE_HACER = {
@@ -74,9 +75,14 @@ const QUE_HACER = {
   segundo_factor: 'El banco pidio token o codigo: volve a correr con --ver para ingresarlo en la ventana.',
   captcha: 'El banco pidio captcha: volve a correr con --ver para resolverlo en la ventana.',
   sin_credenciales: 'Completa usuario y clave de ese banco en Claves_Bancos.xlsx (node scripts/claves-bancos.js --faltantes).',
-  requiere_ventana: 'Ese banco todavia no tiene descarga automatica: correr con --ver (o --control).',
+  requiere_ventana: 'Ese banco todavia no tiene descarga automatica: correr con --control (Claude navega, oculto) o, si el usuario lo pide, con --ver.',
   sin_carpeta: 'Hay varias carpetas para ese banco en la unidad: correr sin --unidad o elegir la carpeta.',
+  antibots: 'El banco no termina de validar el ingreso (antibots del banco contra el navegador automatizado). No reintentar enseguida: probar la clave entrando a mano en Chrome.',
+  clave_vencida: 'La clave esta vencida: hay que cambiarla entrando al banco a mano y actualizar Claves_Bancos.xlsx. Claude no cambia claves.',
+  sitio_rechazo: 'El banco corto la conexion del navegador oculto. Probar mas tarde o, si el usuario lo pide, con --ver.',
 };
+// Errores de red de Chrome al abrir el banco: no son de la clave.
+const codigoDe = (e) => e.code || (/net::ERR_(HTTP2_PROTOCOL_ERROR|CONNECTION_(RESET|CLOSED|REFUSED)|EMPTY_RESPONSE|TIMED_OUT)/.test(e.message) ? 'sitio_rechazo' : 'error');
 const conQueHacer = (code, mensaje) => ({ code, mensaje, ...(QUE_HACER[code] ? { que_hacer: QUE_HACER[code] } : {}) });
 
 const log = (m) => process.stderr.write(`[extractos] ${m}\n`);
@@ -221,7 +227,8 @@ const GRABADOR = `(() => {
 
 // ── un banco ────────────────────────────────────────────────────────────────
 async function procesarBanco(browser, banco, soc, periodos) {
-  const r = { banco, guardados: [], ya_estaban: [], descartados: [], rechazados: [], sin_archivo: [], error: null };
+  const r = { banco, guardados: [], ya_estaban: [], descartados: [], rechazados: [], en_bandeja: [], sin_archivo: [], error: null };
+  const inicio = Date.now();
   const adaptador = bancos.adaptador(banco);
 
   // Carpeta de destino, antes de loguear (si hay que elegir, se pregunta ya).
@@ -239,7 +246,8 @@ async function procesarBanco(browser, banco, soc, periodos) {
   let cred = await credenciales(banco, soc);
   const context = await browser.newContext({ locale: 'es-AR', acceptDownloads: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `bva-${banco.toLowerCase()}-`));
-  const ventana = VISIBLE ? barraEnVentana(context) : null;
+  // La barra "Listo" tambien va oculta con --control: la toca control.js (listo / responder).
+  const ventana = (VISIBLE || CONTROL) ? barraEnVentana(context) : null;
   const pedirAccion = VISIBLE ? (msg) => preguntar(`  ${msg}`, { ventana }) : null;
 
   // Grabacion
@@ -262,6 +270,9 @@ async function procesarBanco(browser, banco, soc, periodos) {
   const engancharPagina = (page) => {
     page.on('download', async (d) => {
       const sugerido = d.suggestedFilename();
+      // Con --control las descargas las recibe y archiva control.js (con el periodo
+      // que ya reviso Claude): aca no se vuelven a tomar ni a preguntar.
+      if (CONTROL) { if (GRABAR && grabando) grabacion.push({ ev: 'download', archivo: sugerido, url: page.url() }); return; }
       const destino = path.join(tmp, `${Date.now()}-${sugerido}`);
       try { await d.saveAs(destino); procesar(destino, sugerido); if (GRABAR && grabando) grabacion.push({ ev: 'download', archivo: sugerido, url: page.url() }); }
       catch (e) { log(`no pude guardar la descarga ${sugerido}: ${e.message}`); }
@@ -279,15 +290,43 @@ async function procesarBanco(browser, banco, soc, periodos) {
       const sugerido = decodeURIComponent(m ? m[1] : path.basename(new URL(resp.url()).pathname) || 'extracto.pdf');
       const destino = path.join(tmp, `${Date.now()}-${sugerido.endsWith('.pdf') ? sugerido : sugerido + '.pdf'}`);
       fs.writeFileSync(destino, buf);
+      if (CONTROL) { enBandeja(destino, buf); return; }
       procesar(destino, path.basename(destino).replace(/^\d+-/, ''));
     } catch { /* respuestas que no se pueden leer: se ignoran */ }
   });
+
+  // Con --control, un PDF que el banco abre en el visor casi siempre es el mismo
+  // que control.js acaba de archivar: se espera a que lo archive y, si esta, se
+  // ignora. Si no esta, va a la bandeja para que Claude lo revise y lo archive.
+  const enBandeja = (destino, buf) => {
+    cola = cola.then(async () => {
+      if (buf.slice(0, 1024).indexOf('%PDF') < 0) return;   // la pagina del visor de Chrome, no el PDF
+      await new Promise(res => setTimeout(res, 8000));
+      if (ex.yaArchivado(dirBanco, buf)) return;
+      const bandeja = path.join(os.homedir(), 'bva-inspeccion', 'bandeja');
+      fs.mkdirSync(bandeja, { recursive: true });
+      const local = path.join(bandeja, `${Date.now()}__${path.basename(destino).replace(/^\d+-/, '')}`);
+      fs.copyFileSync(destino, local);
+      r.en_bandeja.push(local);
+      log(`${banco}: PDF abierto en el visor, no archivado: ${local} (control.js archivar --archivo=... si corresponde)`);
+    }).catch(() => {});
+  };
 
   const conArchivo = new Set();
   // Rutas del JSON relativas a la carpeta de la sociedad (en la salida o en la unidad).
   const baseSoc = UNIDAD ? soc.dir : path.join(SALIDA, path.basename(soc.dir));
   async function archivarUno(origen, sugerido) {
-    let det = ex.periodoDeArchivo(sugerido);
+    // El adaptador puede leer el nombre a su manera (Provincia pone la fecha de
+    // EMISION, que en el resumen mensual es del mes siguiente).
+    let det = adaptador.periodoDeArchivo ? adaptador.periodoDeArchivo(sugerido) : undefined;
+    if (det === undefined) det = ex.periodoDeArchivo(sugerido);
+    if (det && det.ambiguo) {
+      const resp = await preguntar(`  ${banco}: bajaste "${sugerido}". ${det.ambiguo}\n  Periodo AAAAMM al que corresponde (vacio = descartar):`,
+                                   { ventana, conTexto: true });
+      const p = ex.periodo(resp);
+      if (!p) { r.descartados.push(sugerido); log(`descartado: ${sugerido}`); return; }
+      det = { periodo: p, dia: null };
+    }
     if (!det || !periodos.includes(det.periodo)) {
       const leido = det ? ` (el nombre dice ${det.periodo}, fuera de lo pedido)` : '';
       const resp = await preguntar(`  ${banco}: bajaste "${sugerido}"${leido}.\n  Periodo AAAAMM al que corresponde (vacio = descartar):`,
@@ -308,6 +347,9 @@ async function procesarBanco(browser, banco, soc, periodos) {
 
   try {
     const page = await context.newPage();   // context.on('page') ya la engancha
+    // Sin descarga automatica, oculto y sin --control no hay quien navegue: ni se loguea.
+    if (typeof adaptador.descargar !== 'function' && !VISIBLE && !CONTROL)
+      throw Object.assign(new Error(`${banco} todavia no tiene descarga automatica: corre con --control (o --ver).`), { code: 'requiere_ventana' });
     log(`${banco}: entrando…`);
     await adaptador.login(page, cred, { pedirAccion });
     cred = null;
@@ -317,8 +359,7 @@ async function procesarBanco(browser, banco, soc, periodos) {
     if (typeof adaptador.descargar === 'function') {
       await adaptador.descargar(page, { sociedad: soc, periodos });
     } else {
-      if (!pedirAccion) throw Object.assign(new Error(`${banco} todavia no tiene descarga automatica: corre con --ver.`), { code: 'requiere_ventana' });
-      if (CONTROL) log(`CONTROL ${banco} adentro — ventana disponible en http://127.0.0.1:${PUERTO} (scripts/control.js)`);
+      if (CONTROL) log(`CONTROL ${banco} adentro — navegador ${VISIBLE ? 'visible' : 'oculto'} disponible en http://127.0.0.1:${PUERTO} (scripts/control.js)`);
       await preguntar(CONTROL ?
         `  ${banco} — Claude maneja esta ventana: va a bajar los resumenes de ${periodos[0]} a ` +
         `${periodos[periodos.length - 1]}.\n  No hace falta que toques nada; al terminar toca "Listo" el propio Claude ` +
@@ -333,7 +374,7 @@ async function procesarBanco(browser, banco, soc, periodos) {
     await page.waitForTimeout(1500).catch(() => {});   // la ventana puede haberse cerrado ("Listo" por cierre)
     await cola;
   } catch (e) {
-    r.error = conQueHacer(e.code || 'error', e.message.split('\n')[0]);
+    r.error = conQueHacer(codigoDe(e), e.message.split('\n')[0]);
     log(`${banco}: ERROR ${r.error.code} — ${r.error.mensaje}`);
     try {
       const dir = path.join(os.homedir(), 'bva-inspeccion');
@@ -361,6 +402,14 @@ async function procesarBanco(browser, banco, soc, periodos) {
     fs.rmSync(tmp, { recursive: true, force: true });   // solo la carpeta temporal propia
   }
 
+  // Lo que archivo control.js durante este banco (ver lib/extractos.js → registroControl).
+  if (CONTROL) {
+    for (const d of ex.leerControl(PUERTO, { desde: inicio, banco, cuit: soc.cuit })) {
+      const rel = path.relative(baseSoc, d.destino);
+      (d.estado === 'guardado' ? r.guardados : r.ya_estaban).push(rel);
+      conArchivo.add(d.periodo);
+    }
+  }
   r.sin_archivo = periodos.filter(p => !conArchivo.has(p));
   return r;
 }
@@ -386,13 +435,13 @@ async function procesarBanco(browser, banco, soc, periodos) {
   log(`periodos: ${periodos[0]} a ${periodos[periodos.length - 1]} (${periodos.length})`);
   log(`bancos: ${lista.join(', ') || '(ninguno)'}${sinAdaptador.length ? ` · sin adaptador: ${sinAdaptador.join(', ')}` : ''}`);
   log(`salida: ${UNIDAD ? path.join(soc.dir, ex.BANCOS_DIR) + ' (unidad)' : path.join(SALIDA, path.basename(soc.dir))}`);
-  // Sin descarga automatica hay que navegar el banco en la ventana: se abre visible.
+  log(`navegador: ${VISIBLE ? 'visible (pedido por el usuario)' : 'oculto'}${CONTROL ? ' · --control' : ''}.`);
   const manuales = lista.filter(b => typeof bancos.adaptador(b).descargar !== 'function');
-  // Con --control tambien: la barra "Listo" de la ventana es la que marca el fin.
-  if (!VISIBLE && (manuales.length || CONTROL)) {
-    VISIBLE = true;
-    log(`navegador visible: ${CONTROL ? '--control' : `${manuales.join(', ')} todavia no tiene(n) descarga automatica`}.`);
-  }
+  if (!VISIBLE && !CONTROL && manuales.length)
+    log(`${manuales.join(', ')} sin descarga automatica: se saltean (usar --control).`);
+
+  // Registro de control.js: se arranca vacio en cada corrida.
+  if (CONTROL) { try { fs.writeFileSync(ex.registroControl(PUERTO), ''); } catch { /* informativo */ } }
 
   const resultados = [];
   const browser = lista.length ? await abrirNavegador() : null;
@@ -407,8 +456,8 @@ async function procesarBanco(browser, banco, soc, periodos) {
   for (const banco of lista) {
     try { resultados.push(await procesarBanco(browser, banco, soc, periodos)); }
     catch (e) {
-      resultados.push({ banco, error: conQueHacer(e.code || 'error', e.message) });
-      log(`${banco}: ERROR ${e.code || 'error'} — ${e.message}`);
+      resultados.push({ banco, error: conQueHacer(codigoDe(e), e.message) });
+      log(`${banco}: ERROR ${codigoDe(e)} — ${e.message}`);
     }
     const ultimo = resultados[resultados.length - 1];
     if (ultimo.error && ['credenciales_invalidas', 'bloqueado'].includes(ultimo.error.code)) {

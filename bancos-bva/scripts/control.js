@@ -19,6 +19,8 @@
  *                                                        ...y lo archiva como extractos-banco.js: mismo nombre,
  *                                                        misma carpeta, sin pisar, rechaza "PDF" que no son PDF
  *                                                        (--salida=..., o --unidad para la unidad compartida)
+ *   node scripts/control.js archivar --archivo=<bandeja> --banco=NACION --cuit=... --periodo=202608
+ *                                                        archiva un archivo de la bandeja ya revisado
  *   node scripts/control.js listo                        toca "Listo" en el recuadro Estudio BVA
  *   node scripts/control.js responder --valor=202510     contesta el periodo que pide el recuadro
  *
@@ -26,6 +28,8 @@
  *   - nunca escribe en campos de clave, token, PIN o codigo;
  *   - nunca navega fuera del sitio del banco que esta abierto;
  *   - no cierra la ventana ni la sesion.
+ * Todo lo que se archiva (descargar/archivar con --banco) queda anotado en el registro del
+ * puerto (lib/extractos.js → registroControl) y extractos-banco.js lo suma a su JSON final.
  * Opciones comunes: --puerto=9333, --pagina=N (por defecto, la ultima abierta).
  */
 
@@ -204,6 +208,8 @@ async function objetivo(page) {
         const nombre = ex.nombreArchivo({ soc, banco: args['banco'], periodo: p, semana, ext });
         const res = ex.archivar({ origen: local, dirBanco: cb.dir, periodo: p, nombre });
         fs.rmSync(local, { force: true });   // copia propia en la bandeja
+        ex.anotarControl(PUERTO, { banco: require('../lib/bancos').canonico(args['banco']), cuit: soc.cuit,
+          periodo: p, estado: res.estado, destino: res.destino, archivo: sugerido });
         return out({ ok: true, archivo: sugerido, estado: res.estado, destino: res.destino });
       }
 
@@ -223,6 +229,8 @@ async function objetivo(page) {
         const nombre = ex.nombreArchivo({ soc, banco: args['banco'], periodo: p, semana: args['semana'] ? Number(args['semana']) : null, ext });
         const res = ex.archivar({ origen: local, dirBanco: cb.dir, periodo: p, nombre });
         fs.rmSync(local, { force: true });
+        ex.anotarControl(PUERTO, { banco: require('../lib/bancos').canonico(args['banco']), cuit: soc.cuit,
+          periodo: p, estado: res.estado, destino: res.destino, archivo: path.basename(local).split('__').pop() });
         return out({ ok: true, estado: res.estado, destino: res.destino });
       }
 

@@ -48,7 +48,7 @@
     {
       "name": "bancos-bva",
       "source": "./bancos-bva",
-      "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año. En revisión: ver el estado por banco en su README.",
+      "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año, y baja el cuadro de marcha de los préstamos vigentes. En revisión: ver el estado por banco en su README.",
       "category": "contabilidad"
     },
     {
