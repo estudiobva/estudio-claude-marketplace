@@ -17,7 +17,7 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/ddjj-iva.js --nombres="<A>;<B>" --
 | `--periodo` | Un mes, `MM/AAAA` o `AAAAMM`. |
 | `--desde` / `--hasta` | Rango `AAAAMM`. Sin periodo ni rango: el mes anterior. |
 | `--archivar` | Copia el PDF a la carpeta IVA del mes como `AAAAMM-IVA-DDJJ-<TOKEN>.pdf`, solo si ahi no hay ya un archivo `*IVA*DDJJ*` (no pisa lo del equipo). |
-| `--token` | El `<TOKEN>` del nombre archivado. Default: el nombre de la carpeta de la sociedad sin espacios y en mayusculas. Solo con una sociedad. |
+| `--token` | El `<TOKEN>` del nombre archivado. Default: el que ya usan los archivos `AAAAMM-IVA-DDJJ-<TOKEN>` (o `AAAAMM-IIBB-DJ-<TOKEN>`) de esa sociedad; no se deduce del nombre de la carpeta. Si no hay ninguno, el archivado de esa sociedad sale con `sin_token`: preguntar al equipo cual usa y pasarlo. Solo con una sociedad. |
 | `--salida` | Otra carpeta local para PDF y JSON (solo con una sociedad). |
 
 ## Que hace

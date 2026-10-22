@@ -16,8 +16,8 @@
  * --salida    carpeta local para los PDF y JSON (default ~/Documents/BVA-salidas/ddjj-iva/<CUIT>)
  * --archivar  copia el PDF a la carpeta IVA del mes en la unidad como AAAAMM-IVA-DDJJ-<TOKEN>.pdf,
  *             solo si en la carpeta del mes no hay ya un *IVA*DDJJ* (no pisa lo del equipo)
- * --token     <TOKEN> del nombre archivado (default: el nombre de la carpeta de la sociedad, sin
- *             espacios y en mayusculas: "Farmacia Ejemplo" -> FARMACIAEJEMPLO). Solo con una sociedad.
+ * --token     <TOKEN> del nombre archivado. Default: el que ya usan los archivos AAAAMM-IVA-DDJJ-<TOKEN>
+ *             (o AAAAMM-IIBB-DJ-<TOKEN>) de esa sociedad; si no hay ninguno, hay que pasarlo. Solo con una sociedad.
  * --ver       navegador visible (solo si se pide).
  * Salida: JSON por stdout ({ ok, cuit, ddjj: [{ periodo, secuencia, df, cf, st_ant, st, sld_ant, ret, sld, pdf, archivo }] };
  * con varias sociedades { ok, procesadas, con_error, resultados }). Progreso por stderr.
@@ -29,6 +29,7 @@ const { chromium } = require('playwright');
 const { launchOptions } = require('../lib/launch');
 const { resolveCredentials, envFile } = require('../lib/env'); const { login } = require('../lib/arca-login');
 const rutas = require('../lib/rutas-bva'); const pi = require('../lib/portal-iva');
+const { tokenSociedad } = require('../lib/token-sociedad');
 
 const args = parseArgs();
 function normalizarPeriodo(p) {
@@ -69,12 +70,11 @@ function periodos() {
   return out;
 }
 
-// "3 - Farmacia Ejemplo - 30712345678" -> "FARMACIAEJEMPLO"
 function tokenDe(cuit) {
   if (args['token']) return String(args['token']);
-  const carpeta = path.basename(rutas.carpetaSociedad(cuit));
-  const nombre = carpeta.split(' - ').map((s) => s.trim()).filter((s) => s && !/^\d+$/.test(s)).join(' ') || cuit;
-  return nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const t = tokenSociedad(cuit, 'iva-ddjj');
+  if (!t) throw Object.assign(new Error('La sociedad no tiene archivos AAAAMM-IVA-DDJJ-<TOKEN> ni AAAAMM-IIBB-DJ-<TOKEN> para copiar el token del nombre: pasa --token (preguntale al equipo cual usa).'), { code: 'sin_token' });
+  return t;
 }
 
 function leerVista(t) {
