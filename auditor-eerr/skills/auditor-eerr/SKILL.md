@@ -41,6 +41,12 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
 - Nuevo → **Pendiente**. Pendiente que deja de detectarse → **Resuelto** (solo).
 - **Aprobado** (lo pone el equipo) → no se vuelve a informar mientras el valor no cambie; si cambia, entra como nuevo.
 - Resuelto que vuelve a detectarse → se reabre como Pendiente.
+- **Hallazgos a mano** (desde 1.2.0): se pueden agregar hallazgos a mano en una fila de la hoja (con control, mes,
+  concepto, descripción, valores u observaciones; el nivel lo pone el equipo o queda vacío). Se conservan en cada
+  auditoría con su estado, fechas, observaciones y links, se numeran con el resto y entran en los contadores, pero
+  **no se resuelven ni se reabren solos**: el estado lo maneja solo el equipo. Si se cargan sin estado entran como
+  Pendiente (y sin fecha de detección, con la de esa auditoría). Se reconocen por la clave oculta `M|n`. El formato
+  propio de la celda (colores, fuentes) no se conserva porque la hoja se rearma en cada auditoría.
 
 ## Los 21 controles
 
@@ -85,7 +91,7 @@ Umbrales en `CFG` del script; se pisan con `~/.fisco-ar/auditor_eerr_config.json
 
 ## Respuesta al usuario
 
-Por sociedad: cantidad de nuevos, siguen pendientes, resueltos solos y aprobados omitidos; después los **rojos**
+Por sociedad: cantidad de nuevos, siguen pendientes, resueltos solos, aprobados omitidos y hallazgos a mano; después los **rojos**
 (lo que no cierra contra una fuente) y un resumen de los amarillos por control. No pegar la hoja entera. Recordar que
 el estado se cambia en la columna Estado (B) de la hoja "Auditorias".
 

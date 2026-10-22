@@ -18,6 +18,9 @@ python scripts/auditor_eerr.py --todas [--hasta=AAAAMM] [--simular] [--procesos=
   reordenan solas).
 - **Estados:** Pendiente → Resuelto (solo, cuando deja de detectarse). Aprobado (equipo) no se vuelve a informar
   mientras el valor no cambie. Historial de ejecuciones a la derecha de la hoja.
+- **Hallazgos a mano (desde 1.2.0):** se pueden agregar hallazgos a mano en la hoja Auditorias (una fila con control,
+  mes, concepto o descripción): se conservan en cada auditoría y no se resuelven ni se reabren solos; su estado lo
+  cambia solo el equipo. Si se cargan sin estado entran como Pendiente.
 - **Requisitos:** Python 3 con `openpyxl` y `pypdf` (`requirements.txt`) y Microsoft Excel (Windows: PowerShell +
   COM; Mac: AppleScript) para recalcular cada archivo antes de devolverlo a la unidad.
 - **Configuración:** `~/.fisco-ar/.env` (`BVA_UNIDAD_PATH`, `BVA_SALIDAS_PATH`) y, opcional, umbrales y excepciones por

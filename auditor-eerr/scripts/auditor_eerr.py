@@ -1183,6 +1183,10 @@ FMT = '#,##0.00;[Red]-#,##0.00'
 
 
 def clave(h): return f"C{h['control']:02d}|{h['mes']}|{h['concepto']}"
+# Filas cargadas a mano por el equipo (pedido de Javi 09/10/2026, T-011): sin Clave o con Clave "M|n". Se conservan tal
+# cual y su Estado lo maneja solo el equipo: el auditor no las resuelve ni las reabre.
+MANUAL = ('Control', 'Mes', 'Concepto', 'Descripción', 'Valor EERR', 'Valor de control', 'Observaciones')
+def es_manual(d): return str(d.get('Clave') or '').startswith('M|')
 
 
 def leer_hoja(wb):
@@ -1194,6 +1198,7 @@ def leer_hoja(wb):
     filas, hist = [], []
     for r in range(hdr + 1, ws.max_row + 1):
         d = {n: ws.cell(r, c + 1).value for c, n in enumerate(nombres) if n}
+        if not d.get('Clave') and any(nfc(d.get(n)) for n in MANUAL): d['Clave'] = 'M|'
         if d.get('Clave'):
             for k, n in (('_link', 'Ir a la celda'), ('_fuente', 'Documento fuente')):
                 d[k] = ws.cell(r, nombres.index(n) + 1).hyperlink if n in nombres else None
@@ -1212,9 +1217,15 @@ def fusionar(previas, nuevos, scope, hoy):
     # devuelve filas finales + contadores
     sc = {tuple(s) for s in scope}
     por_clave = {}
-    for i, d in enumerate(previas): por_clave[d['Clave']] = i         # la última fila de cada clave manda
+    for i, d in enumerate(previas):
+        if not es_manual(d): por_clave[d['Clave']] = i                # la última fila de cada clave manda
     filas = [dict(d) for d in previas]
     cont = collections.Counter(); vistas = set()
+    for d in filas:
+        if not es_manual(d): continue
+        cont['manuales'] += 1
+        if not nfc(d.get('Estado')): d['Estado'] = 'Pendiente'        # sin estado no entraría en los contadores
+        if not d.get('Fecha detección'): d['Fecha detección'] = hoy
     for h in nuevos:
         k = clave(h); vistas.add(k)
         base = dict(h)
@@ -1273,7 +1284,8 @@ def escribir(wb, res, hasta, hoy):
                 'Concepto': g('Concepto', 'concepto'), 'Descripción': g('Descripción', 'desc'), 'Valor EERR': g('Valor EERR', 'valor'),
                 'Valor de control': g('Valor de control', 'control_val'), 'Diferencia': g('Diferencia', 'dif'),
                 'Fecha estado': d.get('Fecha estado'), 'Observaciones': d.get('Observaciones'),
-                'Última auditoría': d.get('Última auditoría'), 'Clave': d['Clave'], 'Comparar': g('Comparar', 'comparar')}
+                'Última auditoría': d.get('Última auditoría'), 'Clave': f"M|{n}" if es_manual(d) else d['Clave'],
+                'Comparar': g('Comparar', 'comparar')}
         for k, v in vals.items(): ws.cell(r, CI[k], v)
         ve = vals['Valor EERR']
         es_pct = h['es_pct'] if h else (ve is not None and num(ve) and abs(ve) < 5 and '%' in str(d.get('Descripción') or ''))
@@ -1446,7 +1458,7 @@ def main():
         niveles = collections.Counter(h['nivel'] for h in r['h'])
         resumen.append((nombre, cont, niveles, estado, r['log']))
         print(f"  {nombre:28} nuevos {cont['nuevos']:3}  siguen {cont['pendientes']:3}  resueltos {cont['resueltos']:3}  "
-              f"reabiertos {cont['reabiertos']:2}  aprobados omitidos {cont['aprobados']:3}  (rojo {niveles['Rojo']}, amarillo {niveles['Amarillo']})  {estado}")
+              f"reabiertos {cont['reabiertos']:2}  aprobados omitidos {cont['aprobados']:3}  manuales {cont['manuales']:2}  (rojo {niveles['Rojo']}, amarillo {niveles['Amarillo']})  {estado}")
         for l in r['log']:
             if not l.startswith('Traceback') and 'File "' not in l: print('     aviso:', l)
     json.dump([dict(sociedad=n, **c, rojo=v['Rojo'], amarillo=v['Amarillo'], estado=e) for n, c, v, e, _ in resumen],
