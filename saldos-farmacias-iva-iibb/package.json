@@ -1,0 +1,10 @@
+{
+  "name": "saldos-farmacias-iva-iibb",
+  "version": "1.0.0",
+  "description": "Saldos de IVA e IIBB del mes para la planilla FARMACIAS SALDO.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "saldos": "python scripts/saldos-iva-iibb.py"
+  }
+}
