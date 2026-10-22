@@ -5,8 +5,8 @@
  * compras de Zetti y no vinieron con la importacion desde ARCA. Las carga una
  * por una con el boton "AGREGAR COMPROBANTE..." del libro, como a mano.
  *
- *   node scripts/portal-iva-agregar.js --cuit=33714976619 --periodo=09/2026              (simulacion)
- *   node scripts/portal-iva-agregar.js --cuit=33714976619 --periodo=09/2026 --ejecutar --limite=1
+ *   node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026              (simulacion)
+ *   node scripts/portal-iva-agregar.js --cuit=<CUIT> --periodo=09/2026 --ejecutar --limite=1
  *   node scripts/portal-iva-agregar.js --nombre="<sociedad>" --periodo=09/2026 --archivo=servicios.xlsx --ejecutar
  *
  * Argumentos:
