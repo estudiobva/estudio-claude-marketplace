@@ -1,51 +1,91 @@
 ---
 name: ddjj-sshh-quilmes
-description: Controla y carga la DDJJ mensual de la Tasa de Seguridad e Higiene (TISEH, Régimen General) de las sociedades con cuenta en ARQui Quilmes (arquivirtual.quilmes.gov.ar), siempre con la actividad 477320. El monto para cargar sale del papel de trabajo del mes (hoja liquidacion, Neto Gravado de Ventas Netas), porque SSHH vence antes de que se presente IIBB en ARBA; la constancia de anticipo IIBB de ARBA (línea 477320) se usa para controlar. Usar cuando pidan "cargá la DDJJ de Seguridad e Higiene de [sociedad] [mes]", "SSHH Quilmes", "controlá Seguridad e Higiene de todas", "liquidación mensual de Tasa Comercial", "declarar ingresos gravados en ARQui", "TISEH" o "boleta de SEH". No paga nada.
+description: "Controla en ARQui (Agencia de Recaudación del Municipio de Quilmes) la DDJJ mensual de la Tasa de Seguridad e Higiene (TISEH, Régimen General) de una, varias o todas las sociedades: compara lo declarado en la actividad 477320 con el papel de trabajo del mes (hoja liquidacion, Neto Gravado de Ventas Netas) y con la DJ de anticipo IIBB de ARBA, avisa las que no tienen DDJJ con el monto a declarar, y archiva la boleta (Recibo de Pago) en la carpeta TSH del mes como 'AAAAMM-SEH-<soc>.pdf'. Corre un script de Playwright que se loguea solo con el usuario de ARQui de la planilla de claves del estudio: no hace falta entrar a mano. Usar SIEMPRE que pidan \"controlá la DDJJ de Seguridad e Higiene de [sociedad] [mes]\", \"SSHH Quilmes\", \"controlá Seguridad e Higiene de todas\", \"TISEH\", \"bajá la boleta de SEH\", \"liquidación mensual de Tasa Comercial\", \"qué falta presentar de SSHH\" o mencionen ARQui y Seguridad e Higiene. NO confundir con recibo-pyp-quilmes (recibo de Publicidad y Propaganda / marquesinas, otra tasa de ARQui). No paga ni presenta nada."
 ---
 
-# DDJJ mensual Seguridad e Higiene – ARQui Quilmes
+# DDJJ mensual Seguridad e Higiene — ARQui Quilmes
 
-Hablar en español rioplatense, respuestas breves. Usar el navegador con las herramientas de Claude in Chrome (no clicks a nivel sistema). No paga: nunca usar botón de pago ni pagos online.
+Un script de Playwright entra a ARQui con el usuario de la planilla de claves, consulta las DDJJ de Seguridad e
+Higiene del período, baja la Declaración y el Recibo de Pago, compara lo declarado con el papel de trabajo y con
+ARBA, y archiva la boleta. Navegador oculto. Solo consulta y descarga: nunca usa "Nuevo" / "Generar Comprobante"
+(no presenta DDJJ), ni pagos, ni "Adherir cuenta".
 
-## Por qué el monto sale del papel y no de ARBA
-La DDJJ de SSHH del mes M vence alrededor del 16 de M+1 (09/2026: boletas emitidas el 12–13/10, vencimiento 16/10). La DJ de anticipo IIBB de ARBA del mismo mes se presenta después (09/2026: del 15 al 21/10). Entonces:
-- **Cargar** con el monto del papel de trabajo.
-- **Controlar** contra ARBA cuando la DJ ya está presentada.
+## Correrlo
 
-## Datos de entrada
-- Sociedad (CUIT) y período (mes/año). Si piden "todas", son las cuentas del bloque Seguridad e Higiene de la planilla (15 a 10/2026).
-- **Nº de cuenta TISEH:** `0 - ESTUDIO - 00000000000/Tasas Municipales CLAVES.xlsx`, hoja **QUILMES**, bloque **SEGURIDAD E HIGIENE** (columnas A–C: Farmacia | CUIT | Nro de Cuenta). Buscar **por CUIT**: los nombres de la planilla no son la razón social ni el de la carpeta ("Factory" = Quilmes Factory, "Sanar  52" con doble espacio, "Nueva 50" = Soy 50 Roasio). No usar los bloques MARQUESINAS ni PUBLICIDAD Y PROPAGANDA: son otras tasas y a veces traen otro número. Las cuentas van con dígito verificador (ej. 500123456-7), salvo alguna cargada sin él.
-- **Actividad: siempre 477320** (venta al por menor de cosméticos y perfumería). No declarar 477311 / 477312 (medicamentos) en esta cuenta. Comprobado en 09/2026: en 9 de las 10 sociedades con la DJ de ARBA presentada, lo declarado en SSHH es exactamente lo de 477320.
-- **Monto para cargar:** papel de trabajo del mes, `[Sociedad]/01-Impuestos Mensuales/AAAAMM/AAAAMM-papeldetrabajo-<SOC>*.xlsx` (o `01-Impuestos Mensuales/AAAA/AAAAMM/` si la sociedad usa carpeta de año), hoja **liquidacion**, fila **"Ventas Netas (s/ Notas de Crédito)"**, columna **Neto Gravado**. Ese neto gravado es la venta de 477320 (los medicamentos van exentos de IVA).
-  - Si no hay papel, no tiene la hoja `liquidacion` (ej. Sanar 1 en 09/2026) o la celda viene vacía (fórmulas sin calcular, ej. Quilmes Factory en 09/2026): no calcularlo por otro lado. Avisar y pedir el monto a quien liquida IIBB de la sociedad.
-- **Monto ARBA (control):** DJ de anticipo IIBB del período, línea `477320 $ X`. Buscarla en la carpeta del mes, en sus subcarpetas `IIBB/` e `IVA/` y en la carpeta de año. Los nombres varían en mayúsculas y forma: `AAAAMM-iibb-dj-<soc>.pdf`, `AAAAMM-IIBB-DJ-<SOC>.pdf`, `AAAAMM-IIBB-DDJJ-<Soc>.pdf`. No confundir con el `acuse`. Si no está y la DJ ya se presentó, usar la skill constancias-anticipo-arba (de la cuenta de claude.ai, no está en este marketplace). Si todavía no se presentó, el control contra ARBA queda pendiente: decirlo, no suponerlo.
+```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/ddjj-sshh-quilmes.js --nombre="<sociedad>" --periodo=AAAAMM
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/ddjj-sshh-quilmes.js --nombres="<A>;<B>" --periodo=AAAAMM
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/ddjj-sshh-quilmes.js --todas --periodo=AAAAMM
+```
 
-## Cómo escribir el monto
-Solo la parte entera, sin separador de miles ni decimales, **truncando** (sin redondear): 12.345.678,92 → `12345678`; $ 12.345.678,00 → `12345678`. Así lo declara el equipo en ARQui y en ARBA. Cuidado: sacarle "puntos y comas" a `12.345.678,00` da 1234567800, cien veces más.
+| Argumento | Para qué |
+|---|---|
+| `--nombre` / `--cuit` | Una sociedad (titular de la planilla de claves, o CUIT). |
+| `--nombres` / `--cuits` | Varias, separadas por `;`. Un login para todas. |
+| `--todas` | Todas las cuentas de SSHH vinculadas al usuario de ARQui; la sociedad sale del CUIT de sus DDJJ. Suma la hoja **Control planilla**. |
+| `--periodo` | `AAAAMM` o `MM/AAAA`. Por defecto, el mes anterior. |
+| `--no-archivar` | Deja la boleta solo en la carpeta de salida; no toca la unidad. |
+| `--reemplazar` | Pisa la boleta del mes si ya estaba en la unidad (por defecto la deja). |
+| `--ver` | Navegador visible. Solo si el usuario lo pide. |
 
-## Login
-El usuario inicia sesión a mano en ARQui (Chrome completa la clave con PIN de Windows). Nunca manejar ni pedir credenciales. Arrancar desde la sesión abierta.
+Si falta la sociedad o el período, preguntar antes de correr ("SSHH de septiembre" = `--periodo=202609`).
+`--todas` (unas 33 cuentas) tarda unos 15–20 minutos: hay una pausa a propósito entre pedidos (ver "Bloqueos"). Correrlo en segundo plano.
 
-ARQui tiene un firewall que, con muchos pedidos seguidos, contesta **403 Forbidden** a todo durante unos minutos. Con varias sociedades, ir de a una y sin recargar de más. Si aparece el 403, parar, esperar 5–10 minutos y seguir con las que faltan.
+**Plugin instalado:** la primera vez (y después de cada actualización):
+`npm install && npx playwright install chromium && python3 -m pip install -r requirements.txt`.
+Usa el mismo `~/.fisco-ar/.env` que los demás plugins (`CLAVES_ORGANISMOS_PATH`, `CLAVES_ORGANISMOS_PASSWORD`, y
+`BVA_UNIDAD_PATH` en Mac).
 
-## Pasos
-1. En ARQui ir a Servicios > Tasa Comercial – Seguridad e Higiene > Régimen General > **Liquidación Mensual** (`/municipal/App/DDJJ/Sshh/SSHHInicio.aspx`).
-2. **Nueva**: en "Seleccione una cuenta" elegir la cuenta **sin dígito verificador** (500123456-7 → 500123456; lista larga: seleccionar por texto), Año y Mes. Lleva a `ConsultarPeriodo.aspx` con las DDJJ ya presentadas del período.
-3. **Control previo (caso normal):** si ya existe una DDJJ ORIGINAL del período, NO cargar otra. Informar cuenta, período, fecha de presentación e ingreso declarado, y compararlo con el monto del papel y, si ya está, con ARBA 477320. Si hay diferencia, avisarla y no tocar nada: rectificar lo decide la persona. Terminar con **Volver**.
-4. Solo si no existe ninguna DDJJ del período: clic en **Nuevo**, aceptar el aviso "DECLARE EL TOTAL DE INGRESOS GRAVADOS DEL PERÍODO".
-5. En "Ingresos devengados por Actividad": Código de Actividad 477320. La alícuota (0.013 en 09/2026) y el Tipo (Principal) se completan solos. Escribir el Monto como dice "Cómo escribir el monto" y **Aplicar**.
-6. Verificar en la grilla: actividad 477320, Base Imp. Total = monto, y **Tasa Determinada = monto × alícuota** (ej. 12345678 × 0,013 = 160.493,81). Si no da, no seguir.
-7. Mostrar el resumen al usuario y esperar confirmación antes de **Generar Comprobante**. Después **Volver** y confirmar en ConsultarPeriodo que figura la DDJJ.
-8. Archivar la boleta que da ARQui en `[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-SEH-<soc>.pdf` (o dentro de la carpeta de año), con el mismo `<soc>` que los otros archivos de la sociedad (ej. `202609-SEH-sanar65.pdf`, `202609-SEH-quilmesfactory.pdf`). Si ya hay una, no pisarla. Si no se puede guardar desde el navegador, decirle al usuario el nombre y la carpeta.
+## De dónde sale cada dato
 
-## Control rápido sin entrar a ARQui
-Para "controlá SSHH de todas" alcanza con las boletas ya guardadas en TSH (`AAAAMM-SEH-*.pdf`, a veces `AAAAMM-seh-boleta-*.pdf`):
-- Sumar la columna DEUDA de las líneas del período `AAAA.MM.M.001.xx`. La `.00` es el mínimo que emite el municipio (igual para todas: $56.786 en 09/2026) y la `.01` es la diferencia que generó la DDJJ.
-- Base declarada = total ÷ alícuota (0,013), redondeada al peso. Tiene que dar igual a la parte entera del papel y a ARBA 477320.
-- Si una sociedad no tiene boleta en TSH, o el total no cierra con la alícuota, verificar en ARQui (paso 3).
+- **Login:** `Claves_Organismos.xlsx`, grupo **MUNICIPAL** de la fila de la sociedad (Municipio = Quilmes), o el
+  usuario de Quilmes más repetido. Override: `ARQUI_USUARIO` / `ARQUI_CLAVE` en el `.env`. Claude nunca escribe ni
+  muestra la clave.
+- **Cuenta:** `Tasas Municipales CLAVES.xlsx`, hoja **QUILMES**, bloque **SEGURIDAD E HIGIENE**, por CUIT (los
+  nombres de la planilla no son los de las carpetas). Los bloques de Marquesinas y Publicidad son otras tasas.
+- **Lo declarado:** ARQui > Consultar (DDJJ del año) y la **Declaración** de la DDJJ del mes (si hay rectificativas,
+  la última): actividades, alícuota, ingreso, tasa, vencimiento y Nº de recibo.
+- **Papel:** `[Sociedad]/01-Impuestos Mensuales/AAAAMM/AAAAMM-papeldetrabajo-*.xlsx` (o dentro de la carpeta de año),
+  hoja `liquidacion`, fila "Ventas Netas (s/ Notas de Crédito)", columna Neto Gravado. Es la venta de 477320 (los
+  medicamentos van exentos). Se compara la parte entera.
+- **ARBA:** la DJ de anticipo IIBB del mes que esté en la carpeta del mes (cualquier `*iibb*dj*.pdf` que no sea el
+  acuse, también en `IIBB/` o `IVA/`), línea 477320. SSHH vence (~16 del mes siguiente) antes de que se presente IIBB,
+  así que en los primeros días puede no estar todavía: el control queda contra el papel. Si la DJ está escaneada
+  (PDF sin texto) no se puede leer y se avisa.
 
-## Resultado
-Una línea por sociedad: sociedad | cuenta | período | estado (ya existía original / cargada / sin cuenta / sin monto) | monto declarado | papel | ARBA 477320 | diferencia. Después, en una línea cada uno, lo que no se pudo y por qué, y lo que queda pendiente (control contra ARBA si la DJ todavía no se presentó, boletas que faltan en TSH).
+## Estados
 
-## Ejemplo
-Papel con Neto Gravado 12.345.678,54 → se declara `12345678`; tasa = 12345678 × 0,013 = 160.493,81 (en la boleta: 56.786 de la `.00` + 103.707,81 de la `.01`); ARBA 477320 = $ 12.345.678,00. Coincide.
+- `OK`: declarado = papel y = ARBA (lo que haya), solo con 477320. Menos de $1 de diferencia no cuenta (hay quien
+  declara con centavos o redondea).
+- `diferencia`: no coincide o hay otras actividades declaradas. **No se toca:** rectificar lo decide la persona.
+- `sin DDJJ`: no hay DDJJ del mes en ARQui. La observación trae el monto a declarar (papel, parte entera) y la tasa
+  estimada al 1,3%.
+- `sin control`: hay DDJJ pero no hay papel ni ARBA para comparar.
+- `sin cuenta` / `sin CUIT`: no está en la planilla de tasas, o (con `--todas`) la cuenta no tiene DDJJ ni en el año
+  ni en el anterior y no está en la planilla.
+- `error` (con `codigo`): `no_vinculada` (la cuenta no está en el usuario de ARQui: vincularla con "Adherir cuenta"
+  lo decide la persona), `control` (la Declaración es de otro CUIT o período), `bloqueo`, `login`.
+
+## Qué entrega
+
+- Boleta archivada en `[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-SEH-<soc>.pdf`, con el mismo `<soc>` que
+  el equipo ya usa para esa sociedad (ej. `202609-SEH-sanar65.pdf`). Si ya había una boleta del mes en la carpeta del
+  mes, no se pisa (`ya estaba`).
+- En `~/Documents/BVA-salidas/ddjj-sshh-quilmes/AAAA-MM-DD/` (`BVA_SALIDAS_PATH`): la Declaración y la boleta de cada
+  cuenta y el resumen `DDJJ SSHH QUILMES AAAAMM <fecha> <hora>.xlsx` con la hoja **Control** (Sociedad, CUIT, Cuenta,
+  Estado, fecha, carácter, declarado, otras actividades, tasa, papel, ARBA, diferencias, boleta, vencimiento, Nº de
+  recibo, observación) y, con `--todas`, la hoja **Control planilla**.
+- JSON por stdout con lo mismo y `totales`.
+
+## Bloqueos de ARQui (403 Forbidden)
+
+El firewall del municipio corta todo con **403 Forbidden** unos minutos si recibe muchos pedidos o logins seguidos.
+El script hace un solo login por usuario, pausa `ARQUI_PAUSA_MS` (2,5 s) entre pedidos y, ante un 403, espera
+`ARQUI_ESPERA_BLOQUEO_MS` (5 min) y reintenta una vez; si sigue, corta con código `bloqueo` y `totales.bloqueado:
+true`. En ese caso **no relanzar enseguida**: esperar 5–10 minutos y volver a correr solo las que faltaron.
+
+## Respuesta al usuario
+
+Una línea por sociedad: Sociedad | Cuenta | Estado | Declarado | Papel | ARBA | Tasa | Vencimiento, y dónde quedó la
+boleta. Después, en una línea cada una, las `diferencia` (con el detalle), las `sin DDJJ` (con el monto a declarar)
+y los errores, sin adivinar. Con `--todas`, resumir también la hoja Control planilla.

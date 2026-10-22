@@ -1,6 +1,6 @@
 {
   "name": "ddjj-sshh-quilmes",
-  "description": "Controla y carga la DDJJ mensual de Seguridad e Higiene (TISEH) de las sociedades en ARQui Quilmes, actividad 477320: monto del papel de trabajo, control contra la DJ de IIBB de ARBA y archivo de la boleta en TSH. Usa Claude in Chrome con login a mano.",
+  "description": "Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene (TISEH) de cada sociedad: lo declarado en la actividad 477320 contra el papel de trabajo y la DJ de IIBB de ARBA, y archiva la boleta en TSH. Login automático con la planilla de claves.",
   "version": "1.0.0",
   "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
   "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
