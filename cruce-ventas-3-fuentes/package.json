@@ -1,0 +1,16 @@
+{
+  "name": "cruce-ventas-3-fuentes",
+  "version": "1.0.0",
+  "description": "Mis Comprobantes + Portal IVA + Zetti -> cruce de ventas del mes.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "cruce": "node scripts/cruce-ventas-3-fuentes.js",
+    "mis-comprobantes": "node scripts/mis-comprobantes-emitidos.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
