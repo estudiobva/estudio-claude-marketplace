@@ -201,10 +201,14 @@ ERA, ROSEDAL` (y los renombrados de la tabla). Estaban en 08/2026 y no en
 F ALEMANA, N GENERACION, N VENTURA, NORTE, RECOVA, SANAR 5, SANAR 52, SANAR 59,
 SANAR 61, SANAR 63, SANAR 7, SANAR 8, SOY DEL SUR, SOY QUILMES, ZAPIOLA`.
 
-Si un archivo de Monroe no resuelve contra ningun `CLIENTE`, **preguntar** a
-que farmacia corresponde. No adivinar por parecido de texto. Si la farmacia
-es conocida pero ese mes no tiene NCR de Suizo (p. ej. NORTE en 09/2026), se
-concilia con `--clientes=<su CLIENTE>` y Suizo da 0.
+Si un archivo de Monroe no resuelve contra ningun `CLIENTE`, `conciliar-ncr.py`
+lo **prueba con el Portal IVA** (desde 1.2.4): busca las NC de Suizo de la
+sociedad en el archivo de NCR de Suizo. Si alguna figura bajo un `CLIENTE` que
+no es de la sociedad, frena y dice cual: es el nombre que usa Suizo, preguntar y
+agregar el alias. Si ninguna figura, la farmacia no tuvo NCR de Suizo ese mes
+(paso con dos sociedades en 09/2026): concilia sin Suizo, lo avisa en `avisos` y la
+hoja Control dice "sin NCR de Suizo este mes". Las NC de Suizo del Portal quedan
+en "NC sin respaldo", como siempre. No adivinar por parecido de texto.
 
 ## Las claves de matcheo (validadas, no suponer otras)
 
@@ -318,9 +322,13 @@ Encapsula las reglas validadas (da identico al script de abajo contra
 las sociedades conciliadas en 08/2026) y ademas:
 
 - Ubica solo la carpeta `ncr/` y las compras (CSV, zip o Excel del Portal IVA;
-  busca en `ncr/`, en la carpeta IVA y en la del mes). `--portal=` para forzar uno.
-- Arma los `CLIENTE` de Suizo desde los archivos de Monroe + `lib/ncr-alias.json`,
-  y corta si alguno no resuelve (`--clientes=` para forzarlos).
+  busca en `ncr/`, en la carpeta IVA y en la del mes). Ignora los cruces
+  (`... CRUCE COMPRAS ZETTI VS PORTAL IVA.xlsx`). Si quedan dos libros (p. ej. el
+  CSV borrador y el Excel de la DDJJ presentada, que ya no tiene las NCR), frena:
+  `--portal=` para elegir uno.
+- Arma los `CLIENTE` de Suizo desde los archivos de Monroe + `lib/ncr-alias.json`.
+  Corta si una farmacia tiene dos candidatos, o si no figura y el Portal muestra
+  que sus NC estan bajo otro nombre (`--clientes=` para forzarlos).
 - Controla que cada archivo de Monroe sea del CUIT de la sociedad.
 - Escribe los importes como numeros y las fechas como fechas (el script de abajo
   los deja como texto con coma cuando la fuente es el CSV).
