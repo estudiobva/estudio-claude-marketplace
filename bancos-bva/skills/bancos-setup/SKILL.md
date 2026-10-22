@@ -61,4 +61,4 @@ usar `--revelar`.
 - **`Executable doesn't exist`** → `npx playwright install chromium`.
 - **`No pude descifrar Claves_Bancos.xlsx`** → contraseña mal en el `.env` (ojo espacios).
 - **`No encuentro la unidad compartida`** → Drive no montado o `BVA_UNIDAD_PATH` mal.
-- **Un banco cambió la pantalla de login** → `node scripts/banco-login.js --banco=X --quedate` lo abre visible para ver dónde se traba; el arreglo va en `lib/bancos/<banco>.js`.
+- **Un banco cambió la pantalla de login** → `node scripts/banco-login.js --banco=X --inspeccionar` (oculto) guarda captura y estructura de la pantalla para ver dónde se traba (con `--ver --quedate` solo si el usuario pide mirarlo); el arreglo va en `lib/bancos/<banco>.js`.

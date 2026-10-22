@@ -15,6 +15,7 @@
 // Nunca pisa ni borra nada de la unidad.
 
 const fs     = require('fs');
+const os     = require('os');
 const path   = require('path');
 const crypto = require('crypto');
 const rutas  = require('./rutas-bva');
@@ -192,7 +193,40 @@ function archivar({ origen, dirBanco, periodo: p, nombre }) {
   return { estado: 'guardado', destino };
 }
 
+// Archivo con el mismo contenido en cualquier ano de la carpeta del banco
+// ([BANCO]/[AAAA]/ o la vieja [BANCO]/[AAAAMM]/). Devuelve la ruta o null.
+function yaArchivado(dirBanco, buf) {
+  if (!fs.existsSync(dirBanco)) return null;
+  const hash = sha(buf);
+  for (const d of fs.readdirSync(dirBanco, { withFileTypes: true })) {
+    if (!d.isDirectory() || !/^\d{4}(\d{2})?$/.test(d.name)) continue;
+    const dir = path.join(dirBanco, d.name);
+    for (const f of fs.readdirSync(dir)) {
+      const p2 = path.join(dir, f);
+      try { if (fs.statSync(p2).isFile() && sha(fs.readFileSync(p2)) === hash) return p2; } catch { /* en uso */ }
+    }
+  }
+  return null;
+}
+
+// ── registro de --control ───────────────────────────────────────────────────
+// control.js corre aparte y archiva lo que baja; deja una linea por archivo en
+// este registro (uno por puerto) para que extractos-banco.js lo sume a su JSON.
+// Solo rutas y periodos: nunca datos de acceso.
+const registroControl = (puerto) => path.join(os.tmpdir(), `bva-control-${Number(puerto) || 9333}.jsonl`);
+function anotarControl(puerto, dato) {
+  try { fs.appendFileSync(registroControl(puerto), JSON.stringify({ t: Date.now(), ...dato }) + '\n'); }
+  catch { /* el registro es informativo: si falla, el archivo igual quedo archivado */ }
+}
+function leerControl(puerto, { desde = 0, banco, cuit } = {}) {
+  let lineas = [];
+  try { lineas = fs.readFileSync(registroControl(puerto), 'utf8').split('\n').filter(Boolean); } catch { return []; }
+  return lineas.map(l => { try { return JSON.parse(l); } catch { return null; } })
+    .filter(d => d && d.t >= desde && (!banco || d.banco === banco) && (!cuit || d.cuit === cuit));
+}
+
 module.exports = {
   BANCOS_DIR, periodo, rango, periodoDeArchivo, sociedad, slug, bancosDelMaestro,
   candidatasBanco, carpetaBanco, salidaBase, carpetaSalida, nombreArchivo, archivar,
+  yaArchivado, registroControl, anotarControl, leerControl,
 };

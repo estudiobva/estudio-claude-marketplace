@@ -7,23 +7,23 @@
  *
  *   node scripts/banco-login.js --banco=GALICIA --sociedad="<sociedad>" --quedate
  *   node scripts/banco-login.js --banco=GALICIA --inspeccionar
- *   node scripts/banco-login.js --banco=GALICIA --sociedad="<sociedad>" --oculto
+ *   node scripts/banco-login.js --banco=GALICIA --sociedad="<sociedad>"
  *
  * Argumentos:
  *   --banco         Banco tal como figura en Claves_Bancos.xlsx (GALICIA, FRANCES...).
  *   --cuit          Opcional (Galicia). CUIT de la sociedad: busca su login propio por CUIT.
  *   --sociedad      Opcional. En Galicia usa el login propio de esa sociedad (bloque
  *                   Galicia del archivo); sin esto usa el login unico del banco.
- *   --quedate       Deja el navegador abierto y logueado hasta que apretes Enter.
+ *   --quedate       Deja el navegador abierto y logueado hasta que apretes Enter (con --ver, para mirarlo).
  *   --inspeccionar  Despues de entrar guarda captura, HTML y la lista de menus/links
  *                   en ~/bva-inspeccion/<banco>-<fecha>/, para armar la navegacion
  *                   hasta los resumenes. Esos archivos traen datos de cuentas:
  *                   quedan en la PC, no en la unidad compartida.
- *   --oculto        Corre sin ventana. Por defecto es VISIBLE: los bancos tienen
- *                   antifraude y en headless es mas facil que bloqueen.
+ *   --ver           Navegador visible. Por defecto corre OCULTO: la ventana se abre
+ *                   solo si el usuario lo pide.
  *
- * Si el banco pide token o codigo (segundo factor) y la ventana esta visible, el
- * script espera a que lo ingreses a mano y apretes Enter; despues sigue.
+ * Si el banco pide token o codigo (segundo factor) y la ventana esta visible (--ver), el
+ * script espera a que lo ingreses a mano y apretes Enter; oculto corta con ese code.
  *
  * Se intenta UNA sola vez: si el banco rechaza la clave no se reintenta.
  *
@@ -44,10 +44,11 @@ loadEnv();
 const args = parseArgs();
 const QUEDATE      = 'quedate' in args;
 const INSPECCIONAR = 'inspeccionar' in args;
-const OCULTO       = 'oculto' in args && !QUEDATE;
+const VER          = 'ver' in args;
 
 // launch.js lee esto del entorno, asi que se setea antes de pedir las opciones.
-if (process.env.PLAYWRIGHT_HEADLESS == null) process.env.PLAYWRIGHT_HEADLESS = OCULTO ? 'true' : 'false';
+// Oculto salvo --ver (o PLAYWRIGHT_HEADLESS=false puesto a mano).
+if (VER) process.env.PLAYWRIGHT_HEADLESS = 'false';
 const { launchOptions, HEADLESS } = require('../lib/launch');
 
 const log = (m) => process.stderr.write(`[banco-login] ${m}\n`);
@@ -106,7 +107,7 @@ async function inspeccionar(page, banco) {
   log(`banco: ${adaptador.banco}`);
   log(`credenciales: ${cred.origen === 'galicia-por-sociedad'
     ? `login propio de "${cred.sociedad}"` : 'login unico del banco'} (Claves_Bancos.xlsx)`);
-  if (HEADLESS) log('corriendo oculto: si el banco bloquea, proba sin --oculto.');
+  if (HEADLESS) log('corriendo oculto (--ver para ver la ventana, solo si el usuario lo pide).');
 
   const browser = await abrirNavegador();
   const context = await browser.newContext({ locale: 'es-AR', acceptDownloads: true });
@@ -146,7 +147,7 @@ async function inspeccionar(page, banco) {
       segundo_factor: 'Corre sin --oculto para ingresar el codigo a mano en la ventana.',
       captcha: 'Corre sin --oculto para tildar el captcha a mano en la ventana.',
       sin_credenciales: 'Completa el dato que falta en Claves_Bancos.xlsx.',
-      login_sin_confirmar: 'Corre con --quedate para ver en que pantalla quedo.',
+      login_sin_confirmar: 'Corre con --inspeccionar para guardar captura de la pantalla en que quedo (o --ver --quedate si el usuario pide mirarla).',
     }[e.code];
     await browser.close().catch(() => {});
     fail(e.message, { code: e.code || 'error', ...(queHacer ? { que_hacer: queHacer } : {}) });
