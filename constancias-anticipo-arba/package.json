@@ -1,0 +1,15 @@
+{
+  "name": "constancias-anticipo-arba",
+  "version": "1.0.0",
+  "description": "Constancias de las DDJJ de anticipo de IIBB de ARBA, archivadas por periodo.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "constancias": "node scripts/constancias-anticipo-arba.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
