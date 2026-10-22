@@ -1,0 +1,10 @@
+{
+  "name": "papel-trabajo-automatico",
+  "version": "1.0.0",
+  "description": "Papel de trabajo unificado de liquidaciones (IVA, IIBB y tasa municipal) desde las fuentes oficiales, en un archivo aparte.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "generar": "python scripts/generar_papel.py"
+  }
+}

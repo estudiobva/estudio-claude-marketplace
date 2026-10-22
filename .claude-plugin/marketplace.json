@@ -118,6 +118,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "papel-trabajo-automatico",
+      "source": "./papel-trabajo-automatico",
+      "description": "Arma el papel de trabajo unificado de liquidaciones de los meses presentados desde libros del Portal IVA, Maestro de Proveedores, DDJJ de IVA y DJ de ARBA, aparte como '... - AUTOMATICO.xlsx'.",
+      "category": "contabilidad"
+    },
+    {
       "name": "recibo-pyp-quilmes",
       "source": "./recibo-pyp-quilmes",
       "description": "Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento.",
