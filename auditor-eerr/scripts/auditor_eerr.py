@@ -30,7 +30,7 @@
 # (Windows: PowerShell + Excel; Mac: AppleScript + Excel).
 # Variables (entorno o ~/.fisco-ar/.env, como los demás plugins): BVA_UNIDAD_PATH (default I:\Unidades compartidas\...),
 # BVA_SALIDAS_PATH (default ~/Documents/BVA-salidas). Umbrales propios: ~/.fisco-ar/auditor_eerr_config.json.
-import os, re, sys, glob, json, shutil, datetime, statistics, subprocess, unicodedata, collections, time
+import os, re, sys, glob, json, math, shutil, datetime, statistics, subprocess, unicodedata, collections, time
 from concurrent.futures import ProcessPoolExecutor
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -72,6 +72,7 @@ SALIDAS = var('BVA_SALIDAS_PATH') or os.path.expanduser('~/Documents/BVA-salidas
 SALIDA = os.path.join(SALIDAS, 'auditor-eerr')
 ARBA_LOCAL = os.path.join(SALIDAS, 'arba-ddjj')          # copia local de las DJ de ARBA, si existe
 HOJA = 'Auditorias'
+HOJA_UT = 'Utilidades'      # utilidad bruta y operativa por mes (fórmulas sobre la hoja EERR)
 
 # Umbrales (se pueden pisar con auditor_eerr_config.json al lado del script)
 CFG = dict(
@@ -89,9 +90,11 @@ CFG = dict(
     ncr_desvio_pct=0.30,          # 9: NCR / (NCR + NC comerciales) que se aparta más de 30% de su mediana 
     compras_tol=100,              # 10: tolerancia en pesos compras imputadas vs Portal IVA
     prorrateo_tol_pct=0.10, prorrateo_tol_min=5000,  # 13
-    fijos=['alquileres', 'edesur', 'metrogas', 'agua', 'internet/telefonia', 'seguridad', 'gastos de sistemas', 'residuos patogenicos'],
+    zetti_tol=1,                  # 7: Zetti y Portal IVA tienen que coincidir (solo redondeo de $1)
+    fijos_ventana=6,              # 15: los gastos fijos se detectan en los últimos 6 meses auditados...
+    fijos_presencia=0.8,          # ... una cuenta o proveedor que está en el 80% de ellos (5 de 6) es fijo: los meses sin él son falta
     fijos_obligatorios=['edesur', 'internet/telefonia'],
-    fijos_presencia=0.75,         # 15: si un gasto fijo está en al menos el 75% de los meses, los meses sin él son falta
+    no_operativos=['gastos bancarios', 'intereses de prestamos', 'intereses por facilidades de pago', 'servicios financieros'],  # 5: fuera de la utilidad operativa
     duplicado_factor=1.8,         # 15: un proveedor de gasto fijo que factura 1,8 veces su mediana = posible duplicado
     financieros=['gastos bancarios', 'intereses de prestamos', 'comisiones de tarjetas', 'intereses por facilidades de pago', 'rdos financieros (fci)'],
     cf_df_desvio_pct=0.25,        # 16: crédito / débito fiscal que se aparta más de 25% de su mediana
@@ -104,7 +107,7 @@ CFG = dict(
 for _f in (os.path.join(SP, 'auditor_eerr_config.json'), os.path.join(FISCO, 'auditor_eerr_config.json')):
     if os.path.exists(_f): CFG.update(json.load(open(_f, encoding='utf-8')))
 
-CONTROLES = {1: 'Período del ejercicio', 2: 'Meses completos', 3: 'Fórmulas', 4: 'Resultado / ventas', 5: 'Margen bruto',
+CONTROLES = {1: 'Período del ejercicio', 2: 'Meses completos', 3: 'Fórmulas', 4: 'Resultado / ventas', 5: 'Margen bruto y operativo',
              6: 'Gastos / ventas', 7: 'Ventas vs Portal IVA', 8: 'CMV y existencias', 9: 'NCR vs NC comerciales',
              10: 'Compras clasificadas = Portal IVA', 11: 'Sueldos vs F.931', 12: 'IIBB vs DJ ARBA', 13: 'IVA prorrateo',
              14: 'Tasas municipales', 15: 'Gastos fijos y financieros', 16: 'Débito / crédito fiscal', 17: 'Signo de las NC',
@@ -459,6 +462,14 @@ def margenes(e, meses):
     return {p: (e.val('ingresos', p) - e.cmv_ef(p)) / e.val('ingresos', p) for p in meses if e.val('ingresos', p) > 0}
 
 
+def utilidades(e, p):
+    # utilidad bruta = ventas - CMV; utilidad operativa = bruta - gastos sin los financieros (CFG['no_operativos'])
+    ing, cmv = e.val('ingresos', p), e.cmv_ef(p)
+    tg = e.v(e.r_tgastos, p) or sum(e.v(r, p) for r, _ in e.gastos)
+    nop = sum(e.val(l, p) for l in CFG['no_operativos'])
+    return dict(ing=ing, cmv=cmv, ub=ing - cmv, gop=tg - nop, uo=ing - cmv - (tg - nop), nop=nop)
+
+
 def c05(x):
     e = x.e; mb = margenes(e, x.meses)
     if not mb: return x.ok(5)
@@ -477,6 +488,13 @@ def c05(x):
                   (' Sin existencias cargadas el CMV es igual a las compras del mes.' if sin_exist else ''),
                   round(m, 4), round(med, 4), es_pct=True, celda=e.ref(e.r_cmv, p), comparar=round(m, 3))
         prev = p; x.ok(5, p)
+    for p in x.meses:
+        u = utilidades(e, p)
+        if u['ing'] > 0 and u['uo'] < 0:
+            x.add(5, p, 'Pérdida operativa', 'Amarillo',
+                  f"La utilidad operativa de {mm(p)} es negativa: {pesos(u['uo'])} ({pct(u['uo'] / u['ing'])} de las ventas). Utilidad bruta {pesos(u['ub'])} "
+                  f"({pct(u['ub'] / u['ing'])}) menos gastos operativos {pesos(u['gop'])} (sin gastos bancarios ni intereses). Detalle en la hoja \"{HOJA_UT}\".",
+                  round(u['uo'], 2), celda=f"'{HOJA_UT}'!{CL(x.meses.index(p) + 2)}{UT['Utilidad operativa'][0]}", comparar=round(u['uo']))
     x.ok(5)
 
 
@@ -537,7 +555,7 @@ def cruce_zetti(x, p):
 
 
 def c07(x):
-    e = x.e
+    e = x.e; sin_cruce = []
     for p in x.meses:
         f = next(iter(x.buscar(rf'^{p} - PORTAL IVA - VENTAS\.xlsx$', p)), None) or next(iter(x.buscar(rf'^{p} - PORTAL IVA - VENTAS.*\.xlsx$', p)), None)
         tot = None
@@ -560,14 +578,21 @@ def c07(x):
             dif, fc, donde = cru
             if dif is None:
                 x.log.append(f"7 {mm(p)}: el cruce ({donde}) no tiene la fila TOTAL DIFERENCIAS con la columna Dif. Total")
-            elif abs(dif) > 1000:
-                x.add(7, p, 'Zetti vs Portal IVA', 'Rojo' if tot and abs(dif) / tot > CFG['ventas_tol_pct'] else 'Amarillo',
-                      f"Las ventas de Zetti difieren {pesos(dif)} del Portal IVA en {mm(p)} y el cruce no lo explica (ver el detalle en la {donde}).",
+            elif abs(dif) > CFG['zetti_tol']:
+                # Zetti y Portal IVA no pueden tener diferencia: cualquier importe sin explicar es rojo
+                x.add(7, p, 'Zetti vs Portal IVA', 'Rojo',
+                      f"Las ventas de Zetti difieren {pesos(dif)} del Portal IVA en {mm(p)} y el cruce no lo explica (ver el detalle en la {donde}). "
+                      "Zetti y el Portal IVA tienen que coincidir.",
                       round(tot + dif, 2) if tot else None, round(tot, 2) if tot else None, dif, fuente=fc, comparar=round(dif, 2))
         elif x.en_mes(p, rf'^{p} - ZETTI - VENTAS\.xlsx$'):
             x.add(7, p, 'Zetti vs Portal IVA', 'Amarillo', f"Está el subdiario de Zetti de {mm(p)} pero no se corrió el cruce con el Portal IVA "
                   "(no hay hoja \"cruze\" en el papel del mes).", fuente=x.en_mes(p, rf'^{p} - ZETTI - VENTAS\.xlsx$')[0])
+        else: sin_cruce.append(p)
         x.ok(7, p)
+    if sin_cruce:
+        x.add(7, '-', 'Sin cruce Zetti vs Portal IVA', 'Amarillo',
+              f"No hay cruce de Zetti contra el Portal IVA ni subdiario de Zetti en {len(sin_cruce)} meses: {', '.join(mm(p) for p in sin_cruce)}. "
+              "Sin el cruce no se puede confirmar que las ventas de Zetti y del Portal IVA coincidan.", len(sin_cruce), comparar=len(sin_cruce))
     x.ok(7)
 
 
@@ -608,6 +633,32 @@ def conciliacion(x, p):
     return out
 
 
+def ncr_gravadas(x, p, cn):
+    # Las NCR (notas de crédito de recupero de las droguerías) no pueden tener neto gravado ni IVA: se buscan en el libro de
+    # compras del Portal IVA por CUIT, punto de venta y número. Si el libro del auditor ya no las tiene (se eliminaron del borrador),
+    # se usa otro libro de compras del mes que las tenga (el que bajó el equipo antes de eliminarlas, "con NCR", etc.).
+    if not cn.get('claves'): return
+    fs = x.en_mes(p, r'(portal.?iva.*compras|compras.*portal.?iva).*\.xlsx$')
+    f, lib, en = None, {}, []
+    for g in sorted(fs, key=lambda g: not os.path.basename(g).startswith(f"{p} - PORTAL IVA - COMPRAS")):
+        if os.path.basename(g).startswith('~$'): continue
+        try: l = {(r['cuit'], r['pv'], r['nro']): r for r in filas_libro(g)}
+        except Exception as err: x.log.append(f"9 {mm(p)}: no se pudo leer {os.path.basename(g)} ({err})"); continue
+        e = [(k, l[k]) for k in cn['claves'] if k in l]
+        if len(e) > len(en): f, lib, en = g, l, e
+        if len(en) == len(cn['claves']): break
+    if not en:
+        x.log.append(f"9 {mm(p)}: ningún libro de compras del mes tiene las NCR (eliminadas del libro): no se puede ver si tienen gravado"); return
+    grav = [(k, r, r['tot_neto'] or r['neto'], r['tot_iva'] or r['iva']) for k, r in en
+            if abs(r['tot_neto'] or r['neto']) >= 0.01 or abs(r['tot_iva'] or r['iva']) >= 0.01]
+    if grav:
+        neto, iva = sum(abs(g[2]) for g in grav), sum(abs(g[3]) for g in grav)
+        det = '; '.join(f"{k[0]} {k[1]}-{k[2]} neto {pesos(abs(n))}, IVA {pesos(abs(i))}" for k, _, n, i in grav[:5])
+        x.add(9, p, 'NCR con gravado', 'Rojo',
+              f"{len(grav)} de las {len(en)} NCR de {mm(p)} tienen neto gravado o IVA en el Portal IVA de compras y las NCR no pueden tener gravado: "
+              f"{det}{'…' if len(grav) > 5 else ''}. Neto gravado {pesos(neto)}, IVA {pesos(iva)}.", round(neto, 2), 0, fuente=f, comparar=round(neto + iva, 2))
+
+
 def c09(x):
     e = x.e; datos, sin = {}, []
     for p in x.meses:
@@ -616,6 +667,7 @@ def c09(x):
         if cn is False: continue
         ncr, nccom, no_enc, f = cn['ncr'], cn['nccom'], cn['no_enc'], cn['f']
         datos[p] = (ncr, nccom, f)
+        ncr_gravadas(x, p, cn)
         if no_enc:
             x.add(9, p, 'NCR no encontradas', 'Amarillo', f"{no_enc} NCR del SharePoint no se encontraron en el Portal IVA de compras de {mm(p)}.",
                   no_enc, fuente=f)
@@ -824,24 +876,49 @@ def c14(x):
     x.ok(14)
 
 
+# cuentas que ya controlan otros puntos (2, 12, 13, 14) o que no son de todos los meses
+NO_FIJOS = {'iibb', 'iva prorrateo', 'sueldos y cargas sociales', 'seguridad e higiene', 'amortizacion', 'indemnizacion por despido'}
+def fijo(meses_con, ult):
+    # gasto fijo = aparece en casi todos los últimos meses (fijos_presencia de la ventana, p. ej. 5 de 6)
+    return len(ult) >= 3 and sum(1 for p in ult if p in meses_con) >= math.ceil(CFG['fijos_presencia'] * len(ult))
+
+
 def c15(x):
     e = x.e; n = len(x.meses)
-    for lab in CFG['fijos']:
-        r = e.ix.get(lab)
-        if not r or not n: continue
-        con = [p for p in x.meses if e.v(r, p)]
-        if not con and lab in CFG['fijos_obligatorios']:
+    ult = x.meses[-CFG['fijos_ventana']:]
+    # 1) cuentas del EERR que se pagan todos los meses: los meses sin dato (desde que aparece la cuenta) son falta
+    falta = set()
+    for r, l in e.gastos:
+        if l in NO_FIJOS or not n: continue
+        con = {p: e.v(r, p) for p in x.meses if e.v(r, p)}
+        if not con and l in CFG['fijos_obligatorios']:
             x.add(15, '-', nfc(e.wf.cell(r, 1).value), 'Amarillo', f"No hay {nfc(e.wf.cell(r, 1).value)} en todo el ejercicio: falta la factura o está clasificada en otra cuenta.",
                   celda=e.ref(r, x.meses[0]))
-        elif len(con) >= CFG['fijos_presencia'] * n and len(con) < n:
-            for p in x.meses:
-                if p not in con:
-                    x.add(15, p, nfc(e.wf.cell(r, 1).value), 'Amarillo', f"Falta {nfc(e.wf.cell(r, 1).value)} en {mm(p)} (está en {len(con)} de {n} meses).", 0, celda=e.ref(r, p))
+        if not fijo(con, ult): continue
+        med = statistics.median(con.values())
+        for p in x.meses:
+            if p < min(con) or p in con: continue
+            falta.add((l, p))
+            x.add(15, p, nfc(e.wf.cell(r, 1).value), 'Amarillo',
+                  f"Falta {nfc(e.wf.cell(r, 1).value)} en {mm(p)}: es un gasto fijo (está en {sum(1 for q in ult if q in con)} de los últimos {len(ult)} meses, "
+                  f"lo habitual es {pesos(med)}). Falta la factura, se cargó en otro mes o en otra cuenta.", 0, round(med, 2), celda=e.ref(r, p))
     if 'Compras imputadas' in e.wbv.sheetnames:
         CI, ccol = compras_imputadas(e)
+        fijos_prov = []
+        # 2) proveedores de gastos (no mercadería) que facturan todos los meses: el mes sin factura es falta
         for c in CI:
-            if norm(c['rubro']) not in CFG['fijos']: continue
+            if norm(c['rubro']) in ('cmv', 'excluido', '') or norm(c['rubro']) in NO_FIJOS: continue
             ms = {p: v for p, v in c['m'].items() if p in x.meses and v > 0}
+            if not fijo(ms, ult): continue
+            fijos_prov.append((c, ms))
+            med = statistics.median(ms.values())
+            for p in x.meses:
+                if p < min(ms) or p in ms or (norm(c['rubro']), p) in falta: continue     # si falta toda la cuenta ya está informado arriba
+                x.add(15, p, f"Falta proveedor fijo: {c['cuit']}", 'Amarillo',
+                      f"{c['prov']} ({c['rubro']}) factura todos los meses (está en {sum(1 for q in ult if q in ms)} de los últimos {len(ult)}, "
+                      f"lo habitual es {pesos(med)}) y no tiene comprobante en {mm(p)}: falta la factura o se cargó en otro mes.",
+                      0, round(med, 2), celda=f"'Compras imputadas'!{CL(ccol[p] + 1)}1" if p in ccol else None)
+        for c, ms in fijos_prov:
             if len(ms) < 3: continue
             for p, v in ms.items():
                 med = statistics.median([w for k, w in ms.items() if k != p])
@@ -1161,7 +1238,10 @@ def analizar(args):
         for p in x.meses:
             v = round(e.v(r, p), 2)
             if abs(v) >= 10000: dup[(lab, p, v)] = e.ref(r, p)
-    return dict(f=f, cuit=e.cuit, denominacion=e.denominacion, meses=x.meses, h=x.h, scope=sorted(x.scope), log=x.log, dup=dup,
+    ut = dict(col={p: CL(e.col[p]) for p in x.meses}, ing=e.r_ing, cmv=[r for r in (e.r_cmvf, e.r_tcosto, e.r_cmv) if r],
+              tg=e.r_tgastos, gastos=[r for r, _ in e.gastos], nop=[e.ix[l] for l in CFG['no_operativos'] if e.ix.get(l)],
+              fci=e.ix.get('rdos financieros (fci)'))
+    return dict(f=f, cuit=e.cuit, denominacion=e.denominacion, meses=x.meses, h=x.h, scope=sorted(x.scope), log=x.log, dup=dup, ut=ut,
                 etiquetas={lab: nfc(e.wf.cell(e.ix[lab], 1).value) for lab in DUP if e.ix.get(lab)})
 
 
@@ -1183,6 +1263,10 @@ FMT = '#,##0.00;[Red]-#,##0.00'
 
 
 def clave(h): return f"C{h['control']:02d}|{h['mes']}|{h['concepto']}"
+# Filas cargadas a mano por el equipo (pedido de Javi 09/10/2026, T-011): sin Clave o con Clave "M|n". Se conservan tal
+# cual y su Estado lo maneja solo el equipo: el auditor no las resuelve ni las reabre.
+MANUAL = ('Control', 'Mes', 'Concepto', 'Descripción', 'Valor EERR', 'Valor de control', 'Observaciones')
+def es_manual(d): return str(d.get('Clave') or '').startswith('M|')
 
 
 def leer_hoja(wb):
@@ -1194,6 +1278,7 @@ def leer_hoja(wb):
     filas, hist = [], []
     for r in range(hdr + 1, ws.max_row + 1):
         d = {n: ws.cell(r, c + 1).value for c, n in enumerate(nombres) if n}
+        if not d.get('Clave') and any(nfc(d.get(n)) for n in MANUAL): d['Clave'] = 'M|'
         if d.get('Clave'):
             for k, n in (('_link', 'Ir a la celda'), ('_fuente', 'Documento fuente')):
                 d[k] = ws.cell(r, nombres.index(n) + 1).hyperlink if n in nombres else None
@@ -1212,9 +1297,15 @@ def fusionar(previas, nuevos, scope, hoy):
     # devuelve filas finales + contadores
     sc = {tuple(s) for s in scope}
     por_clave = {}
-    for i, d in enumerate(previas): por_clave[d['Clave']] = i         # la última fila de cada clave manda
+    for i, d in enumerate(previas):
+        if not es_manual(d): por_clave[d['Clave']] = i                # la última fila de cada clave manda
     filas = [dict(d) for d in previas]
     cont = collections.Counter(); vistas = set()
+    for d in filas:
+        if not es_manual(d): continue
+        cont['manuales'] += 1
+        if not nfc(d.get('Estado')): d['Estado'] = 'Pendiente'        # sin estado no entraría en los contadores
+        if not d.get('Fecha detección'): d['Fecha detección'] = hoy
     for h in nuevos:
         k = clave(h); vistas.add(k)
         base = dict(h)
@@ -1273,7 +1364,8 @@ def escribir(wb, res, hasta, hoy):
                 'Concepto': g('Concepto', 'concepto'), 'Descripción': g('Descripción', 'desc'), 'Valor EERR': g('Valor EERR', 'valor'),
                 'Valor de control': g('Valor de control', 'control_val'), 'Diferencia': g('Diferencia', 'dif'),
                 'Fecha estado': d.get('Fecha estado'), 'Observaciones': d.get('Observaciones'),
-                'Última auditoría': d.get('Última auditoría'), 'Clave': d['Clave'], 'Comparar': g('Comparar', 'comparar')}
+                'Última auditoría': d.get('Última auditoría'), 'Clave': f"M|{n}" if es_manual(d) else d['Clave'],
+                'Comparar': g('Comparar', 'comparar')}
         for k, v in vals.items(): ws.cell(r, CI[k], v)
         ve = vals['Valor EERR']
         es_pct = h['es_pct'] if h else (ve is not None and num(ve) and abs(ve) < 5 and '%' in str(d.get('Descripción') or ''))
@@ -1327,6 +1419,58 @@ def escribir(wb, res, hasta, hoy):
             if i == 0: c.number_format = 'dd/mm/yyyy hh:mm'
     for i, w in enumerate([16, 10, 14, 8, 10, 10, 10, 12, 60]): ws.column_dimensions[CL(HC + i)].width = w
     return cont
+
+
+# ------------------------------------------------------------------ hoja Utilidades
+# Utilidad bruta y operativa de cada mes auditado. Son fórmulas sobre la hoja EERR: si el equipo corrige el EERR, se actualizan solas.
+UT = {'Ventas': (5, '$'), 'CMV': (6, '$'), 'Utilidad bruta': (7, '$'), 'Margen bruto': (8, '%'), 'Gastos operativos': (9, '$'),
+      'Utilidad operativa': (10, '$'), 'Margen operativo': (11, '%'), 'Gastos financieros (bancarios e intereses)': (12, '$'),
+      'Rdos Financieros (FCI)': (13, '$'), 'Resultado antes de impuesto': (14, '$')}
+
+def escribir_utilidades(wb, res, hasta):
+    u = res['ut']
+    if HOJA_UT in wb.sheetnames: del wb[HOJA_UT]
+    ws = wb.create_sheet(HOJA_UT)
+    ws['A1'] = f"Utilidad bruta y operativa — {res['denominacion']} (CUIT {res['cuit']})"; ws['A1'].font = Font(bold=True, size=13)
+    ws['A2'] = ("Fórmulas sobre la hoja EERR. Utilidad bruta = ventas − CMV. Utilidad operativa = utilidad bruta − gastos, sin los "
+                f"financieros ({', '.join(CFG['no_operativos'])}). Meses hasta {mm(hasta)}.")
+    ws['A2'].font = Font(italic=True, size=9)
+    R = lambda c, r: f"N('EERR'!{c}{r})"
+    meses = list(u['col']); fila = {k: v[0] for k, v in UT.items()}
+    ws.cell(4, 1, 'Concepto'); ws.cell(4, len(meses) + 2, 'Ejercicio')
+    for j, p in enumerate(meses):
+        k = CL(j + 2); c = u['col'][p]
+        ws.cell(4, j + 2, mm(p))
+        cmv = '0'
+        for r in reversed(u['cmv']): cmv = f"IF({R(c, r)}<>0,{R(c, r)},{cmv})"   # como el auditor: CMV final, si no Total costo, si no compras
+        tg = R(c, u['tg']) if u['tg'] else ('+'.join(R(c, r) for r in u['gastos']) or '0')
+        f = {'Ventas': f"={R(c, u['ing'])}" if u['ing'] else '=0', 'CMV': f"={cmv}",
+             'Gastos financieros (bancarios e intereses)': '=' + ('+'.join(R(c, r) for r in u['nop']) or '0'),
+             'Rdos Financieros (FCI)': f"={R(c, u['fci'])}" if u['fci'] else '=0'}
+        f['Utilidad bruta'] = f"={k}{fila['Ventas']}-{k}{fila['CMV']}"
+        f['Gastos operativos'] = f"={tg}-{k}{fila['Gastos financieros (bancarios e intereses)']}"
+        f['Utilidad operativa'] = f"={k}{fila['Utilidad bruta']}-{k}{fila['Gastos operativos']}"
+        f['Resultado antes de impuesto'] = (f"={k}{fila['Utilidad operativa']}-{k}{fila['Gastos financieros (bancarios e intereses)']}"
+                                           f"+{k}{fila['Rdos Financieros (FCI)']}")
+        for nom, base in (('Margen bruto', 'Utilidad bruta'), ('Margen operativo', 'Utilidad operativa')):
+            f[nom] = f"=IF({k}{fila['Ventas']}=0,\"\",{k}{fila[base]}/{k}{fila['Ventas']})"
+        for nom, (r, tipo) in UT.items(): ws.cell(r, j + 2, f[nom])
+    t = CL(len(meses) + 2); a, b = CL(2), CL(len(meses) + 1)
+    for nom, (r, tipo) in UT.items():
+        ws.cell(r, 1, nom)
+        if tipo == '$': ws.cell(r, len(meses) + 2, f"=SUM({a}{r}:{b}{r})")
+        else:
+            base = fila['Utilidad bruta' if nom == 'Margen bruto' else 'Utilidad operativa']
+            ws.cell(r, len(meses) + 2, f"=IF({t}{fila['Ventas']}=0,\"\",{t}{base}/{t}{fila['Ventas']})")
+        for j in range(len(meses) + 1):
+            ws.cell(r, j + 2).number_format = '0.0%' if tipo == '%' else FMT
+        if nom in ('Utilidad bruta', 'Utilidad operativa', 'Resultado antes de impuesto'):
+            for j in range(len(meses) + 2): ws.cell(r, j + 1).font = Font(bold=True)
+    for j in range(len(meses) + 2):
+        c = ws.cell(4, j + 1); c.font = Font(bold=True); c.fill = GRIS; c.alignment = Alignment(horizontal='center')
+    ws.column_dimensions['A'].width = 40
+    for j in range(len(meses) + 1): ws.column_dimensions[CL(j + 2)].width = 15
+    ws.freeze_panes = 'B5'
 
 
 # ------------------------------------------------------------------ main
@@ -1432,6 +1576,7 @@ def main():
         r = res[f]; w, mt = copias[f]
         wb = abrir(w)
         cont = escribir(wb, r, hasta, hoy)
+        escribir_utilidades(wb, r, hasta)
         wb.save(w); recalcular(w)
         nombre = re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5]
         estado = 'simulación'
@@ -1446,7 +1591,7 @@ def main():
         niveles = collections.Counter(h['nivel'] for h in r['h'])
         resumen.append((nombre, cont, niveles, estado, r['log']))
         print(f"  {nombre:28} nuevos {cont['nuevos']:3}  siguen {cont['pendientes']:3}  resueltos {cont['resueltos']:3}  "
-              f"reabiertos {cont['reabiertos']:2}  aprobados omitidos {cont['aprobados']:3}  (rojo {niveles['Rojo']}, amarillo {niveles['Amarillo']})  {estado}")
+              f"reabiertos {cont['reabiertos']:2}  aprobados omitidos {cont['aprobados']:3}  manuales {cont['manuales']:2}  (rojo {niveles['Rojo']}, amarillo {niveles['Amarillo']})  {estado}")
         for l in r['log']:
             if not l.startswith('Traceback') and 'File "' not in l: print('     aviso:', l)
     json.dump([dict(sociedad=n, **c, rojo=v['Rojo'], amarillo=v['Amarillo'], estado=e) for n, c, v, e, _ in resumen],

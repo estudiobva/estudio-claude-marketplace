@@ -9,19 +9,25 @@ un script de Playwright y la skill que lo usa.
 | `planes-facilidades-arca` | Releva los planes de facilidades de pago en Mis Facilidades (ARCA). |
 | `conciliacion-ncr` | Concilia el Portal IVA contra las NCR de Suizo y Monroe y las saca del Libro Compras. |
 | `clasificacion-compras` | Clasifica las compras del mes (sin NCR) con el Maestro de Proveedores: cuenta y rubro del EERR, resumen por rubro y proveedores pendientes. |
+| `correos-organismos` | Releva el correo electrónico declarado de cada sociedad en ARCA (Sistema Registral y Domicilio Fiscal Electrónico) y ARBA, y arma un Excel con lo declarado, lo que hay que revisar y lo que falta. AGIP queda a mano. Solo lectura. |
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
 | `f931-descarga-arca` | Baja los F.931 presentados desde Declaración en Línea (ARCA), un PDF por período, con login automático desde la planilla de claves. |
-| `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. |
+| `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. Con `cuadro-marcha.js` baja el plan de cuotas de los préstamos vigentes (hoy Macro, Nación, Patagonia y Provincia). |
 | `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
+| `ddjj-iva` | Lee las DDJJ de IVA (F.2051) ya presentadas de un rango de meses: vista previa en PDF e importes de la determinación (débito, crédito, saldos y retenciones) en JSON, y archiva el PDF en la carpeta IVA del mes si falta. Solo lectura. |
 | `zetti-subdiario-iva-ventas` | Baja de Zetti (T&S Web) el Subdiario de IVA Ventas (5.6.5) del mes, en Excel ordenado por tipo de comprobante, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `zetti-subdiario-iva-compras` | Baja de Zetti (T&S Web) el Subdiario de IVA Compras (5.6.4) del mes, con el formato de la solapa "Compras Zetti" del papel de trabajo, y lo archiva en la carpeta IVA del mes. Login automático. |
 | `cruze-zetti-portaliva-ventas` | Circuito completo de ventas del mes: Portal IVA → Zetti → hojas del papel de trabajo → cruze con las diferencias. |
+| `cruce-ventas-3-fuentes` | Ventas del mes desde tres fuentes: Mis Comprobantes emitidos (ARCA), Portal IVA y Zetti 5.6.5, archivadas en la carpeta IVA, y el cruce de las tres con las diferencias explicadas (falta en una fuente, importe distinto, corrimiento de fecha, corte de mes). No toca el papel de trabajo. Login automático. |
 | `papel-trabajo-compras` | Circuito completo de compras del mes: Libro Compras actual del Portal IVA (sin NCR) → Zetti → servicios y NCR controlados → cruce, clasificación por proveedor y cuadro de prorrateo en el mismo papel de trabajo. Necesita Excel. |
 | `facturacion-arca` | Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor desde la planilla mensual: validar, dry-run y emisión con código. **Escribe en ARCA.** |
 | `auditor-eerr` | Audita los EERR 2026 con 21 controles contra Portal IVA, Zetti, F.931, DJ de ARBA, NCR, el Maestro de Proveedores y el papel de trabajo, y documenta los hallazgos en la hoja Auditorias del mismo EERR (Pendiente/Resuelto/Aprobado). Necesita Excel. |
+| `papel-trabajo-automatico` | Arma el papel de trabajo unificado de liquidaciones (IVA, IIBB y tasa municipal) de los meses ya presentados desde las fuentes oficiales (libros del Portal IVA, Maestro de Proveedores, DDJJ de IVA y DJ de ARBA) y lo guarda aparte como `... - AUTOMATICO.xlsx`, sin tocar el del equipo. Solo Python. |
 | `recibo-pyp-quilmes` | Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento. Login automático. |
 | `ddjj-sshh-quilmes` | Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene de cada sociedad (actividad 477320) contra el papel de trabajo y la DJ de IIBB de ARBA, avisa las que faltan con el monto a declarar y archiva la boleta en la carpeta TSH del mes. Login automático. |
+| `constancias-anticipo-arba` | Baja de ARBA (Reimpresión > Constancia anticipo) las constancias de las DDJJ de anticipo de IIBB ya presentadas de cada sociedad, con el detalle de bases e impuesto determinado, y las archiva en la carpeta IIBB del mes con el nombre que ya usa el equipo. Login automático con la CIT. |
+| `saldos-farmacias-iva-iibb` | Arma los saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO del SharePoint, con controles y DJ faltantes, y deja las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del mes. Solo lee la unidad. |
 | `seguimiento-pedidos` | Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la Hoja de cálculo de Google compartida de seguimiento (sin duplicar, con reclamos) y le manda a la persona sus pendientes por mensaje privado de Slack. |
 
 ## Instalación

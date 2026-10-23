@@ -1,0 +1,8 @@
+{
+  "name": "constancias-anticipo-arba",
+  "description": "Baja de ARBA (IBPresentaciones > Reimpresión > Constancia anticipo) las constancias de las DDJJ de anticipo de Ingresos Brutos ya presentadas de cada sociedad, con los datos del detalle (bases, deducciones, impuesto determinado), y las archiva en la carpeta IIBB del mes. Login automático con la CIT de la planilla de claves, solo lectura.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arba", "ingresos brutos", "iibb", "anticipo", "constancia", "playwright", "argentina"]
+}

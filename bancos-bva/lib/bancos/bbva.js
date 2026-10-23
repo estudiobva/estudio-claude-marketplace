@@ -27,6 +27,10 @@ const SPEC = {
     enviar: '#btn_submit',
   }],
   marcadorLogin: '#eai_password',
+  // Tras enviar, BBVA muestra un spinner "Verificando tus credenciales". Si el
+  // antibots corta el ingreso (403 de grantingTicket, 28-29/09/2026) queda ahi
+  // para siempre: no es "adentro" (se compara sin acentos, en minusculas).
+  esperando: /verificando tus credenciales/,
 };
 
 module.exports = { banco: SPEC.banco, LOGIN_URL: SPEC.url, SPEC, verificado: 'formulario (mapeo de columnas a confirmar)',

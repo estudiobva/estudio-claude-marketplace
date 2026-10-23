@@ -18,6 +18,12 @@ python scripts/auditor_eerr.py --todas [--hasta=AAAAMM] [--simular] [--procesos=
   reordenan solas).
 - **Estados:** Pendiente → Resuelto (solo, cuando deja de detectarse). Aprobado (equipo) no se vuelve a informar
   mientras el valor no cambie. Historial de ejecuciones a la derecha de la hoja.
+- **Hallazgos a mano (desde 1.2.0):** se pueden agregar hallazgos a mano en la hoja Auditorias (una fila con control,
+  mes, concepto o descripción): se conservan en cada auditoría y no se resuelven ni se reabren solos; su estado lo
+  cambia solo el equipo. Si se cargan sin estado entran como Pendiente.
+- **Desde 1.2.0:** hoja **Utilidades** (utilidad bruta y operativa por mes, con fórmulas sobre el EERR) y alerta de
+  pérdida operativa; gastos fijos detectados en los últimos 6 meses (cuentas y proveedores) con alerta en el mes que
+  faltan; Zetti vs Portal IVA sin tolerancia; NCR con neto gravado o IVA en el libro de compras = rojo.
 - **Requisitos:** Python 3 con `openpyxl` y `pypdf` (`requirements.txt`) y Microsoft Excel (Windows: PowerShell +
   COM; Mac: AppleScript) para recalcular cada archivo antes de devolverlo a la unidad.
 - **Configuración:** `~/.fisco-ar/.env` (`BVA_UNIDAD_PATH`, `BVA_SALIDAS_PATH`) y, opcional, umbrales y excepciones por

@@ -1,0 +1,8 @@
+{
+  "name": "ddjj-iva",
+  "description": "Lee las DDJJ de IVA (F.2051) ya presentadas en el Portal IVA (ARCA) para un rango de meses: guarda la vista previa en PDF y los importes de la determinación (débito, crédito, saldos y retenciones) en JSON, y opcionalmente archiva el PDF en la carpeta IVA del mes. Solo lectura, login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["ddjj", "iva", "f2051", "portal iva", "presentadas", "playwright", "argentina"]
+}

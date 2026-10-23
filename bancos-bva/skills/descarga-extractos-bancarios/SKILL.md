@@ -30,7 +30,8 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/extractos-banco.js --nombre="<soci
 | `--sociedad-claves` | Solo Galicia: nombre de la sociedad en el bloque Galicia del archivo de claves, si difiere del de la carpeta. |
 | `--salida` | Carpeta destino. Default `~/Documents/BVA-salidas/extractos/` (o `BVA_SALIDAS_PATH`). |
 | `--unidad` | Archiva directo en la unidad: `[Sociedad]/03-Bancos y Conciliaciones/[BANCO]/[AAAA]/`. |
-| `--ver` | Navegador visible. Sin `--ver` corre oculto, salvo que un banco no tenga descarga automática (hoy ninguno la tiene): ahí se abre visible solo. |
+| `--ver` | Navegador visible. **Solo si el usuario lo pide.** Sin `--ver` corre SIEMPRE oculto, también con `--control`. |
+| `--control` | Claude navega el banco (oculto) con `scripts/control.js`. Obligatorio mientras un banco no tenga descarga automática (hoy ninguno): sin `--control` ni `--ver`, esos bancos se saltean con `requiere_ventana`. |
 | `--grabar` | Guarda en `~/bva-inspeccion/` los clics de la persona dentro del banco (nunca lo tipeado), para automatizar la navegación de ese banco. |
 
 Qué hace, por cada banco:
@@ -59,28 +60,50 @@ Qué hace, por cada banco:
 
 **Quién lo corre:** Claude, igual que `anticipos-sct` y los demás scripts de
 ARCA. El login lo hace el script con la planilla de claves: Claude nunca ve ni
-tipea las claves. Mientras no haya descarga automática la ventana del banco se
-abre visible y la persona navega y toca "Listo" en el recuadro Estudio BVA; por
-eso Claude lo corre en segundo plano y espera el JSON. Token o captcha: los
-resuelve la persona en esa ventana.
+tipea las claves. **El navegador corre siempre oculto** (pedido del usuario,
+29/09/2026): Claude nunca agrega `--ver` por su cuenta, solo si el usuario pide
+ver la ventana. Mientras no haya descarga automática, Claude corre con
+`--control` en segundo plano y navega el banco oculto. Si un banco pide token o
+captcha, oculto no se puede resolver: el banco corta con `segundo_factor` /
+`captcha`, se sigue con el próximo y se le avisa al usuario (que decide si
+correr ese banco con `--ver`).
 
 ## Modo control: Claude navega y descarga (`--control`)
 
 Para los bancos que todavía no tienen descarga automática:
 
-1. Claude corre el script con `--control` en segundo plano (el login lo sigue
-   haciendo el script; token o captcha, la persona):
+1. Claude corre el script con `--control` en segundo plano, oculto (el login lo
+   sigue haciendo el script):
    `node scripts/extractos-banco.js --cuit=<CUIT> --banco=MACRO --desde=AAAAMM --hasta=AAAAMM --control --grabar`
-2. Cuando la terminal muestra `CONTROL <BANCO> adentro — ventana disponible en http://127.0.0.1:9333`,
-   Claude maneja esa ventana con `scripts/control.js` (`captura`, `elementos`, `clic`,
+2. Cuando la terminal muestra `CONTROL <BANCO> adentro — navegador oculto disponible en http://127.0.0.1:9333`,
+   Claude maneja ese navegador con `scripts/control.js` (`captura`, `elementos`, `clic`,
    `elegir`, `completar`, `listo`, `responder`): navega hasta los resúmenes y descarga
    los períodos pedidos. El puerto es solo local (127.0.0.1).
-3. `extractos-banco.js` renombra y archiva cada descarga como siempre. Al terminar,
-   Claude toca `listo` y el script pasa al banco siguiente.
+3. Claude baja cada resumen con `control.js descargar --sel=... --banco=X --cuit=... --periodo=AAAAMM`
+   **después de verificar el período dentro del PDF** (la fecha de emisión no siempre es el
+   mes: Nación, Provincia y Patagonia emiten a fin de mes o principios del siguiente).
+   Si hay dudas, primero sin `--periodo` (queda en `~/bva-inspeccion/bandeja/`), se revisa y
+   después `control.js archivar --archivo=<bandeja> --banco=X --cuit=... --periodo=AAAAMM`.
+   Con `--control`, `extractos-banco.js` **no** vuelve a tomar esas descargas ni pregunta
+   períodos; lo que archiva `control.js` queda en un registro local
+   (`<tmp>/bva-control-<puerto>.jsonl`) y el script lo suma a `guardados` / `ya_estaban` /
+   `sin_archivo` de su JSON. Un PDF que el banco abre en el visor y que no está archivado
+   va a la bandeja y aparece en `en_bandeja`. Al terminar, Claude toca `listo` y el script
+   pasa al banco siguiente.
 
 Límites de `control.js`: no escribe en campos de clave/token/PIN/código, avisa si la
 página sale del sitio del banco y no cierra la sesión. Dentro del banco, solo navegar
 y descargar resúmenes: nada de transferencias, pagos ni configuración.
+
+### Códigos de error del login
+
+| code | Qué pasó |
+|---|---|
+| `credenciales_invalidas` / `bloqueado` | El banco rechazó los datos o bloqueó el usuario. No reintentar. |
+| `clave_vencida` | El banco pide cambiar la clave (Santander, Galicia por empresa). La cambia la persona a mano. |
+| `antibots` | Quedó en la pantalla de espera sin dejar entrar (BBVA "Verificando tus credenciales"). |
+| `captcha` / `segundo_factor` | Oculto no se puede resolver: el usuario decide si correr ese banco con `--ver`. |
+| `sitio_rechazo` | El banco cortó la conexión (ej. Santander oculto: `ERR_HTTP2_PROTOCOL_ERROR`). |
 
 ## Login por banco
 
@@ -89,7 +112,7 @@ Relevado el 24/09/2026 sobre la pantalla pública de cada banco
 
 | Banco | URL | Datos (columna de Claves_Bancos.xlsx) | Particularidades |
 |---|---|---|---|
-| Galicia | empresas.bancogalicia.com.ar/login | Usuario, Clave | Login propio de cada sociedad (bloque Galicia: 50 de 60 con datos; la fila de login único está vacía). Antifraude: correr visible. |
+| Galicia | empresas.bancogalicia.com.ar/login | Usuario, Clave | Login propio de cada sociedad (bloque Galicia: 50 de 60 con datos; la fila de login único está vacía). |
 | Comafi | ebanking.comafiempresas.com.ar/login | Usuario (USUARIO), Clave de Acceso (ACCESO/DNI), Clave de Identificación (CLAVE ID) | — |
 | Santander | empresas.santander.com.ar/login | Usuario, Contraseña | La portada ya menciona "Token": se mira solo el texto nuevo. |
 | Hipotecario | empresas.hipotecario.com.ar/OB/login | DNI (ACCESO/DNI), Usuario, Contraseña | Aviso "Entendido" que se cierra solo. |
@@ -222,3 +245,12 @@ Con --unidad:
   Claude, salida en `~/Documents/BVA-salidas/extractos/` (`--salida`, `--unidad`),
   carpeta por año `[BANCO]/[AAAA]/`, `--ver` en vez de `--oculto`, errores con
   `code` + `que_hacer`.
+- 29/09/2026 (2): `--control` sin duplicados (el script ya no re-toma lo que baja
+  `control.js`; registro compartido para el JSON), Provincia pregunta el período cuando
+  la fecha del nombre es de los días 1-5 (mensual = mes anterior, diario = ese mes),
+  BBVA ya no se da por "adentro" en el spinner (`antibots`), nuevos `clave_vencida` y
+  `sitio_rechazo`. Probado contra un banco local falso.
+- 29/09/2026: navegador SIEMPRE oculto salvo `--ver` pedido por el usuario
+  (antes se abría visible solo con `--control` o bancos sin descarga
+  automática). `--control` funciona oculto; `banco-login.js` también es oculto
+  por defecto (`--ver` reemplaza a `--oculto`).

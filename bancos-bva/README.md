@@ -6,6 +6,7 @@ estructura que **fisco-ar**: scripts de Playwright + skills que los usan.
 | Skill | Qué hace |
 |---|---|
 | `bancos-setup` | Instala Playwright/Chromium y corre el diagnóstico (`scripts/doctor.js`). |
+| `cuadro-marcha-prestamos` | Cuadro de marcha (plan de cuotas) de los préstamos vigentes de todas las sociedades, banco por banco (`scripts/cuadro-marcha.js`), con planilla resumen. |
 | `descarga-extractos-bancarios` | Login al home banking de empresas, descarga, renombrado y archivado en `~/Documents/BVA-salidas/extractos/[Sociedad]/[BANCO]/[AAAA]/` (con `--unidad`, en `03-Bancos y Conciliaciones/[BANCO]/[AAAA]/`). |
 
 ```bash
@@ -24,9 +25,9 @@ Estructura:
 
 ```
 .claude-plugin/   plugin.json
-lib/              motor (bancos/, extractos.js, claves-bancos.js, rutas-bva.js, + vendorizados de fisco-ar)
-scripts/          extractos-banco.js, banco-login.js, claves-bancos.js, doctor.js
-skills/           bancos-setup, descarga-extractos-bancarios
+lib/              motor (bancos/, prestamos/, extractos.js, claves-bancos.js, rutas-bva.js, + vendorizados de fisco-ar)
+scripts/          extractos-banco.js, cuadro-marcha.js, banco-login.js, claves-bancos.js, doctor.js
+skills/           bancos-setup, cuadro-marcha-prestamos, descarga-extractos-bancarios
 ```
 
 ## Salida

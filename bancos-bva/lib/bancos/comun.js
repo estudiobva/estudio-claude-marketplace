@@ -12,7 +12,9 @@
 //         enviar: 'selector del boton' },    //   antes de enviar (ej. tildar un captcha)
 //     ],
 //     marcadorLogin: 'selector',             // visible mientras se siga en el login
-//   }
+//     esperando: /regex/,                    // opcional: texto de la pantalla de espera
+//   }                                        //   ("Verificando tus credenciales"): mientras
+//                                            //   se vea NO cuenta como adentro
 //
 // Los datos salen de Claves_Bancos.xlsx: usuario = USUARIO, acceso = ACCESO/DNI,
 // clave = CLAVE ID (en el bloque Galicia: USUARIO y CONTRASEÑA).
@@ -29,6 +31,10 @@ const RX = {
   bloqueado:     /bloquead|suspendid|inhabilitad|revocad/,
   credenciales:  /incorrect|invalid|no coincid|no es valid|verifica (los|tus) datos|datos ingresados|usuario o (la )?clave|error de autenticacion|no pudimos validar/,
   segundoFactor: /token|codigo de (seguridad|verificacion|acceso)|segundo factor|clave dinamica|ingresa el codigo|te enviamos un codigo|sms/,
+  // Santander ("Tu contraseña venció"), Galicia ("tiene la clave vencida").
+  // Macro: "ya contás con una sesión activa ... deberás esperar 10 minutos".
+  sesionActiva:  /(ya )?(contas|tenes|posee|existe) (con )?una sesion activa|sesion (abierta|activa) (en otro|anterior)/,
+  claveVencida:  /(clave|contrasena) (esta )?(vencida|expirada|caducada)|(clave|contrasena) (vencio|expiro|caduco)|(vencio|expiro) tu (clave|contrasena)|(debes|necesitas|tenes que) (cambiar|crear|renovar) (tu|una nueva) (clave|contrasena)/,
 };
 
 const OTP_SEL =
@@ -94,9 +100,10 @@ async function completar(page, campo, cred) {
 
 // Espera el resultado de enviar un paso. Devuelve cuando aparece el paso
 // siguiente (`listo`) o, si era el ultimo, cuando se sale del login.
-async function esperarResultado(page, { antes, listo, marcadorLogin, timeout, pedirAccion, banco }) {
+async function esperarResultado(page, { antes, listo, marcadorLogin, esperando, timeout, pedirAccion, banco }) {
   const limite = Date.now() + timeout;
   let afuera = 0;
+  let enEspera = false;
   while (Date.now() < limite) {
     await page.waitForTimeout(700);
 
@@ -116,17 +123,31 @@ async function esperarResultado(page, { antes, listo, marcadorLogin, timeout, pe
       return;
     }
 
+    if (RX.sesionActiva.test(texto)) throw error('sesion_activa', `${banco} informa que ya hay una sesion abierta (no se cerro la anterior).`);
+    if (RX.claveVencida.test(texto)) throw error('clave_vencida', `${banco} informa que la clave esta vencida y pide cambiarla.`);
+
     if (enLogin) {
       afuera = 0;
       if (RX.bloqueado.test(texto))    throw error('bloqueado', `${banco} informa el usuario bloqueado o suspendido.`);
       if (RX.credenciales.test(texto)) throw error('credenciales_invalidas', `${banco} rechazo los datos de acceso.`);
       continue;
     }
+    // Pantalla de espera del banco (BBVA: "Verificando tus credenciales"): todavia
+    // no se entro. Si no sale de ahi en todo el timeout, es el antibots del banco.
+    if (esperando && esperando.test(sinAcentos(await page.innerText('body').catch(() => '')))) {
+      enEspera = true;
+      afuera = 0;
+      continue;
+    }
+    enEspera = false;
     // Fuera del login dos sondeos seguidos (evita confundir un re-render con el ingreso).
     if (!listo && ++afuera >= 2) {
       await page.waitForLoadState('domcontentloaded').catch(() => {});
       return;
     }
+  }
+  if (enEspera) {
+    throw error('antibots', `${banco} quedo ${Math.round(timeout / 1000)} s en la pantalla de verificacion sin dejar entrar.`);
   }
   throw error('login_sin_confirmar',
     `No pude confirmar el ingreso en ${Math.round(timeout / 1000)} s (la pagina quedo en ${page.url()}).`);
@@ -201,6 +222,7 @@ async function login(page, spec, cred, { timeout = 45000, pedirAccion } = {}) {
       pedirAccion,
       banco: spec.banco,
       marcadorLogin: siguiente ? paso.campos[paso.campos.length - 1].sel : spec.marcadorLogin,
+      esperando: siguiente ? null : spec.esperando,
       listo: siguiente ? () => visible(page, siguiente.campos[0].sel) : null,
     });
   }

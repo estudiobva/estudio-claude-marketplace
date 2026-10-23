@@ -1,0 +1,8 @@
+{
+  "name": "papel-trabajo-automatico",
+  "description": "Arma el papel de trabajo unificado de liquidaciones (IVA, IIBB y tasa municipal) de los meses ya presentados desde las fuentes oficiales —libros del Portal IVA, Maestro de Proveedores, DDJJ de IVA y DJ de ARBA— y lo guarda aparte como '... - AUTOMATICO.xlsx', sin tocar el papel del equipo. Lo que no tiene fuente queda en amarillo con un comentario.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["papel de trabajo", "liquidaciones", "iva", "iibb", "tasa municipal", "argentina"]
+}

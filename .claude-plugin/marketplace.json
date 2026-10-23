@@ -34,6 +34,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "correos-organismos",
+      "source": "./correos-organismos",
+      "description": "Releva el correo declarado de cada sociedad en ARCA (Sistema Registral y DFE) y ARBA, en un Excel con lo que hay que revisar y lo que falta.",
+      "category": "contabilidad"
+    },
+    {
       "name": "anticipos-sct",
       "source": "./anticipos-sct",
       "description": "Releva los anticipos de Ganancias y Bienes Personales de cada sociedad en el Sistema de Cuentas Tributarias (ARCA): capital, intereses, vencimiento y estado, en Excel.",
@@ -48,13 +54,19 @@
     {
       "name": "bancos-bva",
       "source": "./bancos-bva",
-      "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año. En revisión: ver el estado por banco en su README.",
+      "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año, y baja el cuadro de marcha de los préstamos vigentes. En revisión: ver el estado por banco en su README.",
       "category": "contabilidad"
     },
     {
       "name": "portal-iva-descarga",
       "source": "./portal-iva-descarga",
       "description": "Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas de una o varias sociedades para un período, en Excel, y los archiva en la carpeta IVA del mes.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "ddjj-iva",
+      "source": "./ddjj-iva",
+      "description": "Lee las DDJJ de IVA (F.2051) ya presentadas: vista previa en PDF e importes de la determinación (débito, crédito, saldos, retenciones), y archiva el PDF en la carpeta IVA del mes.",
       "category": "contabilidad"
     },
     {
@@ -73,6 +85,12 @@
       "name": "cruze-zetti-portaliva-ventas",
       "source": "./cruze-zetti-portaliva-ventas",
       "description": "Circuito completo de ventas: baja Portal IVA y Zetti, los vuelca en las hojas del papel de trabajo y arma la hoja cruze con las diferencias.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "cruce-ventas-3-fuentes",
+      "source": "./cruce-ventas-3-fuentes",
+      "description": "Ventas del mes desde Mis Comprobantes (ARCA), Portal IVA y Zetti, y el cruce de las tres con las diferencias explicadas, en la carpeta IVA del mes.",
       "category": "contabilidad"
     },
     {
@@ -100,6 +118,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "papel-trabajo-automatico",
+      "source": "./papel-trabajo-automatico",
+      "description": "Arma el papel de trabajo unificado de liquidaciones de los meses presentados desde libros del Portal IVA, Maestro de Proveedores, DDJJ de IVA y DJ de ARBA, aparte como '... - AUTOMATICO.xlsx'.",
+      "category": "contabilidad"
+    },
+    {
       "name": "recibo-pyp-quilmes",
       "source": "./recibo-pyp-quilmes",
       "description": "Baja de ARQui (Quilmes) el recibo actual de Publicidad y Propaganda (marquesinas) de cada sociedad, controla CUIT y cuenta, lo archiva en la carpeta TSH del mes y resume importe y vencimiento.",
@@ -109,6 +133,18 @@
       "name": "ddjj-sshh-quilmes",
       "source": "./ddjj-sshh-quilmes",
       "description": "Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene (TISEH) de cada sociedad: lo declarado en la actividad 477320 contra el papel de trabajo y la DJ de IIBB de ARBA, y archiva la boleta en la carpeta TSH del mes.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "constancias-anticipo-arba",
+      "source": "./constancias-anticipo-arba",
+      "description": "Baja de ARBA las constancias de las DDJJ de anticipo de IIBB ya presentadas, con el detalle de bases e impuesto, y las archiva en la carpeta IIBB del mes.",
+      "category": "contabilidad"
+    },
+    {
+      "name": "saldos-farmacias-iva-iibb",
+      "source": "./saldos-farmacias-iva-iibb",
+      "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",
       "category": "contabilidad"
     },
     {
