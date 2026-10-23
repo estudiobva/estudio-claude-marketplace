@@ -1,6 +1,6 @@
 ---
 name: seguimiento-pedidos
-description: "Lee los mails con el cliente y el Slack de quien la corre, carga en la planilla compartida 'Seguimiento de pedidos Estudio-Cliente.xlsx' (0 - ESTUDIO) lo que el estudio le pidió al cliente, lo que el cliente le pidió al estudio y las tareas internas que salieron de Slack, actualiza estados y reclamos sin duplicar, y le manda a la persona sus pendientes por mensaje privado de Slack. Usar SIEMPRE que pidan \"actualizá la planilla de pedidos\", \"qué tengo pendiente\", \"mis pendientes\", \"cargá los pedidos del cliente\", \"seguimiento de pedidos\", \"qué le pedimos al cliente\", \"qué me pidieron por Slack\" o \"mandame mis pendientes\". Necesita los conectores de Gmail y Slack activos."
+description: "Lee los mails con el cliente y el Slack de quien la corre, carga en la Hoja de cálculo de Google compartida 'Seguimiento de pedidos Estudio-Cliente' (0 - ESTUDIO) lo que el estudio le pidió al cliente, lo que el cliente le pidió al estudio y las tareas internas que salieron de Slack, actualiza estados y reclamos sin duplicar, y le manda a la persona sus pendientes por mensaje privado de Slack. Usar SIEMPRE que pidan \"actualizá la planilla de pedidos\", \"qué tengo pendiente\", \"mis pendientes\", \"cargá los pedidos del cliente\", \"seguimiento de pedidos\", \"qué le pedimos al cliente\", \"qué me pidieron por Slack\" o \"mandame mis pendientes\". Necesita los conectores de Gmail y Slack activos."
 ---
 
 # Seguimiento de pedidos Estudio ↔ Cliente
@@ -8,20 +8,25 @@ description: "Lee los mails con el cliente y el Slack de quien la corre, carga e
 Cada persona la corre con **su** mail y **su** Slack. Lo que encuentra va a la planilla
 común; al final le llega a esa persona un mensaje privado de Slack con lo que tiene abierto.
 
-Planilla: `0 - ESTUDIO - 00000000000/Seguimiento de pedidos Estudio-Cliente.xlsx`
-(o `PEDIDOS_PLANILLA` del `.env`). Hojas: **Estudio → Cliente** (EC), **Cliente → Estudio**
-(CE), **Tareas internas** (TI), más Resumen, Equipo, Config y Corridas.
+Planilla: Hoja de cálculo de Google **Seguimiento de pedidos Estudio-Cliente**
+(`0 - ESTUDIO - 00000000000`). Hojas: **Estudio → Cliente** (EC), **Cliente → Estudio** (CE),
+**Tareas internas** (TI), más Resumen, Equipo, Config y Corridas.
 
-El script solo toca la planilla. Gmail y Slack se leen con los conectores de Claude.
+La planilla tiene un Apps Script publicado como app web (`apps-script/Codigo.gs`). El script
+de la skill le habla con `PEDIDOS_URL` y `PEDIDOS_TOKEN` del `.env`: no abre ni descarga
+ningún archivo. Gmail y Slack se leen con los conectores de Claude.
 
 ```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/pedidos.py probar
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/pedidos.py estado --email=<mail> --slack=<ID>
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/pedidos.py aplicar <ops.json> --solo-revisar
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/pedidos.py aplicar <ops.json>
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/pedidos.py pendientes --persona="<Nombre>" --formato=slack
 ```
 
-En Mac es `python3`. Si la planilla no existe: `python scripts/pedidos.py crear`.
+En Mac es `python3`. Si `probar` dice que faltan `PEDIDOS_URL`/`PEDIDOS_TOKEN`, pedírselos a
+Joaquín (están en el README del plugin cómo se generan) y agregarlos a `~/.fisco-ar/.env`.
+**No** pegar el token en el chat ni en Slack.
 
 ## Paso 1 — Quién corre y desde cuándo
 
@@ -128,8 +133,8 @@ Reglas:
 
 Correr primero con `--solo-revisar` y mostrarle a la persona la lista de lo que se va a
 agregar, actualizar y reclamar (ID, hoja, qué, responsable, estado). Con su OK, correr sin
-`--solo-revisar`. El script guarda un respaldo en `BVA-salidas/seguimiento-pedidos/respaldos/`,
-no escribe si la planilla cambió mientras tanto y avisa si está abierta en Excel.
+`--solo-revisar`. La planilla aplica los cambios de a una corrida por vez (si dos personas
+la corren juntas, la segunda espera) y queda todo en el historial de versiones de Google.
 
 ## Paso 5 — Mandar los pendientes
 

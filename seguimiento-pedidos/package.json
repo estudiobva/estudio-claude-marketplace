@@ -1,7 +1,7 @@
 {
   "name": "seguimiento-pedidos",
   "version": "1.0.0",
-  "description": "Planilla de seguimiento de pedidos Estudio <-> Cliente y pendientes por persona.",
+  "description": "Hoja de cálculo de Google de seguimiento de pedidos Estudio <-> Cliente y pendientes por persona.",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

@@ -1,8 +1,21 @@
 {
   "name": "seguimiento-pedidos",
-  "description": "Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la planilla compartida de seguimiento (sin duplicar, con reclamos y estados) y le manda a la persona sus pendientes por mensaje privado de Slack.",
+  "description": "Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la Hoja de cálculo de Google compartida (sin duplicar, con reclamos y estados) y le manda a la persona sus pendientes por mensaje privado de Slack.",
   "version": "1.0.0",
-  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "author": {
+    "name": "Estudio BVA",
+    "email": "joaquin@estudiobva.com"
+  },
   "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
-  "keywords": ["pedidos", "cliente", "seguimiento", "pendientes", "gmail", "slack", "tareas"]
+  "keywords": [
+    "apps script",
+    "cliente",
+    "gmail",
+    "google sheets",
+    "pedidos",
+    "pendientes",
+    "seguimiento",
+    "slack",
+    "tareas"
+  ]
 }
