@@ -1,0 +1,10 @@
+{
+  "name": "seguimiento-pedidos",
+  "version": "1.0.0",
+  "description": "Hoja de cálculo de Google de seguimiento de pedidos Estudio <-> Cliente y pendientes por persona.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "pedidos": "python scripts/pedidos.py"
+  }
+}

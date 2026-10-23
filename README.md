@@ -28,6 +28,7 @@ un script de Playwright y la skill que lo usa.
 | `ddjj-sshh-quilmes` | Controla en ARQui Quilmes la DDJJ mensual de Seguridad e Higiene de cada sociedad (actividad 477320) contra el papel de trabajo y la DJ de IIBB de ARBA, avisa las que faltan con el monto a declarar y archiva la boleta en la carpeta TSH del mes. Login automático. |
 | `constancias-anticipo-arba` | Baja de ARBA (Reimpresión > Constancia anticipo) las constancias de las DDJJ de anticipo de IIBB ya presentadas de cada sociedad, con el detalle de bases e impuesto determinado, y las archiva en la carpeta IIBB del mes con el nombre que ya usa el equipo. Login automático con la CIT. |
 | `saldos-farmacias-iva-iibb` | Arma los saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO del SharePoint, con controles y DJ faltantes, y deja las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del mes. Solo lee la unidad. |
+| `seguimiento-pedidos` | Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la Hoja de cálculo de Google compartida de seguimiento (sin duplicar, con reclamos) y le manda a la persona sus pendientes por mensaje privado de Slack. |
 
 ## Instalación
 
