@@ -1,0 +1,15 @@
+{
+  "name": "deudas-arba",
+  "version": "1.0.0",
+  "description": "Deudas y DDJJ sin presentar en ARBA (IIBB y agentes de recaudación) con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "lote": "node scripts/deudas-arba.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

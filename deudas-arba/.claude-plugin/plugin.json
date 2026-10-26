@@ -1,0 +1,8 @@
+{
+  "name": "deudas-arba",
+  "description": "Controla en ARBA la deuda de cada sociedad (IIBB, agente de recaudación, inmobiliario), las DDJJ sin presentar, lo declarado contra lo pagado como agente y el estado oficial del agente, en un Excel consolidado. Solo lectura, login automático con la CIT de la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arba", "ingresos brutos", "agentes de recaudacion", "deudas", "ddjj", "presentaciones", "playwright", "argentina"]
+}

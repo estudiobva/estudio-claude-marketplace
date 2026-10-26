@@ -12,6 +12,7 @@ un script de Playwright y la skill que lo usa.
 | `correos-organismos` | Releva el correo electrónico declarado de cada sociedad en ARCA (Sistema Registral y Domicilio Fiscal Electrónico) y ARBA, y arma un Excel con lo declarado, lo que hay que revisar y lo que falta. AGIP queda a mano. Solo lectura. |
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
+| `deudas-arba` | El mismo control en ARBA: deuda por objeto (IIBB, agente de retención y percepción, inmobiliario), DDJJ sin presentar, declarado contra pagado como agente período por período, meses sin DDJJ de anticipo de IIBB y estado oficial del agente, en un Excel consolidado. AGIP queda a mano. Solo lectura. |
 | `f931-descarga-arca` | Baja los F.931 presentados desde Declaración en Línea (ARCA), un PDF por período, con login automático desde la planilla de claves. |
 | `bancos-bva` | Descarga extractos bancarios del home banking de empresas (9 bancos), los renombra y los archiva por sociedad, banco y año. Con `cuadro-marcha.js` baja el plan de cuotas de los préstamos vigentes (hoy Macro, Nación, Patagonia y Provincia). |
 | `portal-iva-descarga` | Baja del Portal IVA (ARCA) el Libro IVA Compras y Ventas del período, en Excel, y los archiva en la carpeta IVA del mes. |
