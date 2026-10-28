@@ -214,14 +214,15 @@ function guardar(dir, nombre, buf, mismo, actualizar, soloRevisar) {
     // ── CLIENTE de Suizo para cada farmacia ──
     // El nombre igual primero y despues los alias (uno o una lista). Tiene que quedar un
     // solo candidato en el archivo del mes: si estan el nombre viejo y el nuevo, no se adivina.
-    const resueltos = [], sinResolver = [];
+    const resueltos = [], sinResolver = [], sinCliente = [];
     for (const p of propios) {
       const cand = [...new Set([p.farmacia, ...[].concat(alias[p.farmacia] || []).map(norm)])];
       const hay = cand.filter((c) => suizo.clientes.has(c));
       if (hay.length === 1) {
         resueltos.push({ farmacia: p.farmacia, cliente: hay[0], via: hay[0] === p.farmacia ? 'igual' : 'alias',
                          ncr_suizo: suizo.clientes.get(hay[0]) });
-      } else sinResolver.push(hay.length ? `${p.farmacia} (ambiguo: ${hay.join(' / ')})` : p.farmacia);
+      } else if (hay.length) sinResolver.push(`${p.farmacia} (ambiguo: ${hay.join(' / ')})`);
+      else sinCliente.push(p.farmacia);   // sin NCR de Suizo este mes o con otro nombre: lo prueba conciliar-ncr con el Portal
     }
     const clientes = resueltos.map((r) => r.cliente);
 
@@ -254,13 +255,18 @@ function guardar(dir, nombre, buf, mismo, actualizar, soloRevisar) {
       clientes_suizo: clientes.join(','),   // listo para el ultimo argumento de reconciliar_ncr.py
       resolucion_suizo: resueltos,
       sin_resolver_en_suizo: sinResolver,
+      sin_cliente_en_suizo: sinCliente,
       exportaciones_monroe_truncadas: truncados.map((g) => `${g.archivo}: ${g.leidas}/${g.declaradas}`),
       distintos_no_tocados: distintos.map((g) => g.archivo),
       monroe_sin_filas: sinFilas, monroe_ilegibles: ilegibles,
     };
     if (sinResolver.length) {
-      res.que_hacer = `Estas farmacias de Monroe no aparecen como CLIENTE en Suizo: ${sinResolver.join(', ')}. ` +
-        'Confirmar a que CLIENTE corresponden y agregarlas a lib/ncr-alias.json (o no tienen NCR de Suizo este mes).';
+      res.que_hacer = `Estas farmacias de Monroe tienen dos CLIENTE posibles en Suizo: ${sinResolver.join(', ')}. ` +
+        'Confirmar cual es y dejar uno solo en lib/ncr-alias.json.';
+    }
+    if (sinCliente.length) {
+      res.aviso_suizo = `No figuran como CLIENTE en el archivo de Suizo: ${sinCliente.join(', ')}. Puede que no tengan ` +
+        'NCR de Suizo este mes: conciliar-ncr lo comprueba con el Portal IVA y frena si aparecen con otro nombre.';
     }
     if (distintos.length) {
       res.que_hacer = (res.que_hacer ? res.que_hacer + ' ' : '') +

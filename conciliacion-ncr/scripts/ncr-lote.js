@@ -138,7 +138,7 @@ const normNombre = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u03
 
 function esCompras(nombre) {
   const n = normNombre(nombre);
-  if (nombre.startsWith('~$') || n.includes('SIN-NCR') || n.includes('SIN NCR') || n.includes('ELIMINACION')) return false;
+  if (nombre.startsWith('~$') || n.includes('SIN-NCR') || n.includes('SIN NCR') || n.includes('ELIMINACION') || n.includes('CRUCE')) return false;
   const ext = path.extname(nombre).toLowerCase();
   if (['.csv', '.zip'].includes(ext) && n.includes(`COMPROBANTES_PERIODO_${PERIODO}_COMPRAS`)) return true;
   return ['.csv', '.zip', '.xlsx'].includes(ext) && n.includes('COMPRAS') && n.replace(/ /g, '').includes('PORTAL');

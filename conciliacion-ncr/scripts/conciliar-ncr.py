@@ -14,7 +14,9 @@
 #   --portal        Archivo de compras del Portal IVA (.csv, .zip o .xlsx). Default:
 #                   lo busca en ncr/, despues en la carpeta IVA y despues en la del mes.
 #   --clientes      Valores de CLIENTE de Suizo, separados por coma. Default: salen
-#                   de los nombres de los archivos de Monroe (+ lib/ncr-alias.json).
+#                   de los nombres de los archivos de Monroe (+ lib/ncr-alias.json). Si una
+#                   farmacia no figura en Suizo y ninguna NC de Suizo del Portal esta en el
+#                   archivo de NCR, se concilia sin Suizo (no tuvo NCR ese mes).
 #   --sin-monroe    La sociedad no tiene archivos de Monroe este mes (exige --clientes).
 #   --sociedad      Nombre para el archivo de salida. Default: el de la carpeta.
 #   --si-existe     error (default) | reemplazar (el anterior va a ncr/_anteriores/) | saltear
@@ -243,8 +245,8 @@ def leer_portal(ruta):
 
 def es_compras(nombre, per):
     n = norm(nombre)
-    if nombre.startswith('~$') or 'SIN-NCR' in n or 'SIN NCR' in n or 'ELIMINACION' in n:
-        return False
+    if nombre.startswith('~$') or 'SIN-NCR' in n or 'SIN NCR' in n or 'ELIMINACION' in n or 'CRUCE' in n:
+        return False                                # CRUCE: '... CRUCE COMPRAS ZETTI VS PORTAL IVA.xlsx'
     ext = os.path.splitext(nombre)[1].lower()
     if ext in ('.csv', '.zip') and re.search(rf'COMPROBANTES_PERIODO_{per}_COMPRAS', n):
         return True
@@ -257,6 +259,8 @@ def ubicar_portal(soc, per, ncr):
         if len(hits) == 1:
             return os.path.join(d, hits[0])
         if len(hits) > 1:
+            # No se elige por fecha ni extension: en un caso de 08/2026 el .csv era el borrador y el
+            # .xlsx el libro de la DDJJ presentada (ya sin las NCR). Tiene que decidir una persona.
             fail(f'Hay {len(hits)} archivos de compras en {d}: {" | ".join(hits)}. Indica cual con --portal.')
     fail(f'No encontre las compras del Portal IVA de {per} (busque en ncr/, en la carpeta IVA y en la del mes). '
          'Bajalas con portal-iva-compras.js o pasa --portal.')
@@ -467,15 +471,38 @@ def main():
              'pasa --sin-monroe y --clientes=<CLIENTE de Suizo>.')
 
     vocab = {x['_farmacia'] for x in suizo_todo}
+    avisos_suizo = []
     if a.get('clientes'):
         clientes = [norm(c) for c in a['clientes'].split(',') if c.strip()]
         resolucion, sin_resolver = [{'cliente': c, 'via': '--clientes'} for c in clientes], []
     else:
         resolucion, sin_resolver = resolver_clientes(farmacias, vocab)
+        if any(x['via'] == 'ambiguo' for x in sin_resolver):
+            fail('Hay farmacias de Monroe con dos CLIENTE posibles en Suizo (nombre viejo y nuevo). '
+                 'Preguntar cual es y dejar uno solo en lib/ncr-alias.json (o pasar --clientes).',
+                 sin_resolver_en_suizo=sin_resolver)
         if sin_resolver:
-            fail('Hay farmacias de Monroe sin CLIENTE en Suizo. Preguntar a cual corresponde y agregarlo a '
-                 'lib/ncr-alias.json (o pasar --clientes).', sin_resolver_en_suizo=sin_resolver)
-        clientes = sorted({x['cliente'] for x in resolucion})
+            # La farmacia no figura en el archivo de Suizo: o no tuvo NCR de Suizo este mes, o
+            # Suizo la llama distinto. Se prueba con el Portal: si alguna NC de Suizo de la
+            # sociedad esta en el archivo de NCR bajo un CLIENTE que no es de ella, es ese
+            # nombre (frena). Si ninguna esta, no hay NCR de Suizo este mes (paso en 09/2026).
+            propios = {x['cliente'] for x in resolucion}
+            en_archivo = {}
+            for x in suizo_todo:
+                en_archivo.setdefault((x['_pv'], x['_nro']), set()).add(x['_farmacia'])
+            otros = sorted({c for r in p if r[C_TIPO] == TIPO_NC_A and digitos(r[C_CUIT]) == CUIT_SUIZO
+                            for c in en_archivo.get((r[C_PV], r[C_NRO]), set()) - propios})
+            if otros:
+                fail(f'Hay farmacias de Monroe sin CLIENTE en Suizo, y NC de Suizo de la sociedad que en el '
+                     f'archivo de NCR figuran como {", ".join(otros)}. Confirmar y agregar el alias en '
+                     'lib/ncr-alias.json (o pasar --clientes).', sin_resolver_en_suizo=sin_resolver,
+                     clientes_suizo_del_portal=otros)
+            sin_suizo = [x['farmacia'] for x in sin_resolver]
+            resolucion += [{'farmacia': f, 'cliente': None, 'via': 'sin NCR de Suizo este mes'} for f in sin_suizo]
+            avisos_suizo.append(f'{", ".join(sin_suizo)}: no figura en el archivo de Suizo y ninguna NC de Suizo '
+                                'del Portal esta en ese archivo. Se concilia sin NCR de Suizo.')
+            log(avisos_suizo[-1])
+        clientes = sorted({x['cliente'] for x in resolucion if x['cliente']})
     suizo = [x for x in suizo_todo if x['_farmacia'] in clientes]
     ncr = mon + suizo
     log(f'NCR: Monroe {len(mon)} ({len(farmacias)} archivos) + Suizo {len(suizo)} ({", ".join(clientes)})')
@@ -527,7 +554,7 @@ def main():
 
     fechas = [r[C_FECHA] for r in p if r[C_FECHA]]
     ult = monthrange(int(per[:4]), int(per[4:]))[1]
-    avisos = []
+    avisos = list(avisos_suizo)
     if fechas and max(fechas).strftime('%Y%m') == per and max(fechas).day < ult - 5:
         avisos.append(f'El ultimo comprobante de compras es del {max(fechas):%d/%m}: la descarga puede estar cortada.')
     if any(not pz['ok'] for pz in pies):
@@ -546,7 +573,7 @@ def main():
         ['NC de Suizo/Monroe sin respaldo (no eliminadas)', len(sin_resp), suma(sin_resp, C_IMP)],
         [],
         ['Fuente compras', os.path.basename(portal_ruta)],
-        ['Fuente Suizo', suizos[0], ', '.join(clientes)],
+        ['Fuente Suizo', suizos[0], ', '.join(clientes) or 'sin NCR de Suizo este mes'],
     ] + [[f'Monroe {pz["archivo"]}',
           f'{pz["leidas"]} de {pz["declaradas"]}' if pz['declaradas'] is not None else f'{pz["leidas"]} (sin pie)',
           'OK' if pz['ok'] else 'TRUNCADA'] for pz in pies] + [
