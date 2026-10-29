@@ -165,19 +165,41 @@ function textOfV(body) {
   return m ? m[1] : textOf(body);
 }
 
-// API: abre un buffer .xlsx (ya descifrado) y devuelve { hojas, filas(nombre) }.
+// Hipervínculos de una hoja: { 'F6': 'https://...' }. La celda guarda solo el
+// texto visible ("BNA Digital"); el destino está en las relaciones de la hoja.
+function sheetHyperlinks(files, path) {
+  const xml = (files.get(path) || Buffer.alloc(0)).toString('utf8');
+  const relsXml = (files.get(path.replace(/([^/]+)$/, '_rels/$1.rels')) || Buffer.alloc(0)).toString('utf8');
+  const rels = new Map(
+    [...relsXml.matchAll(/<Relationship\b[^>]*>/g)].map(m => [
+      (m[0].match(/Id="([^"]+)"/) || [])[1],
+      decodeXml((m[0].match(/Target="([^"]+)"/) || [, ''])[1]),
+    ])
+  );
+  const out = {};
+  for (const m of xml.matchAll(/<hyperlink\b[^>]*>/g)) {
+    const ref = (m[0].match(/\bref="([A-Z]+\d+)/) || [])[1];
+    const target = rels.get((m[0].match(/r:id="([^"]+)"/) || [])[1]);
+    if (ref && target) out[ref] = target;
+  }
+  return out;
+}
+
+// API: abre un buffer .xlsx (ya descifrado) y devuelve { hojas, filas(nombre), vinculos(nombre) }.
 function readWorkbook(buf) {
   const files = unzip(buf);
   const sheets = sheetIndex(files);
+  const sheetOf = (name) => {
+    const sheet = name
+      ? sheets.find(s => s.name.toLowerCase() === String(name).toLowerCase())
+      : sheets[0];
+    if (!sheet) throw new Error(`la planilla no tiene una hoja llamada "${name}"`);
+    return sheet;
+  };
   return {
     sheetNames: sheets.map(s => s.name),
-    rows(name) {
-      const sheet = name
-        ? sheets.find(s => s.name.toLowerCase() === String(name).toLowerCase())
-        : sheets[0];
-      if (!sheet) throw new Error(`la planilla no tiene una hoja llamada "${name}"`);
-      return sheetRows(files, sheet.path);
-    },
+    rows(name) { return sheetRows(files, sheetOf(name).path); },
+    hyperlinks(name) { return sheetHyperlinks(files, sheetOf(name).path); },
   };
 }
 

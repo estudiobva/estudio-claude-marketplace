@@ -77,8 +77,12 @@ Para los bancos que todavía no tienen descarga automática:
    `node scripts/extractos-banco.js --cuit=<CUIT> --banco=MACRO --desde=AAAAMM --hasta=AAAAMM --control --grabar`
 2. Cuando la terminal muestra `CONTROL <BANCO> adentro — navegador oculto disponible en http://127.0.0.1:9333`,
    Claude maneja ese navegador con `scripts/control.js` (`captura`, `elementos`, `clic`,
-   `elegir`, `completar`, `listo`, `responder`): navega hasta los resúmenes y descarga
-   los períodos pedidos. El puerto es solo local (127.0.0.1).
+   `elegir`, `completar`, `listo`, `responder`) y descarga los períodos pedidos. El puerto
+   es solo local (127.0.0.1). **Si la línea termina en `· ya en <sección> de "<EMPRESA>": bajar
+   desde ahi`, el script ya eligió la empresa y abrió la sección de resúmenes (tabla de abajo):
+   Claude baja desde esa pantalla y NO va a Movimientos ni a otra parte del banco**, ni cambia
+   de empresa. Solo si la terminal muestra `AVISO no llegue solo a la seccion`, Claude sigue la
+   ruta de la tabla desde la empresa ya elegida.
 3. Claude baja cada resumen con `control.js descargar --sel=... --banco=X --cuit=... --periodo=AAAAMM`
    **después de verificar el período dentro del PDF** (la fecha de emisión no siempre es el
    mes: Nación, Provincia y Patagonia emiten a fin de mes o principios del siguiente).
@@ -92,8 +96,27 @@ Para los bancos que todavía no tienen descarga automática:
    pasa al banco siguiente.
 
 Límites de `control.js`: no escribe en campos de clave/token/PIN/código, avisa si la
-página sale del sitio del banco y no cierra la sesión. Dentro del banco, solo navegar
-y descargar resúmenes: nada de transferencias, pagos ni configuración.
+página sale del sitio del banco y no cierra la sesión (la cierra `extractos-banco.js` al
+terminar cada banco). Dentro del banco, solo navegar y descargar resúmenes: nada de
+transferencias, pagos ni configuración.
+
+### Sección fija de extractos por banco
+
+Pedido del equipo (22/10/2026): que entre siempre a la misma parte del banco. Después del
+login el script (`lib/bancos/seccion-extractos.js`) elige la empresa de la sociedad **por
+CUIT** (si no la encuentra corta con `empresa_no_encontrada`: nunca entra a otra) y abre:
+
+| Banco | Sección | Qué se baja ahí | Período |
+|---|---|---|---|
+| Macro | menú de la cuenta → **Resúmenes** ("Listado de resúmenes") | `a#collectionTable1022_DETAIL` (id repetido: `--n`, el último es el más nuevo) → `Resumen.pdf` = Resumen General de todas las cuentas | "Periodo del Extracto" dentro del PDF; la fecha de la fila es el cierre (30/09/2026 = septiembre) |
+| Nación | cuenta → Más opciones → **Extracto de cuenta** → Extracto Mensual | `#downloadPDFPeriod0` = el más nuevo ("Mostrar más" para los viejos) | "PERIODO: 31/08/2026 AL 30/09/2026" en el PDF; la emisión 01/10 = septiembre |
+| Patagonia | Cuentas → **Resumen electrónico** → "Resúmenes" de la cuenta | `#dateFieldDesde/Hasta` → Buscar → `#collectionTableMonthly_DETAIL` | emisión 30/09 = septiembre |
+| Provincia | Cuentas → Mis Cuentas → Ver movimientos (CC) → **Extractos Electrónicos** | `button[id^=pdf-]` (el último es el más nuevo) | emisión 01/10 = septiembre; una caja de ahorro puede tener extractos diarios en vez de mensuales |
+
+Sin sección fija todavía (Claude navega desde el inicio): Galicia, Hipotecario, Comafi,
+Santander, BBVA. El ingreso es siempre por el **link de la columna LINKS de
+Claves_Bancos.xlsx** (el destino del hipervínculo, no el texto "BNA Digital"), si es del
+mismo banco; la terminal lo dice: `entrando por <url> (link de Claves_Bancos)`.
 
 ### Códigos de error del login
 
@@ -104,6 +127,8 @@ y descargar resúmenes: nada de transferencias, pagos ni configuración.
 | `antibots` | Quedó en la pantalla de espera sin dejar entrar (BBVA "Verificando tus credenciales"). |
 | `captcha` / `segundo_factor` | Oculto no se puede resolver: el usuario decide si correr ese banco con `--ver`. |
 | `sitio_rechazo` | El banco cortó la conexión (ej. Santander oculto: `ERR_HTTP2_PROTOCOL_ERROR`). |
+| `sesion_activa` | Quedó abierta la sesión de una corrida anterior (Macro: 10 min; Provincia: "Tu usuario ya se encuentra conectado"). Esperar y volver a correr ese banco. |
+| `empresa_no_encontrada` | El usuario del banco no tiene esa sociedad o el nombre no se emparejó: no se entra a otra empresa. |
 
 ## Login por banco
 
@@ -122,9 +147,8 @@ Relevado el 24/09/2026 sobre la pantalla pública de cada banco
 | Patagonia | ebankempresas.bancopatagonia.com.ar | Tipo+número de documento (ACCESO/DNI, 11 dígitos), Usuario → Clave | Dos pasos, segundo no visto. |
 | Provincia | bancoprovincia.bancainternet.com.ar/spa-empresas | Usuario, Clave | — |
 
-Todos probados contra réplicas de sus formularios (ingreso, clave rechazada,
-bloqueo, token, captcha, dato faltante). **Ninguno corrió todavía contra el
-banco real.**
+Probados contra réplicas de sus formularios y, contra el banco real: Macro, Nación,
+Patagonia y Provincia (28/10/2026, una sociedad, ingreso + sección + descarga + salida).
 
 Login suelto (sin descargar), para diagnosticar:
 `cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/banco-login.js --banco=MACRO --quedate` (con `--inspeccionar`
@@ -254,3 +278,8 @@ Con --unidad:
   (antes se abría visible solo con `--control` o bancos sin descarga
   automática). `--control` funciona oculto; `banco-login.js` también es oculto
   por defecto (`--ver` reemplaza a `--oculto`).
+- 28/10/2026: ingreso por el hipervínculo real de la columna LINKS de Claves_Bancos
+  (antes se leía el texto de la celda: "BNA Digital", "Banco Comafi") y la terminal dice
+  por qué URL entra; sección fija de extractos con elección de empresa por CUIT (Macro,
+  Nación, Patagonia, Provincia); el script cierra la sesión del banco al terminar cada uno;
+  `sesion_activa` también para Provincia. Probado con el período 09/2026 en los 4 bancos.

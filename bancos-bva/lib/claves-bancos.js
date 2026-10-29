@@ -98,7 +98,15 @@ async function leerFilas() {
   if (!wb.sheetNames.includes(HOJA)) {
     throw new Error(`${NOMBRE} no tiene la hoja "${HOJA}". Hojas: ${wb.sheetNames.join(', ')}.`);
   }
-  return wb.rows(HOJA).filter(f => f.some(c => txt(c)));
+  // La celda de LINKS a veces trae solo el texto visible ("BNA Digital", "Banco
+  // Comafi") y el destino esta en el hipervinculo: se guarda en fila.vinculos[col].
+  const filas = wb.rows(HOJA);
+  for (const [ref, url] of Object.entries(wb.hyperlinks(HOJA))) {
+    const fila = filas[Number(ref.replace(/^[A-Z]+/, '')) - 1];
+    const col = [...ref.match(/^[A-Z]+/)[0]].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+    if (fila) (fila.vinculos = fila.vinculos || {})[col] = url;
+  }
+  return filas.filter(f => f.some(c => txt(c)));
 }
 
 // Parsea los dos bloques. Devuelve credenciales SIN imprimirlas.
@@ -127,7 +135,7 @@ async function load() {
     usuario: txt(f[cUsr1]),
     acceso: cAcc1 != null ? txt(f[cAcc1]) : '',
     clave: txt(f[cClv1]),
-    link: cLink1 != null ? txt(f[cLink1]) : '',
+    link: cLink1 != null ? txt((f.vinculos && f.vinculos[cLink1]) || f[cLink1]) : '',
   })).filter(b => b.banco);
 
   let galicia = [];
@@ -205,8 +213,10 @@ async function buscar({ banco, sociedad, cuit } = {}) {
       if (!g.usuario || !g.clave) {
         throw new Error(`La fila de "${g.sociedad}" en el bloque Galicia no tiene usuario o clave cargados.`);
       }
+      // El link de ingreso es el de la fila GALICIA del primer bloque.
+      const fila = bancos.find(x => /GALICIA/.test(norm(x.banco)));
       return { banco: 'GALICIA', sociedad: g.sociedad, usuario: g.usuario, clave: g.clave,
-               origen: 'galicia-por-sociedad', encontradaPor: por };
+               link: fila ? fila.link : '', origen: 'galicia-por-sociedad', encontradaPor: por };
     }
     if (cand.length > 1) {
       throw new Error(`${c ? `El CUIT ${c}` : `"${sociedad}"`} aparece en ${cand.length} filas del bloque Galicia: ` +

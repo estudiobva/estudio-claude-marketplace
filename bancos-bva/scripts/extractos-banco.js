@@ -54,6 +54,9 @@ const { parseArgs, fail } = require('../lib/args');
 const { loadEnv } = require('../lib/env');
 const cb  = require('../lib/claves-bancos');
 const bancos = require('../lib/bancos');
+const comun = require('../lib/bancos/comun');
+const seccion = require('../lib/bancos/seccion-extractos');
+const prest = require('../lib/prestamos');
 const ex  = require('../lib/extractos');
 
 loadEnv();
@@ -80,6 +83,8 @@ const QUE_HACER = {
   antibots: 'El banco no termina de validar el ingreso (antibots del banco contra el navegador automatizado). No reintentar enseguida: probar la clave entrando a mano en Chrome.',
   clave_vencida: 'La clave esta vencida: hay que cambiarla entrando al banco a mano y actualizar Claves_Bancos.xlsx. Claude no cambia claves.',
   sitio_rechazo: 'El banco corto la conexion del navegador oculto. Probar mas tarde o, si el usuario lo pide, con --ver.',
+  sesion_activa: 'Quedo abierta la sesion de una corrida anterior (Macro bloquea 10 minutos, Provincia algunos minutos): esperar y volver a correr ese banco. Ahora el script sale del banco al terminar cada uno.',
+  empresa_no_encontrada: 'El usuario del banco no tiene esa sociedad (o el nombre no se pudo emparejar): no se entra a otra empresa. Revisar el nombre en el banco y, si difiere, agregarlo en ~/.fisco-ar/prestamos-alias.json ({ "NOMBRE EN EL BANCO": "CUIT" }).',
 };
 // Errores de red de Chrome al abrir el banco: no son de la clave.
 const codigoDe = (e) => e.code || (/net::ERR_(HTTP2_PROTOCOL_ERROR|CONNECTION_(RESET|CLOSED|REFUSED)|EMPTY_RESPONSE|TIMED_OUT)/.test(e.message) ? 'sitio_rechazo' : 'error');
@@ -345,27 +350,43 @@ async function procesarBanco(browser, banco, soc, periodos) {
     else { r.ya_estaban.push(rel); log(`ya estaba (mismo contenido): ${rel}`); }
   }
 
+  let adentro = false;
   try {
     const page = await context.newPage();   // context.on('page') ya la engancha
     // Sin descarga automatica, oculto y sin --control no hay quien navegue: ni se loguea.
     if (typeof adaptador.descargar !== 'function' && !VISIBLE && !CONTROL)
       throw Object.assign(new Error(`${banco} todavia no tiene descarga automatica: corre con --control (o --ver).`), { code: 'requiere_ventana' });
-    log(`${banco}: entrando…`);
+    const ing = comun.ingreso(adaptador.SPEC, cred);
+    log(`${banco}: entrando por ${ing.url} (${ing.origen})…`);
+    r.ingreso = ing.url;
     await adaptador.login(page, cred, { pedirAccion });
     cred = null;
     log(`${banco}: adentro.`);
+    adentro = true;
     grabando = true;
+
+    // Siempre a la misma pantalla: la empresa de la sociedad y la seccion de resumenes.
+    let lugar = null;
+    if (typeof adaptador.descargar !== 'function' && seccion.tieneRuta(banco)) {
+      lugar = await seccion.irAExtractos(banco, page, soc);
+      r.empresa_en_banco = lugar.empresa;
+      r.seccion = lugar.seccion;
+      log(`${banco}: empresa "${lugar.empresa}" → ${lugar.seccion}${lugar.aviso ? '' : '.'}`);
+      if (lugar.aviso) { r.aviso_seccion = lugar.aviso; log(`${banco}: AVISO no llegue solo a la seccion (${lugar.aviso}): seguir desde la empresa ya elegida.`); }
+    }
 
     if (typeof adaptador.descargar === 'function') {
       await adaptador.descargar(page, { sociedad: soc, periodos });
     } else {
-      if (CONTROL) log(`CONTROL ${banco} adentro — navegador ${VISIBLE ? 'visible' : 'oculto'} disponible en http://127.0.0.1:${PUERTO} (scripts/control.js)`);
+      if (CONTROL) log(`CONTROL ${banco} adentro — navegador ${VISIBLE ? 'visible' : 'oculto'} disponible en http://127.0.0.1:${PUERTO} (scripts/control.js)` +
+                       (lugar && !lugar.aviso ? ` · ya en ${lugar.seccion} de "${lugar.empresa}": bajar desde ahi` : ''));
       await preguntar(CONTROL ?
         `  ${banco} — Claude maneja esta ventana: va a bajar los resumenes de ${periodos[0]} a ` +
         `${periodos[periodos.length - 1]}.\n  No hace falta que toques nada; al terminar toca "Listo" el propio Claude ` +
         `(o vos, o Enter aca).` :
         `  ${banco} — en la ventana del navegador:\n` +
-        `    1. Elegi la sociedad ${soc.nombre} (CUIT ${soc.cuit}) si el banco lo pide.\n` +
+        (lugar && !lugar.aviso ? `    Ya estas en ${lugar.seccion} de ${lugar.empresa}.\n` :
+        `    1. Elegi la sociedad ${soc.nombre} (CUIT ${soc.cuit}) si el banco lo pide.\n`) +
         `    2. Anda a Resumenes / Extractos y baja los de ${periodos[0]} a ${periodos[periodos.length - 1]}` +
         `${banco === 'GALICIA' ? ' (semanales y mensual)' : ''}, todas las cuentas.\n` +
         `    Cada archivo que bajes lo renombro y lo guardo solo.\n` +
@@ -397,6 +418,14 @@ async function procesarBanco(browser, banco, soc, periodos) {
       fs.writeFileSync(f, JSON.stringify({ banco, sociedad: soc.nombre, periodos, pasos: grabacion }, null, 2));
       r.grabacion = f;
       log(`grabacion guardada en ${f}`);
+    }
+    // Salir del banco: con la sesion abierta el proximo ingreso rebota (Macro
+    // bloquea 10 minutos; Provincia: "Tu usuario ya se encuentra conectado").
+    const mod = adentro && prest.MODULOS[banco];
+    const pg = context.pages()[context.pages().length - 1];
+    if (mod && pg && !pg.isClosed()) {
+      await Promise.race([mod.salir(pg).catch(() => {}), new Promise(res => setTimeout(res, 20000))]);
+      log(`${banco}: sesion cerrada.`);
     }
     await context.close().catch(() => {});
     fs.rmSync(tmp, { recursive: true, force: true });   // solo la carpeta temporal propia

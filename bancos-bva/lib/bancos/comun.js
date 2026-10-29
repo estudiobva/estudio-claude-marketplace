@@ -33,7 +33,8 @@ const RX = {
   segundoFactor: /token|codigo de (seguridad|verificacion|acceso)|segundo factor|clave dinamica|ingresa el codigo|te enviamos un codigo|sms/,
   // Santander ("Tu contraseña venció"), Galicia ("tiene la clave vencida").
   // Macro: "ya contás con una sesión activa ... deberás esperar 10 minutos".
-  sesionActiva:  /(ya )?(contas|tenes|posee|existe) (con )?una sesion activa|sesion (abierta|activa) (en otro|anterior)/,
+  // Provincia: "Tu usuario ya se encuentra conectado a la aplicación" (28/10/2026).
+  sesionActiva:  /(ya )?(contas|tenes|posee|existe) (con )?una sesion activa|sesion (abierta|activa) (en otro|anterior)|ya se encuentra conectado/,
   claveVencida:  /(clave|contrasena) (esta )?(vencida|expirada|caducada)|(clave|contrasena) (vencio|expiro|caduco)|(vencio|expiro) tu (clave|contrasena)|(debes|necesitas|tenes que) (cambiar|crear|renovar) (tu|una nueva) (clave|contrasena)/,
 };
 
@@ -175,19 +176,28 @@ async function abrir(page, url, timeout) {
   }
 }
 
-// URL de ingreso: la del link de Claves_Bancos.xlsx si es del mismo sitio del
-// banco (BBVA la trae con parametro: ...SolicitarCredenciales.html?260828); si
-// no es una URL o es de otro dominio, la del adaptador. Nunca se va a otro host.
-function urlIngreso(spec, cred) {
+// URL de ingreso: el link de la columna LINKS de Claves_Bancos.xlsx (el destino
+// del hipervinculo, no el texto "BNA Digital") si es https y del mismo banco
+// (mismo dominio: bna.com.ar, macro.com.ar...); BBVA lo trae con parametro
+// (...SolicitarCredenciales.html?260828). Si falta, no es una URL o es de otro
+// dominio, la del adaptador. Devuelve { url, origen } para dejarlo en la consola.
+const dominio = (host) => host.split('.').slice(/\.(com|gob|gov|net|org)\.ar$/.test(host) ? -3 : -2).join('.');
+
+function ingreso(spec, cred) {
   // Diagnostico: BVA_IGNORAR_LINK_EXCEL=1 fuerza la URL del adaptador.
-  if (process.env.BVA_IGNORAR_LINK_EXCEL === '1') return spec.url;
-  try {
-    const propia = new URL(spec.url);
-    const link = new URL(String((cred && cred.link) || '').trim());
-    if (/^https:$/.test(link.protocol) && link.hostname === propia.hostname) return link.href;
-  } catch { /* el link es texto ("Banco Comafi") o esta vacio */ }
-  return spec.url;
+  if (process.env.BVA_IGNORAR_LINK_EXCEL === '1') return { url: spec.url, origen: 'URL del script (BVA_IGNORAR_LINK_EXCEL=1)' };
+  const texto = String((cred && cred.link) || '').trim();
+  if (!texto) return { url: spec.url, origen: 'URL del script: la fila no tiene link en Claves_Bancos' };
+  let link;
+  try { link = new URL(texto); }
+  catch { return { url: spec.url, origen: 'URL del script: el link de Claves_Bancos no es una direccion web' }; }
+  if (link.protocol === 'https:' && dominio(link.hostname) === dominio(new URL(spec.url).hostname)) {
+    return { url: link.href, origen: 'link de Claves_Bancos' };
+  }
+  return { url: spec.url, origen: `URL del script: el link de Claves_Bancos es de otro sitio (${link.hostname})` };
 }
+
+const urlIngreso = (spec, cred) => ingreso(spec, cred).url;
 
 async function login(page, spec, cred, { timeout = 45000, pedirAccion } = {}) {
   await abrir(page, urlIngreso(spec, cred), timeout);
@@ -239,4 +249,4 @@ const boton = (...textos) => [...new Set(textos.flatMap(t => VARIANTES[t] || [t]
             `input[type="submit"][value*="${t}" i]:visible, a:visible:has-text("${t}")`)
   .join(', ');
 
-module.exports = { login, urlIngreso, error, visible, boton, sinAcentos, RX };
+module.exports = { login, ingreso, urlIngreso, error, visible, boton, sinAcentos, RX };
