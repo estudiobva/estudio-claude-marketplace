@@ -116,7 +116,8 @@ async function inspeccionar(page, banco) {
   let intervencion = false;
   const pedirAccion = HEADLESS ? null : (msg) => { intervencion = true; return esperarEnter(`  ${msg}`); };
   try {
-    log('entrando…');
+    const ing = require('../lib/bancos/comun').ingreso(adaptador.SPEC, cred);
+    log(`entrando por ${ing.url} (${ing.origen})…`);
     await adaptador.login(page, cred, { pedirAccion });
     cred = null; // no dejar las credenciales vivas mas de lo necesario
     log('adentro.');

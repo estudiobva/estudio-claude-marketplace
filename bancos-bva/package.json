@@ -1,6 +1,6 @@
 {
   "name": "bancos-bva",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Extractos bancarios del Estudio BVA con Playwright.",
   "private": true,
   "license": "MIT",
