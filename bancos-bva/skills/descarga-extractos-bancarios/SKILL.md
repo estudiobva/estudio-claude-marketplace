@@ -111,10 +111,13 @@ CUIT** (si no la encuentra corta con `empresa_no_encontrada`: nunca entra a otra
 | Macro | menú de la cuenta → **Resúmenes** ("Listado de resúmenes") | `a#collectionTable1022_DETAIL` (id repetido: `--n`, el último es el más nuevo) → `Resumen.pdf` = Resumen General de todas las cuentas | "Periodo del Extracto" dentro del PDF; la fecha de la fila es el cierre (30/09/2026 = septiembre) |
 | Nación | cuenta → Más opciones → **Extracto de cuenta** → Extracto Mensual | `#downloadPDFPeriod0` = el más nuevo ("Mostrar más" para los viejos) | "PERIODO: 31/08/2026 AL 30/09/2026" en el PDF; la emisión 01/10 = septiembre |
 | Patagonia | Cuentas → **Resumen electrónico** → "Resúmenes" de la cuenta | `#dateFieldDesde/Hasta` → Buscar → `#collectionTableMonthly_DETAIL` | emisión 30/09 = septiembre |
+| Galicia | Cuentas → **Resúmenes y extractos** (pestaña Cuentas, "Listado" por fecha de cierre) | `control.js descargar --sel='button[aria-label="Download"]' --n=N` (fila N, de la más nueva a la más vieja; una fila por cuenta: CC pesos y CC especial dólares) → `Extracto_Cuentas_Galicia_AAAA_MM_DD.pdf` | "PERIODO COMPRENDIDO ENTRE EL 31-08-2026 Y EL 30-09-2026" en el PDF; cierre 30/09 = septiembre. Dos cuentas del mismo mes → `_mensual` y `_mensual_2` |
 | Provincia | Cuentas → Mis Cuentas → Ver movimientos (CC) → **Extractos Electrónicos** | `button[id^=pdf-]` (el último es el más nuevo) | emisión 01/10 = septiembre; una caja de ahorro puede tener extractos diarios en vez de mensuales |
 
-Sin sección fija todavía (Claude navega desde el inicio): Galicia, Hipotecario, Comafi,
-Santander, BBVA. El ingreso es siempre por el **link de la columna LINKS de
+Sin sección fija todavía (Claude navega desde el inicio): Hipotecario, Comafi, Santander,
+BBVA. En Galicia los clics de `control.js` por `--texto` se quedan esperando: usar `--sel`
+(como el de Download) y, para cambiar de empresa, dejar que lo haga el script (botón del
+usuario → "Elegir otra empresa", por JS). El ingreso es siempre por el **link de la columna LINKS de
 Claves_Bancos.xlsx** (el destino del hipervínculo, no el texto "BNA Digital"), si es del
 mismo banco; la terminal lo dice: `entrando por <url> (link de Claves_Bancos)`.
 
@@ -283,3 +286,6 @@ Con --unidad:
   por qué URL entra; sección fija de extractos con elección de empresa por CUIT (Macro,
   Nación, Patagonia, Provincia); el script cierra la sesión del banco al terminar cada uno;
   `sesion_activa` también para Provincia. Probado con el período 09/2026 en los 4 bancos.
+- 29/10/2026: Galicia con sección fija (Cuentas → Resúmenes y extractos), elección de
+  empresa por CUIT desde "Elegir otra empresa" y cierre de sesión. Probado con el
+  período 09/2026: 2 resúmenes, CC pesos y CC especial dólares.
