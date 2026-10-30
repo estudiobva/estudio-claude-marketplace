@@ -152,6 +152,12 @@
       "source": "./saldos-farmacias-iva-iibb",
       "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",
       "category": "contabilidad"
+    },
+    {
+      "name": "seguimiento-pedidos",
+      "source": "./seguimiento-pedidos",
+      "description": "Lee los mails con el cliente y el Slack de quien la corre, carga los pedidos Estudio ↔ Cliente y las tareas internas en la Hoja de cálculo de Google compartida (sin duplicar, con reclamos y estados) y le manda a la persona sus pendientes por mensaje privado de Slack.",
+      "category": "gestion"
     }
   ]
 }
