@@ -56,7 +56,6 @@ const cb  = require('../lib/claves-bancos');
 const bancos = require('../lib/bancos');
 const comun = require('../lib/bancos/comun');
 const seccion = require('../lib/bancos/seccion-extractos');
-const prest = require('../lib/prestamos');
 const ex  = require('../lib/extractos');
 
 loadEnv();
@@ -421,11 +420,10 @@ async function procesarBanco(browser, banco, soc, periodos) {
     }
     // Salir del banco: con la sesion abierta el proximo ingreso rebota (Macro
     // bloquea 10 minutos; Provincia: "Tu usuario ya se encuentra conectado").
-    const mod = adentro && prest.MODULOS[banco];
     const pg = context.pages()[context.pages().length - 1];
-    if (mod && pg && !pg.isClosed()) {
-      await Promise.race([mod.salir(pg).catch(() => {}), new Promise(res => setTimeout(res, 20000))]);
-      log(`${banco}: sesion cerrada.`);
+    if (adentro && pg && !pg.isClosed()) {
+      const cerro = await Promise.race([seccion.salir(banco, pg).catch(() => false), new Promise(res => setTimeout(() => res(false), 20000))]);
+      if (cerro) log(`${banco}: sesion cerrada.`);
     }
     await context.close().catch(() => {});
     fs.rmSync(tmp, { recursive: true, force: true });   // solo la carpeta temporal propia

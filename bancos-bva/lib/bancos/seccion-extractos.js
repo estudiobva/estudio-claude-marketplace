@@ -13,7 +13,8 @@
 //   NACION     Ambiente -> cuenta -> "Más opciones" -> "Extracto de cuenta"
 //   PATAGONIA  empresa -> "Resúmenes electrónicos" (#resumenesElectronicosCuentas)
 //   PROVINCIA  (una sola empresa) -> "Extractos electrónicos"
-// Sin ruta fija todavia: GALICIA, HIPOTECARIO, COMAFI, SANTANDER, BBVA.
+//   GALICIA    (29/10/2026) empresa -> Cuentas -> "Resúmenes y extractos"
+// Sin ruta fija todavia: HIPOTECARIO, COMAFI, SANTANDER, BBVA.
 
 const prest = require('../prestamos');
 const socs = require('../prestamos/sociedades');
@@ -43,7 +44,85 @@ async function elegirEmpresa(banco, page, soc) {
   return hits[0].nombre;
 }
 
+// Galicia Office Banking (relevado el 29/10/2026): el boton del usuario, arriba a
+// la derecha ("<persona> / <RAZON SOCIAL> / <iniciales>"), abre "Elegir otra
+// empresa" y "Cerrar sesión"; el selector es un modal con una fila por empresa
+// (td > div). Los clics de Playwright se quedan esperando en este sitio: todo por JS.
+const GALICIA = {
+  activa: (page) => page.evaluate(() => {
+    for (const b of document.querySelectorAll('button')) {
+      const l = b.innerText.split('\n').map(x => x.trim()).filter(Boolean);
+      if (l.length === 3 && /^[A-Z]{1,3}$/.test(l[2])) return l[1];
+    }
+    return null;
+  }),
+  async menu(page, opcion) {
+    await page.evaluate(() => {
+      for (const b of document.querySelectorAll('button')) {
+        const l = b.innerText.split('\n').map(x => x.trim()).filter(Boolean);
+        if (l.length === 3 && /^[A-Z]{1,3}$/.test(l[2])) { b.click(); return; }
+      }
+    });
+    await page.waitForTimeout(1000);
+    return page.evaluate((t) => {
+      const x = [...document.querySelectorAll('a, li, button')].find(e => e.textContent.trim() === t);
+      if (x) x.click();
+      return !!x;
+    }, opcion);
+  },
+  async elegir(page, soc) {
+    const deSoc = (n) => { const s = socs.emparejar(n); return !!s && s.cuit === soc.cuit; };
+    let activa = null;
+    for (let i = 0; i < 20 && !activa; i++) { await page.waitForTimeout(700); activa = await GALICIA.activa(page); }
+    if (activa && deSoc(activa)) return activa;
+    if (!(await GALICIA.menu(page, 'Elegir otra empresa'))) {
+      throw error('empresa_no_encontrada', `GALICIA: el usuario entra a "${activa}" y no tiene "Elegir otra empresa".`);
+    }
+    await page.locator('td > div').first().waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+    const lista = await page.evaluate(() => [...document.querySelectorAll('td > div')].map(e => e.textContent.trim()).filter(Boolean));
+    const hits = lista.filter(deSoc);
+    if (hits.length !== 1) {
+      await page.evaluate(() => { const c = [...document.querySelectorAll('span')].find(e => e.textContent.trim() === 'Cancelar' && e.offsetParent); if (c) c.click(); });
+      throw error('empresa_no_encontrada', hits.length
+        ? `GALICIA: ${hits.length} empresas corresponden a ${soc.nombre}: ${hits.join(' | ')}.`
+        : `GALICIA: ${soc.nombre} (${soc.cuit}) no esta entre las ${lista.length} empresas de este usuario.`);
+    }
+    await page.evaluate((n) => { const e = [...document.querySelectorAll('td > div')].find(x => x.textContent.trim() === n); e.click(); }, hits[0]);
+    for (let i = 0; i < 30; i++) {
+      await page.waitForTimeout(700);
+      const a = await GALICIA.activa(page);
+      if (a && deSoc(a)) return a;
+    }
+    throw error('empresa_no_encontrada', `GALICIA: elegi "${hits[0]}" pero el banco no cambio de empresa.`);
+  },
+  salir: (page) => GALICIA.menu(page, 'Cerrar sesión').then(() => page.waitForTimeout(3000)),
+};
+
 const RUTAS = {
+  GALICIA: {
+    seccion: 'Resúmenes y extractos (Cuentas → Resúmenes y extractos)',
+    elegir: GALICIA.elegir,
+    salir: GALICIA.salir,
+    async ir(page) {
+      // El menu no tiene links (li > span > div): el clic va al elemento mas profundo
+      // con ese texto y sube solo a los padres.
+      const clic = (scope, t) => page.evaluate(([scope, t]) => {
+        const xs = [...document.querySelectorAll(scope)].filter(e => e.textContent.trim() === t && e.offsetParent);
+        const x = xs[xs.length - 1];
+        if (x) x.click();
+        return !!x;
+      }, [scope, t]);
+      if (!(await clic('nav *', 'Cuentas'))) throw error('seccion_no_encontrada', 'GALICIA: no encuentro "Cuentas" en el menú.');
+      await page.waitForURL(/\/cuentas/, { timeout: 20000 }).catch(() => {});
+      await page.waitForTimeout(2000);
+      if (!(await clic('body *', 'Resúmenes y extractos'))) {
+        throw error('seccion_no_encontrada', 'GALICIA: no encuentro "Resúmenes y extractos" en Cuentas.');
+      }
+      await page.waitForURL(/resumen-extracto/, { timeout: 20000 }).catch(() => {});
+      await page.locator('button[aria-label="Download"]').first().waitFor({ state: 'attached', timeout: 25000 })
+        .catch(() => { throw error('seccion_no_encontrada', 'GALICIA: la lista de resúmenes no cargó.'); });
+    },
+  },
   MACRO: {
     seccion: 'Resúmenes de la cuenta (menú de la cuenta → Resúmenes)',
     async ir(page) {
@@ -115,10 +194,18 @@ const tieneRuta = (banco) => !!RUTAS[banco];
 async function irAExtractos(banco, page, soc) {
   const ruta = RUTAS[banco];
   if (!ruta) return null;
-  const empresa = await elegirEmpresa(banco, page, soc);
+  const empresa = ruta.elegir ? await ruta.elegir(page, soc) : await elegirEmpresa(banco, page, soc);
   try { await ruta.ir(page); }
   catch (e) { return { empresa, seccion: ruta.seccion, aviso: e.message.split('\n')[0] }; }
   return { empresa, seccion: ruta.seccion };
 }
 
-module.exports = { irAExtractos, tieneRuta, RUTAS };
+// Cierra la sesion del banco (con la sesion abierta el proximo ingreso rebota).
+async function salir(banco, page) {
+  const f = (RUTAS[banco] && RUTAS[banco].salir) || (prest.MODULOS[banco] && prest.MODULOS[banco].salir);
+  if (!f) return false;
+  await f(page);
+  return true;
+}
+
+module.exports = { irAExtractos, tieneRuta, salir, RUTAS };

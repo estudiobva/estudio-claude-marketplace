@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "bancos-bva",
   "description": "Descarga extractos bancarios y el cuadro de marcha de los prestamos vigentes del home banking de empresas (Galicia, Comafi, Santander, Hipotecario, Macro, Nacion, BBVA, Patagonia, Provincia) con Playwright, y los archiva en la unidad compartida del Estudio BVA.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": {
     "name": "Estudio BVA",
     "email": "joaquin@estudiobva.com"
