@@ -94,6 +94,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "tys-gastos-varios",
+      "source": "./tys-gastos-varios",
+      "description": "Baja de Zetti (T&S Web) el reporte 4.5.2 Seguimiento de Valores tipo GAVA - Gastos Varios, lo resume por concepto y mes y lo cruza con el EERR (Colegio, Seguridad e Higiene, Publicidad, Municipalidad...). Login automático con la planilla de claves.",
+      "category": "contabilidad"
+    },
+    {
       "name": "cruze-zetti-portaliva-ventas",
       "source": "./cruze-zetti-portaliva-ventas",
       "description": "Circuito completo de ventas: baja Portal IVA y Zetti, los vuelca en las hojas del papel de trabajo y arma la hoja cruze con las diferencias.",

@@ -1,0 +1,15 @@
+{
+  "name": "tys-gastos-varios",
+  "version": "1.0.0",
+  "description": "Baja de Zetti (T&S Web) el reporte 4.5.2 GAVA - Gastos Varios, lo resume por concepto y mes y lo cruza con el EERR.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "gastos-varios": "node scripts/tys-gastos-varios.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
