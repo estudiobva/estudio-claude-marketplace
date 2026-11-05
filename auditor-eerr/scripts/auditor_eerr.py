@@ -1,4 +1,4 @@
-# Auditor de EERR: corre 21 controles sobre cada "EERR ... .xlsx" de la carpeta EERR 2026 y documenta lo que encuentra
+# Auditor de EERR: corre 22 controles sobre cada "EERR ... .xlsx" de la carpeta EERR 2026 y documenta lo que encuentra
 # en la hoja "Auditorias" del mismo archivo (pedido del usuario 09/10/2026).
 #
 # Controles (de lo general a lo específico; KPIs de auditoría del equipo + NCR vs NC comerciales + compras = Portal IVA):
@@ -10,6 +10,7 @@
 #   Gastos ......... 15 Gastos fijos y financieros
 #   Papel de trabajo 16 Débito / crédito fiscal (y vs DDJJ) · 17 Signo de las NC · 18 Cómputo de NRF (NCR)
 #   (hoja MM-AAAA)   19 Prorrateo del papel · 20 Venta vs compra exenta y gravada · 21 NC de compras vs libro (NCR + NC)
+#   Libro IVA ...... 22 Prorrateo vs libro IVA: IVA facturas del libro de compras - (crédito fiscal DDJJ - IVA NC de ventas)
 #   Lista de Meli, Ezequiel y Jaz (#automatizaciones-ai 14/10/2026); una sola auditoría con excepciones por sociedad
 #   (criterio de Javi): CFG['excepciones'] = {"<sociedad o CUIT>": [números de control que no corren]}.
 #
@@ -102,6 +103,8 @@ CFG = dict(
     mix_exento_pts=0.15,          # 20: % exento de las ventas vs % exento de las compras de mercadería (15 puntos)
     compra_venta_desvio_pct=0.30, # 20: compras / ventas (exentas o gravadas) que se aparta más de 30% de su mediana
     nc_tol=100,                   # 21: tolerancia en pesos NC de compras del papel vs libro
+    prorrateo_libro_tol_min=1000, prorrateo_libro_tol_pct=0.02,  # 22: EERR vs prorrateo del libro IVA + DDJJ ($1.000 o 2%)
+    prorrateo_papel_tol=100,      # 22: papel vs prorrateo del libro IVA + DDJJ (redondeo del IVA por comprobante)
     excepciones={},               # {"<sociedad o CUIT>": [controles que no corren]}, p. ej. {"<sociedad>": [19]}
 )
 for _f in (os.path.join(SP, 'auditor_eerr_config.json'), os.path.join(FISCO, 'auditor_eerr_config.json')):
@@ -111,7 +114,8 @@ CONTROLES = {1: 'Período del ejercicio', 2: 'Meses completos', 3: 'Fórmulas', 
              6: 'Gastos / ventas', 7: 'Ventas vs Portal IVA', 8: 'CMV y existencias', 9: 'NCR vs NC comerciales',
              10: 'Compras clasificadas = Portal IVA', 11: 'Sueldos vs F.931', 12: 'IIBB vs DJ ARBA', 13: 'IVA prorrateo',
              14: 'Tasas municipales', 15: 'Gastos fijos y financieros', 16: 'Débito / crédito fiscal', 17: 'Signo de las NC',
-             18: 'Cómputo de NRF', 19: 'Prorrateo del papel', 20: 'Venta vs compra exenta/gravada', 21: 'NC de compras vs libro'}
+             18: 'Cómputo de NRF', 19: 'Prorrateo del papel', 20: 'Venta vs compra exenta/gravada', 21: 'NC de compras vs libro',
+             22: 'Prorrateo vs libro IVA'}
 ALICS = ['2,5%', '5%', '10,5%', '21%', '27%']
 PERC = ['Importe de Per. o Pagos a Cta. de Otros Imp. Nac.', 'Importe de Percepciones de Ingresos Brutos', 'Importe de Impuestos Municipales',
         'Importe de Percepciones o Pagos a Cuenta de IVA', 'Importe de Impuestos Internos', 'Importe Otros Tributos']
@@ -315,7 +319,7 @@ class Ctx:
         self.e = EERR(f)
         self.carpeta = f"{U}/{carpetas[self.e.cuit]}" if self.e.cuit in carpetas else None
         self.meses = [p for p in self.e.meses if p <= hasta]
-        self.h = []; self.scope = set(); self.log = []
+        self.h = []; self.scope = set(); self.log = []; self.excepciones = set()
         self._papel, self._conc, self.papel_avisado = None, {}, False
         self.idx = collections.defaultdict(list)
         if self.carpeta:
@@ -999,8 +1003,14 @@ def celda_papel(d, clave, col='C'):
 DDJJ_RX = dict(df=r'Total del d[ée]bito fiscal del per[ií]odo \$ ?(-?[\d\.]+,\d{2})',
                cf=r'Total del cr[ée]dito fiscal del per[ií]odo \$ ?(-?[\d\.]+,\d{2})')
 def ddjj_iva(x, p):
-    # débito y crédito fiscal de la DDJJ de IVA presentada: AAAAMM-IVA-DDJJ-*.pdf de la carpeta del mes (el más nuevo,
-    # por las rectificativas) o, si no, el JSON de ddjj-iva.js en BVA-salidas/ddjj-iva/<CUIT>/AAAAMM.json
+    # débito y crédito fiscal de la DDJJ de IVA presentada (la leen los controles 16, 19 y 22: se lee una vez por mes)
+    c = x.__dict__.setdefault('_ddjj', {})
+    if p not in c: c[p] = _ddjj_iva(x, p)
+    return c[p]
+
+def _ddjj_iva(x, p):
+    # AAAAMM-IVA-DDJJ-*.pdf de la carpeta del mes (el más nuevo, por las rectificativas) o, si no, el JSON de ddjj-iva.js
+    # en BVA-salidas/ddjj-iva/<CUIT>/AAAAMM.json
     for f in sorted(x.en_mes(p, rf'^{p}-IVA-DDJJ-.*\.pdf$'), key=os.path.getmtime, reverse=True):
         try: t = pdf_texto(f)
         except Exception as err: x.log.append(f"16 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); continue
@@ -1136,7 +1146,9 @@ def c19(x):
                   f"computable ni como no computable: la clasificación no dice la alícuota (\"SERVICIOS AL x%\")" + (f": {'; '.join(sin)}." if sin else '.'),
                   round(comp + nocomp, 2), round(serv, 2), fuente=d['f'])
         v = x.e.v(r_eerr, p) if r_eerr else 0
-        if r_eerr and num(nocomp) and abs(v - nocomp) > max(CFG['prorrateo_tol_min'], CFG['prorrateo_tol_pct'] * abs(nocomp)):
+        # con DDJJ y libros del mes, el EERR se controla contra el prorrateo declarado (control 22), no contra el papel
+        c22_corre = 22 not in x.excepciones and ddjj_iva(x, p)[0] and libro_iva(x, p, 'COMPRAS') and libro_iva(x, p, 'VENTAS')
+        if r_eerr and num(nocomp) and not c22_corre and abs(v - nocomp) > max(CFG['prorrateo_tol_min'], CFG['prorrateo_tol_pct'] * abs(nocomp)):
             x.add(19, p, 'IVA Prorrateo del EERR vs papel', 'Rojo' if nocomp > 1 and not v else 'Amarillo',
                   f"La fila IVA Prorrateo del EERR de {mm(p)} no es el IVA no computable del papel de trabajo (hoja {d['hoja']})" +
                   (": está en cero." if not v else ": suele ser la clasificación mercadería / servicios del Maestro distinta de la del papel."),
@@ -1215,7 +1227,74 @@ def c21(x):
     x.ok(21)
 
 
-CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21]
+def libro_iva(x, p, cual):
+    # libro del Portal IVA del mes para el control 22: el de la DDJJ presentada ("presentada" en el nombre) > el de la
+    # carpeta IVA con el nombre estándar > el de nombre más corto. Nunca cruces, CSV ni el libro sin NCR.
+    C = cual.upper()
+    cand = [f for f in x.en_mes(p, rf'^{p}\s*-\s*PORTAL IVA\s*-\s*{C}.*\.xlsx$')
+            if 'cruce' not in norm(os.path.basename(f)) and not os.path.basename(f).startswith('~$')]
+    pres = [f for f in cand if 'presentada' in norm(os.path.basename(f))]
+    if pres: return pres[0]
+    iva = [f for f in cand if os.path.basename(os.path.dirname(f)).upper() == 'IVA' and
+           re.match(rf'^{p} - PORTAL IVA - {C}\.xlsx$', nfc(os.path.basename(f)), re.I)]
+    return (iva or sorted(cand, key=len) or [None])[0]
+
+
+def iva_libro(f):
+    # IVA de las facturas (sin NC) y de las notas de crédito (en positivo) de un libro del Portal IVA
+    fac = nc = 0.0
+    for r in filas_libro(f):
+        i = r['tot_iva'] or r['iva']
+        if r['tipo'] in NC_COD: nc += abs(i)
+        else: fac += i
+    return fac, nc
+
+
+def c22(x):
+    # Prorrateo contra el libro IVA. El IVA que no se computó por prorrateo sale del libro de compras y de la DDJJ presentada,
+    # sin depender de la clasificación mercadería / servicios:
+    #   crédito fiscal de la DDJJ = IVA de las facturas de compras computado + IVA de las NC de ventas
+    #   => IVA no computable = IVA facturas del libro de compras - (crédito fiscal DDJJ - IVA NC del libro de ventas)
+    # Se compara con la fila IVA Prorrateo del EERR y con el IVA no computable del papel de trabajo.
+    e = x.e; r = e.ix.get('iva prorrateo'); P = papel_anual(x); sin_dj = []
+    tol = lambda v: max(CFG['prorrateo_libro_tol_min'], CFG['prorrateo_libro_tol_pct'] * abs(v))
+    for p in x.meses:
+        dj, fdj = ddjj_iva(x, p)
+        if not dj: sin_dj.append(p); continue
+        fc, fv = libro_iva(x, p, 'COMPRAS'), libro_iva(x, p, 'VENTAS')
+        if not fc or not fv:
+            x.log.append(f"22 {mm(p)}: falta el libro de {'compras' if not fc else 'ventas'} del Portal IVA"); continue
+        try: ivac, _ = iva_libro(fc); _, ncv = iva_libro(fv)
+        except Exception as err: x.log.append(f"22 {mm(p)}: no se pudo leer el libro ({err})"); continue
+        dec = round(ivac - (dj['cf'] - ncv), 2)
+        cuenta = (f"IVA de las facturas del libro de compras {pesos(ivac)} − (crédito fiscal de la DDJJ {pesos(dj['cf'])} − IVA de las NC "
+                  f"del libro de ventas {pesos(ncv)}) = {pesos(dec)}")
+        if dec < -CFG['prorrateo_libro_tol_min']:
+            x.add(22, p, 'Crédito fiscal mayor que el libro', 'Rojo',
+                  f"En {mm(p)} el crédito fiscal declarado supera al IVA de las facturas del libro de compras: {cuenta}. El libro no es el de la "
+                  f"DDJJ presentada ({os.path.basename(fc)}) o la DDJJ computó IVA que no está en el libro.", None, dec, fuente=fdj, comparar=round(dec))
+            x.ok(22, p); continue
+        v = e.v(r, p) if r else 0.0
+        if r and abs(v - dec) > tol(dec):
+            x.add(22, p, 'IVA Prorrateo vs libro IVA', 'Rojo',
+                  f"La fila IVA Prorrateo del EERR de {mm(p)} ({pesos(v)}) no es el IVA no computable que surge del libro IVA y la DDJJ presentada: "
+                  f"{cuenta}" + (". El EERR está en cero." if not v else ". Suele ser la clasificación mercadería / servicios del Maestro distinta "
+                  "de la del papel, o un libro de compras distinto del presentado.") + f" Libro: {os.path.basename(fc)}.",
+                  round(v, 2), dec, celda=e.ref(r, p), fuente=fc)
+        d = P.get(p)
+        nocomp = d['k'].get('total iva no computable (servicios)') if d else None
+        if num(nocomp) and abs(nocomp - dec) > CFG['prorrateo_papel_tol']:
+            x.add(22, p, 'Prorrateo del papel vs libro IVA', 'Amarillo',
+                  f"El IVA no computable del papel de {mm(p)} ({pesos(nocomp)}, hoja {d['hoja']}) no es el que surge del libro IVA y la DDJJ: "
+                  f"{cuenta}. El IVA de compras del papel no es el del libro ({os.path.basename(fc)}) o el crédito fiscal del papel no es el de la DDJJ.",
+                  round(nocomp, 2), dec, fuente=d['f'])
+        x.ok(22, p)
+    if sin_dj:
+        x.log.append(f"22: sin DDJJ de IVA (PDF AAAAMM-IVA-DDJJ o ddjj-iva) en {', '.join(mm(p) for p in sin_dj)}: no se controla el prorrateo esos meses")
+    x.ok(22)
+
+
+CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22]
 
 
 def analizar(args):
@@ -1223,6 +1302,7 @@ def analizar(args):
     x = Ctx(f, hasta)
     nombre = norm(re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5])
     exc = {int(c) for k, cs in CFG['excepciones'].items() if norm(k) == nombre or re.sub(r'\D', '', k) == (x.e.cuit or '-') for c in cs}
+    x.excepciones = exc
     for i, chk in enumerate(CHECKS, 1):
         if i in exc: x.log.append(f"Control {i} no corre para esta sociedad (excepción en la configuración)"); continue
         try: chk(x)
