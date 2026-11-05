@@ -1,0 +1,8 @@
+{
+  "name": "dfe-arba",
+  "description": "Revisa la bandeja del Domicilio Fiscal Electrónico (DFE) de ARBA de todas las sociedades —intimaciones, notificaciones y avisos, leídos o no— sin abrir ninguna, y cruza el Maestro de Sociedades con la planilla de claves, en un Excel consolidado. Solo lectura, login automático con la CIT de la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arba", "dfe", "domicilio fiscal electronico", "notificaciones", "intimaciones", "playwright", "argentina"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "dfe-arba",
+  "version": "1.0.0",
+  "description": "Bandeja del Domicilio Fiscal Electrónico de ARBA de todas las sociedades con Playwright.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "lote": "node scripts/dfe-arba.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}
