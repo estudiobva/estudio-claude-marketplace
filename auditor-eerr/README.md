@@ -1,6 +1,6 @@
 # auditor-eerr
 
-Auditor de los Estados de Resultados (EERR 2026) de las sociedades. Corre 21 controles sobre cada
+Auditor de los Estados de Resultados (EERR 2026) de las sociedades. Corre 22 controles sobre cada
 `EERR ... .xlsx` de `0 - ESTUDIO - 00000000000/EERR 2026/` y documenta los hallazgos en la hoja **Auditorias**
 del mismo archivo.
 
@@ -24,6 +24,9 @@ python scripts/auditor_eerr.py --todas [--hasta=AAAAMM] [--simular] [--procesos=
 - **Desde 1.2.0:** hoja **Utilidades** (utilidad bruta y operativa por mes, con fórmulas sobre el EERR) y alerta de
   pérdida operativa; gastos fijos detectados en los últimos 6 meses (cuentas y proveedores) con alerta en el mes que
   faltan; Zetti vs Portal IVA sin tolerancia; NCR con neto gravado o IVA en el libro de compras = rojo.
+- **Desde 1.3.0:** control 22, prorrateo contra el libro IVA: IVA de las facturas del libro de compras − (crédito
+  fiscal de la DDJJ − IVA de las NC del libro de ventas) = IVA no computable declarado; se compara con la fila IVA
+  Prorrateo del EERR (rojo) y con el papel de trabajo (amarillo).
 - **Requisitos:** Python 3 con `openpyxl` y `pypdf` (`requirements.txt`) y Microsoft Excel (Windows: PowerShell +
   COM; Mac: AppleScript) para recalcular cada archivo antes de devolverlo a la unidad.
 - **Configuración:** `~/.fisco-ar/.env` (`BVA_UNIDAD_PATH`, `BVA_SALIDAS_PATH`) y, opcional, umbrales y excepciones por

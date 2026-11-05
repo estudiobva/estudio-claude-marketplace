@@ -1,6 +1,6 @@
 ---
 name: auditor-eerr
-description: "Audita los Estados de Resultados (EERR 2026) de una o todas las sociedades con 21 controles (período, meses completos, fórmulas, resultado, margen bruto, gastos/ventas, ventas vs Portal IVA y Zetti, existencias, NCR vs NC comerciales, compras clasificadas = Portal IVA compras, sueldos vs F.931, IIBB vs DJ ARBA, IVA prorrateo, tasas, gastos fijos y financieros, y del papel de trabajo: débito/crédito fiscal vs DDJJ, signo de las NC, cómputo de NRF, prorrateo, venta vs compra exenta/gravada y NC de compras vs libro) y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR, con fecha, descripción, links y estado Pendiente/Resuelto/Aprobado. Usar SIEMPRE que pidan \"auditá el EERR de [sociedad]\", \"auditar los EERR\", \"correr el auditor\", \"qué errores tiene el EERR\", \"control del estado de resultados\", \"KPIs de auditoría\" o \"revisar la solapa Auditorias\"."
+description: "Audita los Estados de Resultados (EERR 2026) de una o todas las sociedades con 22 controles (período, meses completos, fórmulas, resultado, margen bruto, gastos/ventas, ventas vs Portal IVA y Zetti, existencias, NCR vs NC comerciales, compras clasificadas = Portal IVA compras, sueldos vs F.931, IIBB vs DJ ARBA, IVA prorrateo, tasas, gastos fijos y financieros, y del papel de trabajo: débito/crédito fiscal vs DDJJ, signo de las NC, cómputo de NRF, prorrateo, venta vs compra exenta/gravada y NC de compras vs libro; y el prorrateo contra el libro IVA y la DDJJ) y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR, con fecha, descripción, links y estado Pendiente/Resuelto/Aprobado. Usar SIEMPRE que pidan \"auditá el EERR de [sociedad]\", \"auditar los EERR\", \"correr el auditor\", \"qué errores tiene el EERR\", \"control del estado de resultados\", \"KPIs de auditoría\" o \"revisar la solapa Auditorias\"."
 ---
 
 # Auditor de EERR
@@ -48,7 +48,7 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
   Pendiente (y sin fecha de detección, con la de esa auditoría). Se reconocen por la clave oculta `M|n`. El formato
   propio de la celda (colores, fuentes) no se conserva porque la hoja se rearma en cada auditoría.
 
-## Los 21 controles
+## Los 22 controles
 
 1. Período: 12 meses seguidos, nombre del archivo, CUIT y carpeta; meses no cerrados con datos.
 2. Meses completos: ventas, CMV y sueldos en cada mes; importes repetidos entre meses (y entre sociedades con `--todas`).
@@ -92,6 +92,17 @@ liquidaciones del equipo por etiqueta (no el "- AUTOMATICO"); los `.xls` no se l
     que se apartan 30% de su mediana.
 21. NC de compras del papel = libro de compras del Portal IVA (con o sin las NCR ya eliminadas del libro), con el detalle
     NCR / NC comerciales.
+
+Control del libro IVA (desde 1.3.0):
+
+22. Prorrateo vs libro IVA: el IVA que no se computó por prorrateo sale de los libros del Portal IVA y de la DDJJ
+    presentada, sin depender de la clasificación mercadería / servicios: **IVA de las facturas del libro de compras −
+    (crédito fiscal de la DDJJ − IVA de las NC del libro de ventas)**. Rojo si la fila IVA Prorrateo del EERR se aparta
+    más de $1.000 o 2% de ese importe; rojo si el crédito fiscal declarado supera al IVA del libro de compras (el libro no
+    es el presentado); amarillo si el IVA no computable del papel difiere en más de $100 (el papel no usa el libro
+    presentado o su crédito fiscal no es el de la DDJJ). En los meses donde corre, el control 19 ya no compara el EERR
+    contra el papel (el EERR se controla contra lo declarado). Usa el libro "(DDJJ presentada)"
+    si está; si no, el de la carpeta IVA. Meses sin DDJJ de IVA: aviso en el historial.
 
 Excepciones por sociedad (una sola auditoría, criterio de Javi): en `auditor_eerr_config.json`,
 `"excepciones": {"<sociedad o CUIT>": [19]}` saltea esos controles para esa sociedad (queda anotado en el historial).
