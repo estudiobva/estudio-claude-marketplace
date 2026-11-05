@@ -21,6 +21,8 @@
 #   - IVA: F.2051 (nombres "iva-dj", "dj-iva", "IVA-DDJJ"...).
 #   - IIBB: R-606M de ARBA, SICOL de AGIP o CM03 de Convenio Multilateral ("iibb-dj",
 #     "IIBB-DDJJ", "IIBB AGIP-DDJJ", "IIBB CM-DDJJ", "IIBBCM-DJ"...).
+#   - Rectificativas: "AAAAMM-IVA-DDJJRECT1-<sociedad>", "AAAAMM-IIBB-DDJJRECT2-<sociedad>"...
+#     Si hay original y rectificativas se usa la de numero mas alto (y es la que se sube).
 # El F.2051 y el R-606M con texto se leen solos. Las DJ que son imagen, y todas las de AGIP
 # y CM03 (el texto sale desordenado), se pasan a PNG en <salida>/imagenes/AAAAMM/ y quedan
 # como "pendientes" en el JSON de salida, con los campos que hay que leer. Claude (o una
@@ -66,6 +68,7 @@ PLUGIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 EXCLUIR = re.compile(r'acuse|vep|sicore|sire|tsh|agentes|condominio|retenciones', re.I)
 PAT_IVA = re.compile(r'(iva[-_ ]*d?dj|d?dj[-_ ]*iva)', re.I)
 PAT_IIBB = re.compile(r'(iibb[-_ ]*(cm|agip)?[-_ ]*d?dj|d?dj[-_ ]*iibb)', re.I)
+PAT_RECT = re.compile(r'rect(?:ificativa|if)?\.?[-_ ]*(\d*)', re.I)
 CAMPOS_IVA = ['st_arca', 'st_contribuyente', 'sld_anterior', 'retenciones', 'sld', 'a_pagar']
 CAMPOS = {
     'ARBA': ['saldo_dj', 'saldo_anterior', 'acumulado'],
@@ -167,9 +170,17 @@ def pdfs_dj(soc, per):
         return [], []
     todos = [os.path.join(d, f) for d, _, fs in os.walk(base) for f in fs
              if f.lower().endswith('.pdf') and not EXCLUIR.search(os.path.relpath(os.path.join(d, f), base))]
-    iva = sorted(p for p in todos if PAT_IVA.search(os.path.basename(p)))
-    iibb = sorted(p for p in todos if PAT_IIBB.search(os.path.basename(p)))
+    # Primero la ultima rectificativa: RECT2 antes que RECT1 y RECT1 antes que el original.
+    orden = lambda p: (-secuencia(p), p)
+    iva = sorted((p for p in todos if PAT_IVA.search(os.path.basename(p))), key=orden)
+    iibb = sorted((p for p in todos if PAT_IIBB.search(os.path.basename(p))), key=orden)
     return iva, iibb
+
+
+def secuencia(pdf):
+    # Numero de rectificativa segun el nombre del archivo (0 = original).
+    m = PAT_RECT.search(os.path.basename(pdf))
+    return (int(m.group(1)) if m.group(1) else 1) if m else 0
 
 
 def texto(pdf):
@@ -319,7 +330,11 @@ def main():
         sin_previo = not iva_f and not iibb_f and not any(pdfs_dj(soc, previo))
         if len(iva_f) > 1 or len(iibb_f) > 1:
             f['avisos'].append('varias DJ: ' + '; '.join(os.path.basename(p) for p in iva_f[1:] + iibb_f[1:]) +
-                               ' (se usa la primera: revisar si hay rectificativa)')
+                               ' (se usa la de rectificativa mas alta: ' +
+                               '; '.join(os.path.basename(p[0]) for p in (iva_f, iibb_f) if p) + ')')
+        for imp, p in (('IVA', iva_f), ('IIBB', iibb_f)):
+            if p and secuencia(p[0]):
+                f['avisos'].append(f'{imp} rectificativa {secuencia(p[0])} segun el nombre del archivo')
         man = manual.get(cu, {})
 
         # IVA

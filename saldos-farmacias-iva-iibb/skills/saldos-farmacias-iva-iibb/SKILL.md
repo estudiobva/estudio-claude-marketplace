@@ -113,6 +113,12 @@ no coinciden. No sobrescribir celdas con valor sin avisar.
 Destino: `Estudio Contable / Documentos / saldos y pagos de IVA e IIBB / DDJJ IVA-IIBB MM-AAAA`
 (carpeta plana, sin subcarpetas por sociedad; los PDF con el mismo nombre que en la unidad).
 
+Nombres: `AAAAMM-IVA-DDJJ-<sociedad>` y `AAAAMM-IIBB-DDJJ-<sociedad>` (excepciones en IIBB:
+`IIBB CM`, `IIBB AGIP`). Las **rectificativas** van como `AAAAMM-IVA-DDJJRECT1-<sociedad>` y
+`AAAAMM-IIBB-DDJJRECT1-<sociedad>` (`RECT2`, `RECT3`... si hay mas de una). Si en la carpeta
+del mes estan el original y la rectificativa, el script usa y sube la de numero mas alto, y lo
+deja en los avisos: decirle al usuario en que sociedades hubo rectificativa.
+
 1. Correr con `--preparar-subida`: deja en `<salida>/DDJJ IVA-IIBB MM-AAAA/` las DJ de IVA e
    IIBB usadas (sin acuses ni VEP).
 2. Mostrarle al usuario la carpeta y la cantidad de archivos y **esperar su OK**: es el sitio
