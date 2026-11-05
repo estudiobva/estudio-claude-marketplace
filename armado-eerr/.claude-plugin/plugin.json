@@ -1,0 +1,8 @@
+{
+  "name": "armado-eerr",
+  "description": "Arma y actualiza los Estados de Resultados (EERR) mensuales de las sociedades desde las fuentes de la unidad: ventas y compras del Portal IVA (compras imputadas con el Maestro de Proveedores), IIBB de la DJ de ARBA, sueldos del F.931, IVA prorrateo, Seguridad e Higiene y Publicidad del papel de trabajo. Completa solo lo vacío, registra cada carga en la hoja 'Armado' y crea el EERR del ejercicio nuevo cuando cierra el anterior.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["eerr", "estado de resultados", "portal iva", "maestro de proveedores", "f931", "iibb", "argentina"]
+}
