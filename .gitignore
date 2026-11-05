@@ -64,3 +64,6 @@ id_rsa*
 
 # Plantilla vacía de la planilla de facturación (sin datos)
 !facturacion-arca/assets/Plantilla Facturacion ARCA.xlsx
+
+# Plantilla vacía del EERR (sin datos de ninguna sociedad)
+!armado-eerr/assets/Plantilla EERR.xlsx

@@ -118,6 +118,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "armado-eerr",
+      "source": "./armado-eerr",
+      "description": "Arma y actualiza los EERR mensuales de las sociedades desde el Portal IVA (compras imputadas con el Maestro de Proveedores), la DJ de ARBA, el F.931 y el papel de trabajo; completa solo lo vacío y crea el EERR del ejercicio nuevo.",
+      "category": "contabilidad"
+    },
+    {
       "name": "auditor-eerr",
       "source": "./auditor-eerr",
       "description": "Audita los EERR 2026 de las sociedades con 21 controles (Portal IVA, Zetti, F.931, DJ ARBA, NCR, Maestro de Proveedores y papel de trabajo) y documenta los hallazgos en la hoja Auditorias del mismo EERR, con estado Pendiente/Resuelto/Aprobado.",
