@@ -58,6 +58,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "dfe-arba",
+      "source": "./dfe-arba",
+      "description": "Revisa la bandeja del Domicilio Fiscal Electrónico de ARBA de todas las sociedades (intimaciones, notificaciones y avisos) sin abrir ninguna, y cruza el Maestro de Sociedades con la planilla de claves, en un Excel consolidado.",
+      "category": "contabilidad"
+    },
+    {
       "name": "bancos-bva",
       "source": "./bancos-bva",
       "description": "Descarga extractos bancarios del home banking de empresas con Playwright, los renombra y los archiva por sociedad, banco y año, y baja el cuadro de marcha de los préstamos vigentes. En revisión: ver el estado por banco en su README.",
