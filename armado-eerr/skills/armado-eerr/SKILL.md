@@ -33,8 +33,8 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 2. **DJ de anticipo de ARBA** (`AAAAMM-IIBB-DJ-*.pdf` o `AAAAMM-IIBB-DDJJ-*.pdf`): `constancias-anticipo-arba`.
    AGIP y Convenio Multilateral no tienen fuente automática: IIBB queda vacío y se carga a mano.
 3. **F.931** (`02-Sueldos y F.931/AAAA/AAAAMM-F931-DDJJ-*.pdf`): `f931-descarga-arca`.
-4. **Papel de trabajo** del equipo (`AAAA00-liquidaciones-...xlsx`, hoja `MM-AAAA`) para la alícuota de Seguridad e
-   Higiene y la PyP. Si el mes no está cargado, usa la alícuota del último mes que la tenga; si ningún papel la tiene,
+4. **Papel de trabajo** del equipo (`AAAA00-liquidaciones-...xlsx`) para el **IVA prorrateo**, la alícuota de Seguridad e
+   Higiene y la PyP. El "- AUTOMATICO" no se usa para el prorrateo. Si el mes no está cargado, usa la alícuota del último mes que la tenga; si ningún papel la tiene,
    la tasa efectiva del EERR (queda **ESTIMADO** en el comentario de la celda).
 
 ## Qué hace
@@ -46,7 +46,7 @@ Por cada mes y concepto, **solo si la celda del EERR está vacía**:
 | Ventas exentas y no gravadas / gravadas | libro de ventas → hoja "Ventas Portal IVA" (por tipo de comprobante) + SUMIFS |
 | CMV y gastos de compras | libro de compras imputado con el Maestro → hoja "Compras imputadas" (proveedor × mes) + SUMIFS |
 | IIBB | impuesto determinado de la DJ de ARBA |
-| IVA Prorrateo | IVA de compras que no son CMV × % de venta exenta → hoja "IVA prorrateo" |
+| IVA Prorrateo | el del **papel de trabajo del equipo** (hoja EERR o "Total IVA No Computable" del mes): es lo presentado en la DDJJ. Si el papel no lo tiene, se calcula (IVA de compras no CMV × % de venta exenta) y queda marcado CALCULADO. La hoja "IVA prorrateo" queda de control |
 | Sueldos y Cargas Sociales | F.931 → hoja "Sueldos" (sección VIII; rectificativa con VIII en cero: I, II y VI) |
 | Seguridad e Higiene | ventas gravadas × alícuota del papel + conceptos fijos |
 | Publicidad | PyP del papel + compras imputadas a Publicidad |

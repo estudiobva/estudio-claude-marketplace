@@ -18,8 +18,10 @@
 #                                            total - percepciones. Bloqueados y bienes de uso quedan fuera del resultado;
 #                                            estado Revisar o sin Maestro -> GASTOS VARIOS (y se avisa).
 #   IIBB ................................... impuesto determinado de la DJ de anticipo de ARBA (PDF del mes)
-#   IVA Prorrateo .......................... IVA de las compras que no son CMV x proporción de ventas exentas y no
-#                                            gravadas del mes (mismo método que el papel de trabajo), hoja "IVA prorrateo"
+#   IVA Prorrateo .......................... el del papel de trabajo del equipo (hoja EERR o "Total IVA No Computable"
+#                                            de la hoja MM-AAAA), que es lo presentado en la DDJJ (criterio 05/11/2026).
+#                                            Si el papel no lo tiene: IVA de compras no CMV x % de venta exenta (CALCULADO,
+#                                            se avisa); la hoja "IVA prorrateo" queda siempre como control
 #   Sueldos y Cargas Sociales .............. F.931 del mes (sección VIII; rectificativa con VIII en cero: I, II y VI)
 #   Seguridad e Higiene .................... ventas gravadas x alícuota de la tasa + conceptos fijos, tomados del papel de
 #                                            trabajo del equipo (hoja MM-AAAA del "...liquidaciones..."; si el mes no
@@ -175,6 +177,7 @@ class Fuentes:
                     for x in fs:
                         if not x.startswith(('~$', '.')): self.idx.append((nfc(x), os.path.join(raiz, x)))
         self._papel = None
+        self._pror = None
         self.tasas_sh = {}        # {AAAAMM: S&H / ventas gravadas} de los EERR de la sociedad (respaldo sin alícuota en el papel)
 
     def buscar(self, patron, per=None):
@@ -224,6 +227,33 @@ class Fuentes:
                 except Exception: d = None
                 if d and d.get('rem_art') is not None: return d, f
         return None, None
+
+    # ---- IVA prorrateo del papel de trabajo del equipo (criterio del 05/11/2026: el prorrateo sale del papel, que es lo
+    #      presentado en la DDJJ de IVA). Hoja EERR del papel, fila "IVA Prorrateo"; si no, "Total IVA No Computable
+    #      (Servicios)" de la hoja MM-AAAA. Nunca el "- AUTOMATICO": clasifica con el Maestro y no es lo presentado.
+    def prorrateo_papel(self, per):
+        if self._pror is None:
+            self._pror = {}
+            fs = [p for n, p in self.idx if 'liquidaciones' in norm(n) and n.lower().endswith('.xlsx') and
+                  not re.search(r'no va|no usar|automatico', norm(n))]
+            for f in sorted(fs, key=lambda p: os.path.basename(p)):
+                try: wb = abrir(f, read_only=True, data_only=True)
+                except Exception: continue
+                for h in wb.sheetnames:
+                    m = re.match(r'^(\d{2})-(\d{4})$', h.strip())
+                    if m:
+                        for r in wb[h].iter_rows(max_col=12, values_only=True):
+                            if len(r) > 10 and norm(r[9]) == 'total iva no computable (servicios)' and num(r[10]) and abs(r[10]) > 0.004:
+                                self._pror.setdefault(f"{m[2]}{m[1]}", (round(float(r[10]), 2), f, f"hoja {h}"))
+                    elif h.strip().lower() == 'eerr':
+                        rows = list(wb[h].iter_rows(max_row=90, max_col=20, values_only=True))
+                        hdr = next((i for i, r in enumerate(rows) if norm(r[0]) == 'concepto'), None)
+                        fila = next((r for r in rows if norm(r[0]) == 'iva prorrateo'), None)
+                        if hdr is None or fila is None: continue
+                        for j, v in enumerate(rows[hdr]):
+                            if hasattr(v, 'year') and j < len(fila) and num(fila[j]) and abs(fila[j]) > 0.004:
+                                self._pror[f"{v.year}{v.month:02d}"] = (round(float(fila[j]), 2), f, 'hoja EERR')   # manda la hoja EERR
+        return self._pror.get(per)
 
     # ---- papel de trabajo del equipo (hojas MM-AAAA de "AAAA00-liquidaciones-...")
     def papel(self):
@@ -412,7 +442,9 @@ def datos_mes(F, per):
                 d['fuentes']['sh'] = ('', f"estimado con la tasa efectiva de {mm(ant[-1])} del EERR")
     if P.get(per) and P[per].get('pyp') is not None:
         d['pyp'] = round(P[per]['pyp'], 2); d['fuentes']['pyp'] = (P[per]['f'], f"papel de trabajo, hoja {P[per]['hoja']}")
-    # prorrateo
+    # prorrateo: el del papel de trabajo; el cálculo (compras no CMV x % exento) queda de control y de respaldo
+    pp = F.prorrateo_papel(per)
+    if pp: d['pror_papel'] = pp[0]; d['fuentes']['prorrateo'] = (pp[1], f"papel de trabajo, {pp[2]}")
     if 'compras' in d and 'gr' in d:
         tot = d['gr'] + d['ex']
         d['pct_ex'] = d['ex'] / tot if tot else 0.0
@@ -579,7 +611,8 @@ def cargar_prorrateo(ws, per, d, pisar):
         for c in range(1, 18): ws.cell(r, c).value = None; ws.cell(r, c).font = Font()
     s = d['iva_serv']
     vals = [mm(per)] + [round(s.get(a, 0.0), 2) for a in ALICS] + [round(s.get('otros', 0.0), 2), f'=SUM(B{r}:G{r})',
-            round(d['gr'], 2), round(d['ex'], 2), f'=IF(I{r}+J{r}=0,0,J{r}/(I{r}+J{r}))', f'=H{r}*K{r}', None, None,
+            round(d['gr'], 2), round(d['ex'], 2), f'=IF(I{r}+J{r}=0,0,J{r}/(I{r}+J{r}))', f'=H{r}*K{r}', d.get('pror_papel'),
+            f'=L{r}-M{r}' if d.get('pror_papel') is not None else None,
             round(d['iva_merc'], 2), round(d['iva_fuera'], 2), None]
     for j, v in enumerate(vals, 1):
         ws.cell(r, j).value = v
@@ -674,13 +707,20 @@ def armar_mes(wb, F, per, pisar, log):
                 f = f"={pyp or 0}+SUMIFS({CI}{letra}:{letra},{CI}$D:$D,\"Publicidad\")"
                 poner(e, r, c, f, nombre('pyp') or 'compras imputadas a Publicidad (sin PyP en el papel del mes)', log, per, 'Publicidad', pisar,
                       mostrar=pyp)
-        # IVA prorrateo
+        # IVA prorrateo calculado: hoja de control (y valor del EERR solo si el papel no lo tiene)
         if 'prorrateo' in d:
             ip = hoja_prorrateo(wb); rr, est = cargar_prorrateo(ip, per, d, pisar)
-            poner(e, fl.get('iva prorrateo'), c, f"='IVA prorrateo'!L{rr}", 'hoja IVA prorrateo (compras + ventas del Portal IVA)', log, per,
-                  'IVA Prorrateo', pisar, mostrar=d['prorrateo'])
+            if 'pror_papel' not in d:
+                poner(e, fl.get('iva prorrateo'), c, f"='IVA prorrateo'!L{rr}", 'CALCULADO (el papel de trabajo no tiene el prorrateo del mes)',
+                      log, per, 'IVA Prorrateo', pisar, mostrar=d['prorrateo'],
+                      comentario='Calculado con la clasificación del Maestro: el papel de trabajo no tiene el prorrateo de este mes. '
+                                 'Cuando esté, correr con --pisar para tomar el del papel.')
     else:
         if falta(e, fl.get('cmv'), c): log.append((per, 'Compras', 'sin fuente: falta el libro de compras del Portal IVA', None, ''))
+    # IVA prorrateo del papel de trabajo (criterio del 05/11/2026)
+    if 'pror_papel' in d:
+        poner(e, fl.get('iva prorrateo'), c, d['pror_papel'], nombre('prorrateo'), log, per, 'IVA Prorrateo', pisar,
+              comentario=f"IVA prorrateo del papel de trabajo: {os.path.basename(d['fuentes']['prorrateo'][0])}, {d['fuentes']['prorrateo'][1]}")
     # IIBB
     if 'iibb' in d:
         poner(e, fl.get('iibb'), c, round(d['iibb'], 2), nombre('iibb'), log, per, 'IIBB', pisar,
