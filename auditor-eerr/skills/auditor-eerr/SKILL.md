@@ -20,6 +20,9 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 | `--hasta=AAAAMM` | Último mes a auditar. Default: el último con la DDJJ de IVA vencida (desde el día 26, el mes anterior; si no, el anterior a ese). |
 | `--simular` | No toca la unidad: deja la copia auditada en `BVA-salidas/auditor-eerr/simulacion/`. Usarlo si el usuario solo quiere ver qué encuentra. |
 
+Libro del Portal IVA de cada mes (desde 1.3.1, el mismo criterio que armado-eerr): el de la DDJJ presentada ("presentada" en el nombre),
+si no el de la carpeta IVA; en compras, si no hay libro en .xlsx, el `AAAAMM-COMPRAS-SIN-NCR` de la conciliación.
+
 Lee los EERR de `0 - ESTUDIO - 00000000000/EERR 2026/` y, de cada sociedad, su carpeta en la unidad: libros
 `AAAAMM - PORTAL IVA - VENTAS/COMPRAS.xlsx`, cruce Zetti (hoja "cruze" del papel del mes), papel de liquidaciones
 (`202600-liquidaciones-IVA, IIBB y Tasa Municipal-X.xlsx`, hojas `MM-AAAA`), DDJJ de IVA (`AAAAMM-IVA-DDJJ-*.pdf`), F.931 (`02-Sueldos y F.931`), DJ de anticipo de ARBA
@@ -67,9 +70,12 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
 9. NCR vs NC comerciales (desvío de 30% vs su mediana); NCR no encontradas; meses sin conciliar; **NCR con gravado**
    (desde 1.2.0, rojo): las NCR conciliadas se buscan en el libro de compras del Portal IVA y no pueden tener neto gravado
    ni IVA (si ya se eliminaron del libro no se puede ver: queda en el historial).
-10. Compras clasificadas por cuenta = Portal IVA compras; cada rubro llega a su fila; proveedores sin clasificar o reclasificados en el Maestro; peso de GASTOS VARIOS.
+10. Compras clasificadas por cuenta = Portal IVA compras sin las NCR que eliminó la conciliación; cada rubro llega a su fila; proveedores sin
+    clasificar o reclasificados en el Maestro; peso de GASTOS VARIOS. Desde 1.3.1: **NCR dentro de las compras** (rojo) si el EERR se armó
+    con un libro que todavía tiene las NCR conciliadas (el CMV queda subvaluado en ese importe; rehacer el mes con armado-eerr --pisar).
 11. Sueldos vs F.931 (remuneraciones + 351 + 352 + 312 + 028); costo laboral / ventas.
-12. IIBB vs impuesto determinado de la DJ de ARBA; alícuota efectiva 1,5–5%.
+12. IIBB vs impuesto determinado de la DJ de ARBA; alícuota efectiva 1,5–5%. La DJ se reconoce con cualquiera de los nombres que usa el
+    equipo (`AAAAMM-IIBB-DJ-`, `-IIBB-DDJJ-`, `-IIBB-DDJJRECT1-`, `-iibb-djr1-`, `AAAAMM-dj-iibb-`…); manda la rectificativa de número más alto.
 13. IVA prorrateo vs la hoja de control "IVA prorrateo".
 14. Seguridad e Higiene, matrícula, publicidad y marquesinas.
 15. Gastos fijos: desde 1.2.0 se **detectan solos** en los últimos 6 meses auditados: una cuenta del EERR o un proveedor
