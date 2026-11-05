@@ -106,6 +106,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "papel-trabajo-ddjj-iva",
+      "source": "./papel-trabajo-ddjj-iva",
+      "description": "Etapa 2 del papel de trabajo (DDJJ de IVA): compras de Zetti y del Portal IVA en el papel, cruce compras, servicios (AySA/EDESUR/METROGAS) con su alícuota, clasificación de proveedores con el Maestro y cuadro resumen de compras con control.",
+      "category": "contabilidad"
+    },
+    {
       "name": "facturacion-arca",
       "source": "./facturacion-arca",
       "description": "Emite facturas de servicios en Comprobantes en Línea (ARCA) para cualquier emisor —Factura C, A o B— desde la planilla mensual: validar, dry-run y emisión con código de aprobación.",
