@@ -883,6 +883,17 @@ def main():
             try: armar_mes(wb, F, p, p in pisar, log)
             except Exception as ex:
                 log.append((p, '-', f'error: {type(ex).__name__}: {ex}', None, ''))
+        cambios = any(x[2] == 'cargado' for x in log)
+        if modo == 'actualizar' and not cambios:
+            # nada para cargar (p. ej. ejercicio cerrado): el EERR no se toca
+            for x in log:
+                if x[1] == 'Ejercicio': print(f"  {soc:28} {nombre}: sin cambios — {x[2]}")
+            if not any(x[1] == 'Ejercicio' for x in log): print(f"  {soc:28} {nombre}: sin cambios")
+            for x in log:
+                if x[2].startswith('sin fuente'): print(f"     {mm(x[0])} {x[1]}: {x[2]}")
+            resumen.append(dict(sociedad=soc, archivo=nombre, estado='sin cambios', cargados=0,
+                                sin_fuente=[f"{mm(x[0])} {x[1]}" for x in log if x[2].startswith('sin fuente')], revisar=0, errores=[]))
+            continue
         registrar(wb, log, hasta, modo)
         w = os.path.join(trabajo, nombre)
         wb.save(w); recalcular(w)
