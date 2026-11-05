@@ -46,7 +46,8 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/tys-gastos-varios.js --listar     
 
 Si falta la sociedad, preguntar. Si falta el periodo, se usa el ejercicio hasta
 el mes anterior: decirlo. Los meses sin gastos varios no generan archivo
-(`meses_sin_valores`).
+(`meses_sin_valores`); si la sociedad no tiene ninguno en el rango, `sin_gastos: true`
+(no es un error: pasa con Beauty).
 
 **Plugin instalado:** la primera vez (y despues de cada actualizacion):
 `npm install && npx playwright install chromium && python3 -m pip install -r requirements.txt`.

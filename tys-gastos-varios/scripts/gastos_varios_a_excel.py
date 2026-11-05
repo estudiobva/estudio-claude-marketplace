@@ -241,6 +241,10 @@ def parsear(csv_path):
         raras.append({'linea': n, 'texto': l[:120]})
     if raras:
         fallar(f'{len(raras)} fila/s del reporte que no reconozco', filas=raras[:10])
+    if not conceptos and cab['desde']:
+        # Reporte vacio: la sociedad no tiene gastos varios en el rango.
+        cab['total_general'] = 0.0
+        return cab, conceptos
     if estado != 'cuerpo' or not cab['desde']:
         fallar('El CSV no trae la cabecera esperada (fechas y total general)')
     return cab, conceptos
@@ -351,6 +355,7 @@ def armar(csv_path, dir_salida, kv):
         'mapeados': mapeados,
         'no_mapeados': sorted({f['concepto'] for f in validos if not mapeo_de(f['concepto'])}),
         'meses': salida_meses,
+        **({'sin_gastos': True} if not filas else {}),
         'meses_sin_valores': [f'{mm:02d}/{yy}' for yy, mm in meses if not any(f['ym'] == (yy, mm) for f in filas)],
         'eerr': eerr_path, 'aviso_eerr': aviso_eerr,
         'cruce_con_diferencia': [c for c in cruce_total if abs(c['dif']) > 1],
