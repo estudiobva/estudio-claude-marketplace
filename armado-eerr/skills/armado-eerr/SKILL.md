@@ -33,8 +33,9 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 2. **DJ de anticipo de ARBA** (`AAAAMM-IIBB-DJ-*.pdf` o `AAAAMM-IIBB-DDJJ-*.pdf`): `constancias-anticipo-arba`.
    AGIP y Convenio Multilateral no tienen fuente automática: IIBB queda vacío y se carga a mano.
 3. **F.931** (`02-Sueldos y F.931/AAAA/AAAAMM-F931-DDJJ-*.pdf`): `f931-descarga-arca`.
-4. **Papel de trabajo** del equipo (`AAAA00-liquidaciones-...xlsx`, hoja `MM-AAAA`) para la alícuota de Seguridad e
-   Higiene y la PyP. Si el mes no está cargado, usa la alícuota del último mes que la tenga; si ningún papel la tiene,
+4. **Papel de trabajo** del equipo (`AAAA00-liquidaciones-...xlsx`): es la fuente de ventas, IIBB, prorrateo, Seguridad e
+   Higiene y PyP. El "- AUTOMATICO" no se usa. Los libros, la DJ de ARBA y el cálculo solo cubren los meses que el papel
+   todavía no tiene (quedan avisados para rehacer con `--pisar`). Si el mes no está cargado, usa la alícuota del último mes que la tenga; si ningún papel la tiene,
    la tasa efectiva del EERR (queda **ESTIMADO** en el comentario de la celda).
 
 ## Qué hace
@@ -43,13 +44,18 @@ Por cada mes y concepto, **solo si la celda del EERR está vacía**:
 
 | Fila del EERR | Fuente |
 |---|---|
-| Ventas exentas y no gravadas / gravadas | libro de ventas → hoja "Ventas Portal IVA" (por tipo de comprobante) + SUMIFS |
-| CMV y gastos de compras | libro de compras imputado con el Maestro → hoja "Compras imputadas" (proveedor × mes) + SUMIFS |
-| IIBB | impuesto determinado de la DJ de ARBA |
-| IVA Prorrateo | IVA de compras que no son CMV × % de venta exenta → hoja "IVA prorrateo" |
+| Ventas exentas y no gravadas / gravadas | **papel de trabajo** (hoja EERR del papel de liquidaciones). Sin papel del mes: libro de ventas del Portal IVA. La hoja "Ventas Portal IVA" queda de control |
+| IIBB | **papel de trabajo**. Sin papel del mes: impuesto determinado de la DJ de ARBA |
+| IVA Prorrateo | **papel de trabajo** (lo presentado en la DDJJ). Sin papel del mes: CALCULADO con el Maestro (avisado). La hoja "IVA prorrateo" queda de control |
+| Seguridad e Higiene | **papel de trabajo**. Sin papel del mes: ventas gravadas × alícuota del papel + conceptos fijos |
+| Publicidad | PyP del **papel de trabajo** + compras imputadas a Publicidad |
+| CMV y gastos de compras | no están en el papel: libro de compras imputado con el Maestro → hoja "Compras imputadas" (proveedor × mes) + SUMIFS |
 | Sueldos y Cargas Sociales | F.931 → hoja "Sueldos" (sección VIII; rectificativa con VIII en cero: I, II y VI) |
-| Seguridad e Higiene | ventas gravadas × alícuota del papel + conceptos fijos |
-| Publicidad | PyP del papel + compras imputadas a Publicidad |
+
+**Criterio (05/11/2026): toda la información del EERR sale del papel de liquidaciones del equipo**
+(`AAAA00-liquidaciones-...xlsx`, nunca el "- AUTOMATICO", y el papel solo se lee). El mes de cada columna de la hoja EERR
+del papel se toma de la hoja mensual a la que apunta la fórmula (`'MM-AAAA'!`), no del encabezado. La carga no filtra ni
+corrige el papel: el control contra las DDJJ lo hace `auditor-eerr`.
 
 Criterios de las compras (acordados el 01/10/2026): **manda el Maestro de Proveedores**. Importe = no gravado + exento
 + netos; sin IVA discriminado (B, C, tiques), total − percepciones. Bloqueados y bienes de uso (`COMPRA DE EQUIPOS`)
