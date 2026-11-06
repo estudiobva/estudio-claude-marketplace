@@ -9,22 +9,21 @@
 #   --crear:              arma el EERR del ejercicio siguiente al último que tiene la sociedad (o el que empieza en
 #                         --desde) desde la plantilla limpia, y lo completa hasta --hasta.
 #
-# De dónde sale cada fila (criterios acordados con el usuario, 01-08/10/2026):
-#   Ventas exentas y no gravadas / gravadas  libro de VENTAS del Portal IVA (exento + no gravado + neto 0% / neto gravado),
-#                                            por tipo de comprobante en la hoja "Ventas Portal IVA"
-#   CMV y gastos de compras ................ libro de COMPRAS del Portal IVA imputado por proveedor con el Maestro de
-#                                            Proveedores (manda el Maestro), hoja "Compras imputadas" + SUMIFS.
-#                                            Importe: no gravado + exento + netos; sin IVA discriminado (B, C, tiques),
-#                                            total - percepciones. Bloqueados y bienes de uso quedan fuera del resultado;
+# De dónde sale cada fila (criterio del usuario 05/11/2026: TODA la información sale del papel de liquidaciones del equipo,
+# "AAAA00-liquidaciones-...", hoja EERR; nunca el "- AUTOMATICO". El auditor (auditor-eerr) la verifica contra las DDJJ):
+#   Ventas exentas y gravadas, IIBB, IVA Prorrateo, Seguridad e Higiene y Publicidad (PyP) ... papel de trabajo
+#                                            (el mes de cada columna sale de la hoja 'MM-AAAA'! de la fórmula, no del
+#                                            encabezado). Si el papel no tiene el mes: ventas del libro del Portal IVA,
+#                                            IIBB de la DJ de ARBA, S&H con la alícuota del papel, prorrateo CALCULADO
+#                                            (queda en el comentario de la celda: rehacer con --pisar cuando esté el papel)
+#   CMV y gastos de compras ................ no están en el papel: libro de COMPRAS del Portal IVA imputado por proveedor
+#                                            con el Maestro de Proveedores (manda el Maestro), hoja "Compras imputadas" +
+#                                            SUMIFS. Importe: no gravado + exento + netos; sin IVA discriminado (B, C,
+#                                            tiques), total - percepciones. Bloqueados y bienes de uso fuera del resultado;
 #                                            estado Revisar o sin Maestro -> GASTOS VARIOS (y se avisa).
-#   IIBB ................................... impuesto determinado de la DJ de anticipo de ARBA (PDF del mes)
-#   IVA Prorrateo .......................... IVA de las compras que no son CMV x proporción de ventas exentas y no
-#                                            gravadas del mes (mismo método que el papel de trabajo), hoja "IVA prorrateo"
+#   Publicidad ............................. PyP del papel + compras imputadas a Publicidad
 #   Sueldos y Cargas Sociales .............. F.931 del mes (sección VIII; rectificativa con VIII en cero: I, II y VI)
-#   Seguridad e Higiene .................... ventas gravadas x alícuota de la tasa + conceptos fijos, tomados del papel de
-#                                            trabajo del equipo (hoja MM-AAAA del "...liquidaciones..."; si el mes no
-#                                            está cargado, la alícuota del último mes que la tenga)
-#   Publicidad ............................. PyP del papel de trabajo del mes + compras imputadas a Publicidad
+#   Hojas de control ....................... "Ventas Portal IVA" (libro por tipo) e "IVA prorrateo" (cálculo con el Maestro)
 # Lo que no tiene fuente queda vacío y figura en la hoja "Armado" (registro de cada corrida: mes, concepto, acción,
 # valor y archivo de origen).
 #
@@ -102,6 +101,9 @@ RUBRO = {
  'UNIFORMES': 'UNIFORMES', 'MATRICULA COLEGIO FARMACEUTICOS': 'Matricula Colegio Farmaceuticos',
  'PUBLICIDAD - CARTELERIA': 'Publicidad', 'PUBLICIDAD - FOLLETOS': 'Publicidad',
 }
+PAPEL_CONC = {'ventas exentas': 'ventas exentas y no gravadas', 'ventas exentas y no gravadas': 'ventas exentas y no gravadas',
+              'ventas gravadas': 'ventas gravadas', 'iibb': 'iibb', 'iva prorrateo': 'iva prorrateo',
+              'seguridad e higiene': 'seguridad e higiene', 'publicidad': 'publicidad'}
 EXCL_BLOQ, EXCL_BU = 'EXCLUIDO - PROVEEDOR BLOQUEADO', 'EXCLUIDO - BIEN DE USO'
 ALICS = ['2,5%', '5%', '10,5%', '21%', '27%']
 PERC = ['Importe de Per. o Pagos a Cta. de Otros Imp. Nac.', 'Importe de Percepciones de Ingresos Brutos', 'Importe de Impuestos Municipales',
@@ -175,6 +177,7 @@ class Fuentes:
                     for x in fs:
                         if not x.startswith(('~$', '.')): self.idx.append((nfc(x), os.path.join(raiz, x)))
         self._papel = None
+        self._pror = None
         self.tasas_sh = {}        # {AAAAMM: S&H / ventas gravadas} de los EERR de la sociedad (respaldo sin alícuota en el papel)
 
     def buscar(self, patron, per=None):
@@ -224,6 +227,44 @@ class Fuentes:
                 except Exception: d = None
                 if d and d.get('rem_art') is not None: return d, f
         return None, None
+
+    # ---- papel de liquidaciones del equipo, hoja EERR (criterio del usuario 05/11/2026: TODA la información del EERR sale
+    #      del papel; las compras no están en el papel y salen del Portal IVA; el auditor verifica contra las DDJJ).
+    #      El mes de cada columna sale de la hoja a la que apunta la fórmula ('MM-AAAA'!), no del encabezado (hay papeles
+    #      con encabezados copiados). Nunca el "- AUTOMATICO". El prorrateo, si la hoja EERR no lo tiene, del "Total IVA No
+    #      Computable (Servicios)" de la hoja del mes.
+    def papel_eerr(self, per, k):
+        if self._pror is None:
+            self._pror = {}
+            fs = [p for n, p in self.idx if 'liquidaciones' in norm(n) and n.lower().endswith('.xlsx') and
+                  not re.search(r'no va|no usar|automatico', norm(n)) and not re.search(r'[/\\]20\d{4}$', os.path.dirname(p))]
+            for f in sorted(fs, key=lambda p: os.path.basename(p)):
+                try: wv = abrir(f, data_only=True); wf = abrir(f)
+                except Exception: continue
+                for h in wv.sheetnames:
+                    m = re.match(r'^(\d{2})-(\d{4})$', h.strip())
+                    if m:
+                        for r in wv[h].iter_rows(max_col=12, values_only=True):
+                            if len(r) > 10 and norm(r[9]) == 'total iva no computable (servicios)' and num(r[10]) and abs(r[10]) > 0.004:
+                                self._pror.setdefault((f"{m[2]}{m[1]}", 'iva prorrateo'), (round(float(r[10]), 2), f, f"hoja {h}"))
+                h = next((x for x in wv.sheetnames if x.strip().lower() == 'eerr'), None)
+                if not h: continue
+                ef, ev = wf[h], wv[h]
+                hdr = next((r for r in range(1, 20) if norm(ef.cell(r, 1).value) == 'concepto'), None)
+                if not hdr: continue
+                cols = {}
+                for c in range(2, 16):
+                    cnt = collections.Counter(f"{x[2]}{x[1]}" for r in range(hdr + 1, min(ef.max_row, hdr + 70) + 1)
+                                              if isinstance(ef.cell(r, c).value, str) for x in re.finditer(r"'(\d{2})-(\d{4})'!", ef.cell(r, c).value))
+                    if cnt: cols[c] = cnt.most_common(1)[0][0]
+                    elif hasattr(ef.cell(hdr, c).value, 'year'): cols[c] = f"{ef.cell(hdr, c).value.year}{ef.cell(hdr, c).value.month:02d}"
+                for r in range(hdr + 1, min(ef.max_row, hdr + 70) + 1):
+                    lab = PAPEL_CONC.get(norm(ef.cell(r, 1).value))
+                    if not lab: continue
+                    for c, p in cols.items():
+                        v = ev.cell(r, c).value
+                        if num(v) and abs(v) > 0.004: self._pror[(p, lab)] = (round(float(v), 2), f, 'hoja EERR')   # manda la hoja EERR
+        return self._pror.get((per, k))
 
     # ---- papel de trabajo del equipo (hojas MM-AAAA de "AAAA00-liquidaciones-...")
     def papel(self):
@@ -412,7 +453,14 @@ def datos_mes(F, per):
                 d['fuentes']['sh'] = ('', f"estimado con la tasa efectiva de {mm(ant[-1])} del EERR")
     if P.get(per) and P[per].get('pyp') is not None:
         d['pyp'] = round(P[per]['pyp'], 2); d['fuentes']['pyp'] = (P[per]['f'], f"papel de trabajo, hoja {P[per]['hoja']}")
-    # prorrateo
+    # prorrateo: el del papel de trabajo; el cálculo (compras no CMV x % exento) queda de control y de respaldo
+    d['pap'] = {}
+    for k in set(PAPEL_CONC.values()):
+        x = F.papel_eerr(per, k)
+        if x: d['pap'][k] = x
+    pp = d['pap'].get('iva prorrateo')
+    if pp: d['pror_papel'] = pp[0]; d['fuentes']['prorrateo'] = (pp[1], f"papel de trabajo, {pp[2]}")
+    if d['pap'].get('publicidad'): d['pyp'] = d['pap']['publicidad'][0]; d['fuentes']['pyp'] = (d['pap']['publicidad'][1], 'papel de trabajo, hoja EERR')
     if 'compras' in d and 'gr' in d:
         tot = d['gr'] + d['ex']
         d['pct_ex'] = d['ex'] / tot if tot else 0.0
@@ -579,7 +627,8 @@ def cargar_prorrateo(ws, per, d, pisar):
         for c in range(1, 18): ws.cell(r, c).value = None; ws.cell(r, c).font = Font()
     s = d['iva_serv']
     vals = [mm(per)] + [round(s.get(a, 0.0), 2) for a in ALICS] + [round(s.get('otros', 0.0), 2), f'=SUM(B{r}:G{r})',
-            round(d['gr'], 2), round(d['ex'], 2), f'=IF(I{r}+J{r}=0,0,J{r}/(I{r}+J{r}))', f'=H{r}*K{r}', None, None,
+            round(d['gr'], 2), round(d['ex'], 2), f'=IF(I{r}+J{r}=0,0,J{r}/(I{r}+J{r}))', f'=H{r}*K{r}', d.get('pror_papel'),
+            f'=L{r}-M{r}' if d.get('pror_papel') is not None else None,
             round(d['iva_merc'], 2), round(d['iva_fuera'], 2), None]
     for j, v in enumerate(vals, 1):
         ws.cell(r, j).value = v
@@ -622,16 +671,22 @@ def armar_mes(wb, F, per, pisar, log):
     c = col[per]
     d = datos_mes(F, per)
     nombre = lambda k: os.path.basename(d['fuentes'][k][0]) + ' — ' + d['fuentes'][k][1] if k in d['fuentes'] else ''
-    # ventas
-    if 'ventas' in d:
-        vs = hoja_ventas(wb); est = cargar_ventas(vs, per, d, pisar)
-        V = "'Ventas Portal IVA'!"; m = f'"{mm(per)}"'
-        poner(e, fl.get('ventas exentas y no gravadas'), c, f"=SUMIFS({V}E:E,{V}$A:$A,{m})+SUMIFS({V}F:F,{V}$A:$A,{m})", nombre('ventas'), log, per,
-              'Ventas exentas y no gravadas', pisar, mostrar=round(d['ex'], 2))
-        poner(e, fl.get('ventas gravadas'), c, f"=SUMIFS({V}D:D,{V}$A:$A,{m})", nombre('ventas'), log, per, 'Ventas gravadas', pisar,
-              mostrar=round(d['gr'], 2))
-    else:
-        if falta(e, fl.get('ventas gravadas'), c): log.append((per, 'Ventas', 'sin fuente: falta el libro de ventas del Portal IVA', None, ''))
+    pap = d['pap']
+    def del_papel(k, etiqueta):
+        v, f, h = pap[k]
+        poner(e, fl.get(k), c, v, f"{os.path.basename(f)} — papel de trabajo, {h}", log, per, etiqueta, pisar,
+              comentario=f"Del papel de liquidaciones del equipo: {os.path.basename(f)}, {h}")
+    # ventas: del papel; la hoja "Ventas Portal IVA" queda de control. Sin papel del mes, del libro del Portal IVA
+    if 'ventas' in d: hoja_ventas(wb); cargar_ventas(wb['Ventas Portal IVA'], per, d, pisar)
+    for k, et in (('ventas exentas y no gravadas', 'Ventas exentas y no gravadas'), ('ventas gravadas', 'Ventas gravadas')):
+        if k in pap: del_papel(k, et)
+        elif 'ventas' in d:
+            V = "'Ventas Portal IVA'!"; m = f'"{mm(per)}"'
+            fx = f"=SUMIFS({V}E:E,{V}$A:$A,{m})+SUMIFS({V}F:F,{V}$A:$A,{m})" if k.startswith('ventas exentas') else f"=SUMIFS({V}D:D,{V}$A:$A,{m})"
+            poner(e, fl.get(k), c, fx, nombre('ventas') + ' (el papel no tiene el mes)', log, per, et, pisar,
+                  mostrar=round(d['ex'] if k.startswith('ventas exentas') else d['gr'], 2),
+                  comentario='Del libro del Portal IVA: el papel de trabajo no tiene este mes. Cuando esté, correr con --pisar.')
+        elif falta(e, fl.get(k), c): log.append((per, et, 'sin fuente: ni el papel de trabajo ni el libro de ventas tienen el mes', None, ''))
     # compras
     if 'compras' in d:
         ci = wb['Compras imputadas'] if 'Compras imputadas' in wb.sheetnames else hoja_compras(wb, sorted(col, key=lambda p: col[p]))
@@ -674,21 +729,31 @@ def armar_mes(wb, F, per, pisar, log):
                 f = f"={pyp or 0}+SUMIFS({CI}{letra}:{letra},{CI}$D:$D,\"Publicidad\")"
                 poner(e, r, c, f, nombre('pyp') or 'compras imputadas a Publicidad (sin PyP en el papel del mes)', log, per, 'Publicidad', pisar,
                       mostrar=pyp)
-        # IVA prorrateo
+        # IVA prorrateo calculado: hoja de control (y valor del EERR solo si el papel no lo tiene)
         if 'prorrateo' in d:
             ip = hoja_prorrateo(wb); rr, est = cargar_prorrateo(ip, per, d, pisar)
-            poner(e, fl.get('iva prorrateo'), c, f"='IVA prorrateo'!L{rr}", 'hoja IVA prorrateo (compras + ventas del Portal IVA)', log, per,
-                  'IVA Prorrateo', pisar, mostrar=d['prorrateo'])
+            if 'pror_papel' not in d:
+                poner(e, fl.get('iva prorrateo'), c, f"='IVA prorrateo'!L{rr}", 'CALCULADO (el papel de trabajo no tiene el prorrateo del mes)',
+                      log, per, 'IVA Prorrateo', pisar, mostrar=d['prorrateo'],
+                      comentario='Calculado con la clasificación del Maestro: el papel de trabajo no tiene el prorrateo de este mes. '
+                                 'Cuando esté, correr con --pisar para tomar el del papel.')
     else:
         if falta(e, fl.get('cmv'), c): log.append((per, 'Compras', 'sin fuente: falta el libro de compras del Portal IVA', None, ''))
-    # IIBB
-    if 'iibb' in d:
+        if 'publicidad' in pap: del_papel('publicidad', 'Publicidad')
+    # IVA prorrateo del papel de trabajo (criterio del 05/11/2026)
+    if 'pror_papel' in d:
+        poner(e, fl.get('iva prorrateo'), c, d['pror_papel'], nombre('prorrateo'), log, per, 'IVA Prorrateo', pisar,
+              comentario=f"IVA prorrateo del papel de trabajo: {os.path.basename(d['fuentes']['prorrateo'][0])}, {d['fuentes']['prorrateo'][1]}")
+    # IIBB: del papel; sin papel del mes, la DJ de ARBA
+    if 'iibb' in pap: del_papel('iibb', 'IIBB')
+    elif 'iibb' in d:
         poner(e, fl.get('iibb'), c, round(d['iibb'], 2), nombre('iibb'), log, per, 'IIBB', pisar,
               comentario=f"Impuesto determinado de la DJ de ARBA: {os.path.basename(d['fuentes']['iibb'][0])}")
     else:
         if falta(e, fl.get('iibb'), c): log.append((per, 'IIBB', 'sin fuente: falta la DJ de anticipo de ARBA (constancias-anticipo-arba; AGIP y Convenio Multilateral se cargan a mano)', None, ''))
-    # Seguridad e Higiene
-    if 'sh' in d:
+    # Seguridad e Higiene: del papel; sin papel del mes, ventas gravadas x alícuota
+    if 'seguridad e higiene' in pap: del_papel('seguridad e higiene', 'Seguridad e Higiene')
+    elif 'sh' in d:
         poner(e, fl.get('seguridad e higiene'), c, d['sh'], nombre('sh'), log, per, 'Seguridad e Higiene', pisar, comentario=d['sh_det'])
     else:
         # sociedades sin tasa (CABA) o que nunca la tuvieron cargada: no se avisa
@@ -890,7 +955,7 @@ def main():
                 if x[1] == 'Ejercicio': print(f"  {soc:28} {nombre}: sin cambios — {x[2]}")
             if not any(x[1] == 'Ejercicio' for x in log): print(f"  {soc:28} {nombre}: sin cambios")
             for x in log:
-                if x[2].startswith('sin fuente'): print(f"     {mm(x[0])} {x[1]}: {x[2]}")
+                if x[2].startswith(('sin fuente', 'error')): print(f"     {mm(x[0]) if x[0] != '-' else '-'} {x[1]}: {x[2]}")
             resumen.append(dict(sociedad=soc, archivo=nombre, estado='sin cambios', cargados=0,
                                 sin_fuente=[f"{mm(x[0])} {x[1]}" for x in log if x[2].startswith('sin fuente')], revisar=0, errores=[]))
             continue
