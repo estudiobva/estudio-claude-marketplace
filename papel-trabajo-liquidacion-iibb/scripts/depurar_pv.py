@@ -28,11 +28,13 @@ Trabaja SOLO sobre la solapa "Ventas Zetti (depurado)"; "Ventas Zetti" y
 --simular informa que eliminaria sin guardar. Imprime un JSON con lo eliminado.
 """
 import json
+import re
 import sys
 from collections import defaultdict
 from copy import copy
 
 from openpyxl import load_workbook
+from openpyxl.comments import Comment
 from openpyxl.styles import Font, PatternFill
 
 import fuente
@@ -50,7 +52,17 @@ def norm_pv(v):
     if isinstance(v, (int, float)):
         return int(v)
     s = str(v or '').strip()
+    pv_nro = pv_y_numero(s)
+    if pv_nro:
+        return pv_nro[0]
     return int(s) if s.isdigit() else s
+
+
+def pv_y_numero(s):
+    """Zetti a veces trae el PV y el numero juntos en la columna del PV, con la del numero vacia:
+    '00007-0001695-' (Z 7-1695 de Soy 63, 29/10/2026). Devuelve (7, 1695) o None."""
+    m = re.fullmatch(r'0*(\d+)-0*(\d+)-?', str(s or '').strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
 
 
 def excepciones(arg):
@@ -112,7 +124,7 @@ def main():
     filas = [[wz.cell(r, c) for c in range(1, ncol + 1)] for r in range(3, ult + 1)]
 
     eliminadas = defaultdict(lambda: {'comprobantes': 0, 'total': 0.0, 'tipos': defaultdict(int)})
-    quedan = []
+    quedan, separados = [], []
     for f in filas:
         pv = norm_pv(f[3].value)
         tipo = f'{f[1].value} {f[2].value}'.upper()
@@ -123,7 +135,12 @@ def main():
             e['total'] = round(e['total'] + (f[12].value or 0), 2)
             e['tipos'][tipo] += 1
         else:
-            quedan.append([(c.value, c._style) for c in f])
+            fila = [(c.value, c._style) for c in f]
+            pv_nro = pv_y_numero(f[3].value) if f[4].value in (None, '') else None
+            if pv_nro:
+                fila[3], fila[4] = (pv_nro[0], fila[3][1]), (pv_nro[1], fila[4][1])
+                separados.append((len(quedan), str(f[3].value)))
+            quedan.append(fila)
 
     res = {
         'pv_solo_en_zetti': sorted({str(norm_pv(f[3].value)) for f in filas} - {str(p) for p in pv_portal}),
@@ -146,6 +163,10 @@ def main():
         for j, (v, st) in enumerate(fila, start=1):
             cel = wz.cell(i, j, v)
             cel._style = copy(st)
+    for i, original in separados:
+        wz.cell(3 + i, 4).comment = Comment(
+            f'En Zetti viene como "{original}" en el punto de venta y sin numero. '
+            f'Se separa en PV y numero para cruzarlo con el Portal IVA.', 'BVA')
     nult = 2 + len(quedan)
     fz, fp, fd = nult + 1, nult + 2, nult + 3
     for j in range(9, 14):

@@ -13,6 +13,7 @@
 #      (abre y guarda el papel una sola vez).
 # El cruce se corre DESPUES, con revisar-cruce.sh, para que cada mes vea a sus vecinos.
 #
+# EXCEPCION: excepcion de depuracion de PV (ej. EXCEPCION="2:NC B" para Soy Tondi 69 y SANAR 66).
 # SUBCARPETA: por defecto "controles". SUBCARPETA="" deja el papel en 01-Impuestos Mensuales/AAAAMM.
 # La carpeta del periodo se crea si no existe.
 # Requiere los plugins zetti-subdiario-iva-ventas, portal-iva-descarga y cruce-ventas-3-fuentes del
@@ -72,7 +73,7 @@ for PER in "$@"; do
   [ -f "$SM" ] || { echo "FALLO MC $PER"; continue; }
   cp "$SP" "$D/$PER - PORTAL IVA - VENTAS.xlsx" && cp "$SM" "$D/$PER - MIS COMPROBANTES - EMITIDOS.xlsx"
 
-  (cd "$AQUI" && $PY armar_papel.py "$PA" "$D/$PER - PORTAL IVA - VENTAS.xlsx" "$D/$PER - MIS COMPROBANTES - EMITIDOS.xlsx" 2>&1 | cut -c1-300; exit "${PIPESTATUS[0]}") \
+  (cd "$AQUI" && $PY armar_papel.py "$PA" "$D/$PER - PORTAL IVA - VENTAS.xlsx" "$D/$PER - MIS COMPROBANTES - EMITIDOS.xlsx" ${EXCEPCION:+"--excepcion=$EXCEPCION"} 2>&1 | cut -c1-300; exit "${PIPESTATUS[0]}") \
     && $PY -c "import zipfile,sys; sys.exit(zipfile.ZipFile(sys.argv[1]).testzip() is not None)" "$PA" 2>/dev/null && echo "OK PASOS 1-4,6 $PER" || echo "FALLO PASOS $PER"
 done
 date +%H:%M

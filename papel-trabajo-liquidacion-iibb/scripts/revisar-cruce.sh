@@ -4,6 +4,7 @@
 # observaciones que NO son corrimientos ni redondeos (las que hay que mirar).
 #
 #   bash scripts/revisar-cruce.sh <CUIT> [AAAAMM ...]      (sin periodos: todos los de la subcarpeta)
+#   EXCEPCION="2:NC B": la misma excepcion de depuracion que en correr-periodos.sh.
 #   SUBCARPETA=controles por defecto, igual que correr-periodos.sh.
 #
 # Correrlo cuando ya estan armados todos los meses: el cruce mira los meses vecinos para
@@ -23,7 +24,7 @@ TMP=$(mktemp -d)
 for PER in $PERS; do
   PA="$BASE$PER/$PER- papeles de trabajo- $FARM.xlsx"
   [ -f "$PA" ] || { echo "$FARM $PER: no hay papel"; continue; }
-  (cd "$AQUI" && $PY cruce_3_fuentes.py --papel="$PA" > "$TMP/x.json" 2> "$TMP/err.txt") || { echo "$FARM $PER FALLO"; tail -3 "$TMP/err.txt"; continue; }
+  (cd "$AQUI" && $PY cruce_3_fuentes.py --papel="$PA" ${EXCEPCION:+"--excepcion=$EXCEPCION"} > "$TMP/x.json" 2> "$TMP/err.txt") || { echo "$FARM $PER FALLO"; tail -3 "$TMP/err.txt"; continue; }
   $PY - "$PA" "$TMP/x.json" "$FARM $PER" <<'EOF'
 import json, sys
 import openpyxl

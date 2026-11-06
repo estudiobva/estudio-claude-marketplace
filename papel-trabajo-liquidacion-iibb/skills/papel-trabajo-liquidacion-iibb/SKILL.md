@@ -21,6 +21,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/correr-periodos.sh" <CUIT> 202509 202510 ...
 
 - Correrlo en segundo plano y con el log a un archivo. Con sociedades grandes tarda: unos 3 o 4 minutos por mes en una farmacia común, y hasta 20 o 30 en las de 15.000 a 80.000 comprobantes por mes (La Recova, Salud y Belleza).
 - Pedir que la computadora no se suspenda mientras corre. Si se duerme, un paso puede quedar colgado: mirar el log y, si no avanza, cortar el proceso y volver a correr ese período.
+- **Excepcion de depuracion de PV**: algunas sociedades llevan las NC B de un PV adentro de los Z (Soy Tondi 69 y SANAR 66: PV 2). Se corre con `EXCEPCION="2:NC B"` antes de `correr-periodos.sh` y de `revisar-cruce.sh`: saca solo las NC B de ese PV y deja los Z.
 - Cada período termina con `OK PASOS 1-4,6 AAAAMM` o con `FALLO ZETTI|PORTAL|MC|PASOS AAAAMM`. Un fallo de Zetti o de ARCA suele ser temporal: volver a correr solo ese período.
 - **Sin DDJJ de IVA presentada** (`sin_presentacion`): el script baja solo el borrador del Libro IVA Ventas, importando desde ARCA, y sigue. No frenar a preguntar: el proceso nació para DDJJ sin presentar. Si después se presenta con otros importes, volver a correr el mes.
 - **FALLO PORTAL porque el libro no coincide con la DDJJ presentada**: no forzarlo. Avisar al usuario con los dos importes. Ojo: el control compara el neto gravado de facturas y tiques **sin restar las NC**, y no es el neto del cuadro resumen. Puede ser un renglón que el control leyó mal: mirar el Excel antes de decir que hay diferencia.

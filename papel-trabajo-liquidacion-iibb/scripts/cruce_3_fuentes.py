@@ -178,7 +178,8 @@ def leer_zetti(ws):
         if isinstance(v[cn], (int, float)) and not isinstance(v[cn], bool):
             pv, nro = v[cn], v[cn + 1]
         else:
-            pv, _, nro = str(v[cn] or '').partition('-')
+            # '0012-00000581' (carpeta IVA) o un Z con PV y numero juntos en D: '00007-0001695-' (Soy 63 202610)
+            pv, _, nro = str(v[cn] or '').strip().strip('-').partition('-')
         tc = str(v[c['tc']] or '').strip().upper()
         m = str(v[c['m']] or '').strip().upper()
         out.append({'fecha': fecha, 'tc': tc, 'm': m, 'tc_zetti': f'{tc} {m}'.strip(),
