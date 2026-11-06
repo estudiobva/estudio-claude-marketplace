@@ -26,6 +26,8 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/correos-organismos.js --nombres="<
   Registral y, una vez por login, el DFE > "Asociar temas a un correo electronico".
 - **ARBA**: un intento por sociedad con su CIT, sin reintentos (ARBA bloquea la CIT tras
   varios intentos fallidos).
+  Las que ademas son agentes de recaudacion pasan por "Seleccione un rol" despues de la
+  clave: no es un rechazo, se elige Contribuyente (desde 1.0.1; antes salian como CIT rechazada).
 - **AGIP**: no se automatiza; las sociedades con clave de AGIP quedan para relevar a mano.
 
 Excel `CORREOS_ORGANISMOS_AAAA-MM-DD.xlsx`: Resumen por sociedad, Detalle de cada correo,

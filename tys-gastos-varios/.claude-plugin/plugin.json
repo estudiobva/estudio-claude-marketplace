@@ -1,0 +1,8 @@
+{
+  "name": "tys-gastos-varios",
+  "description": "Baja de Zetti (T&S Web) el Reporte Seguimiento de Valores (4.5.2) del tipo GAVA - Gastos Varios de una, varias o todas las sociedades, lo parte por mes, lo cruza con el EERR (Matrícula Colegio, Seguridad e Higiene, Publicidad, Municipalidad, Certificación de Balances...). Guarda cada mes en la carpeta del mes de la sociedad. Login automático con la planilla de claves.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["zetti", "t&s web", "gastos varios", "gava", "seguimiento de valores", "eerr", "playwright", "argentina"]
+}

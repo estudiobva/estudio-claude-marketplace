@@ -21,12 +21,12 @@ Opciones: `--hasta=AAAAMM`, `--desde=AAAAMM`, `--pisar=AAAAMM,...`, `--cuit=...`
 
 | Concepto | De dónde sale | Herramienta que la deja en la unidad |
 |---|---|---|
-| Ventas | libro de ventas del Portal IVA | portal-iva-descarga (`--presentada`) |
+| Ventas, IIBB, IVA prorrateo, Seg. e Higiene, PyP | papel de liquidaciones del equipo (hoja EERR) | el equipo |
+| … si el papel no tiene el mes | libro del Portal IVA / DJ de ARBA / cálculo | portal-iva-descarga, constancias-anticipo-arba |
 | CMV y gastos | libro de compras del Portal IVA + Maestro de Proveedores | portal-iva-descarga / conciliacion-ncr |
-| IIBB | DJ de anticipo de ARBA | constancias-anticipo-arba |
 | Sueldos | F.931 | f931-descarga-arca |
-| IVA prorrateo | libros del Portal IVA | — |
-| Seg. e Higiene, Publicidad | papel de trabajo de liquidaciones | papel del equipo / papel-trabajo-automatico |
+
+El control contra las DDJJ lo hace `auditor-eerr`.
 
 Reglas:
 

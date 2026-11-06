@@ -1,6 +1,6 @@
 {
   "name": "correos-organismos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Correos declarados de cada sociedad en ARCA y ARBA, en un Excel.",
   "private": true,
   "license": "UNLICENSED",

@@ -1,6 +1,6 @@
 ---
 name: auditor-eerr
-description: "Audita los Estados de Resultados (EERR 2026) de una o todas las sociedades con 21 controles (período, meses completos, fórmulas, resultado, margen bruto, gastos/ventas, ventas vs Portal IVA y Zetti, existencias, NCR vs NC comerciales, compras clasificadas = Portal IVA compras, sueldos vs F.931, IIBB vs DJ ARBA, IVA prorrateo, tasas, gastos fijos y financieros, y del papel de trabajo: débito/crédito fiscal vs DDJJ, signo de las NC, cómputo de NRF, prorrateo, venta vs compra exenta/gravada y NC de compras vs libro) y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR, con fecha, descripción, links y estado Pendiente/Resuelto/Aprobado. Usar SIEMPRE que pidan \"auditá el EERR de [sociedad]\", \"auditar los EERR\", \"correr el auditor\", \"qué errores tiene el EERR\", \"control del estado de resultados\", \"KPIs de auditoría\" o \"revisar la solapa Auditorias\"."
+description: "Audita los Estados de Resultados (EERR 2026) de una o todas las sociedades con 22 controles (período, meses completos, fórmulas, resultado, margen bruto, gastos/ventas, ventas vs Portal IVA y Zetti, existencias, NCR vs NC comerciales, compras clasificadas = Portal IVA compras, sueldos vs F.931, IIBB vs DJ ARBA, IVA prorrateo, tasas, gastos fijos y financieros, y del papel de trabajo: débito/crédito fiscal vs DDJJ, signo de las NC, cómputo de NRF, prorrateo, venta vs compra exenta/gravada y NC de compras vs libro; y el prorrateo contra el libro IVA y la DDJJ) y documenta cada hallazgo en la hoja 'Auditorias' del mismo EERR, con fecha, descripción, links y estado Pendiente/Resuelto/Aprobado. Usar SIEMPRE que pidan \"auditá el EERR de [sociedad]\", \"auditar los EERR\", \"correr el auditor\", \"qué errores tiene el EERR\", \"control del estado de resultados\", \"KPIs de auditoría\" o \"revisar la solapa Auditorias\"."
 ---
 
 # Auditor de EERR
@@ -19,6 +19,9 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 | `--todas` | Todos los EERR de la carpeta. Además marca importes idénticos entre sociedades (planillas copiadas). Tarda varios minutos: correrlo en segundo plano. **Solo si el usuario lo pide expresamente.** |
 | `--hasta=AAAAMM` | Último mes a auditar. Default: el último con la DDJJ de IVA vencida (desde el día 26, el mes anterior; si no, el anterior a ese). |
 | `--simular` | No toca la unidad: deja la copia auditada en `BVA-salidas/auditor-eerr/simulacion/`. Usarlo si el usuario solo quiere ver qué encuentra. |
+
+Libro del Portal IVA de cada mes (desde 1.3.1, el mismo criterio que armado-eerr): el de la DDJJ presentada ("presentada" en el nombre),
+si no el de la carpeta IVA; en compras, si no hay libro en .xlsx, el `AAAAMM-COMPRAS-SIN-NCR` de la conciliación.
 
 Lee los EERR de `0 - ESTUDIO - 00000000000/EERR 2026/` y, de cada sociedad, su carpeta en la unidad: libros
 `AAAAMM - PORTAL IVA - VENTAS/COMPRAS.xlsx`, cruce Zetti (hoja "cruze" del papel del mes), papel de liquidaciones
@@ -48,7 +51,7 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
   Pendiente (y sin fecha de detección, con la de esa auditoría). Se reconocen por la clave oculta `M|n`. El formato
   propio de la celda (colores, fuentes) no se conserva porque la hoja se rearma en cada auditoría.
 
-## Los 21 controles
+## Los 22 controles
 
 1. Período: 12 meses seguidos, nombre del archivo, CUIT y carpeta; meses no cerrados con datos.
 2. Meses completos: ventas, CMV y sueldos en cada mes; importes repetidos entre meses (y entre sociedades con `--todas`).
@@ -67,9 +70,12 @@ estado, observaciones y última auditoría. A la derecha, el historial de cada e
 9. NCR vs NC comerciales (desvío de 30% vs su mediana); NCR no encontradas; meses sin conciliar; **NCR con gravado**
    (desde 1.2.0, rojo): las NCR conciliadas se buscan en el libro de compras del Portal IVA y no pueden tener neto gravado
    ni IVA (si ya se eliminaron del libro no se puede ver: queda en el historial).
-10. Compras clasificadas por cuenta = Portal IVA compras; cada rubro llega a su fila; proveedores sin clasificar o reclasificados en el Maestro; peso de GASTOS VARIOS.
+10. Compras clasificadas por cuenta = Portal IVA compras sin las NCR que eliminó la conciliación; cada rubro llega a su fila; proveedores sin
+    clasificar o reclasificados en el Maestro; peso de GASTOS VARIOS. Desde 1.3.1: **NCR dentro de las compras** (rojo) si el EERR se armó
+    con un libro que todavía tiene las NCR conciliadas (el CMV queda subvaluado en ese importe; rehacer el mes con armado-eerr --pisar).
 11. Sueldos vs F.931 (remuneraciones + 351 + 352 + 312 + 028); costo laboral / ventas.
-12. IIBB vs impuesto determinado de la DJ de ARBA; alícuota efectiva 1,5–5%.
+12. IIBB vs impuesto determinado de la DJ de ARBA; alícuota efectiva 1,5–5%. La DJ se reconoce con cualquiera de los nombres que usa el
+    equipo (`AAAAMM-IIBB-DJ-`, `-IIBB-DDJJ-`, `-IIBB-DDJJRECT1-`, `-iibb-djr1-`, `AAAAMM-dj-iibb-`…); manda la rectificativa de número más alto.
 13. IVA prorrateo vs la hoja de control "IVA prorrateo".
 14. Seguridad e Higiene, matrícula, publicidad y marquesinas.
 15. Gastos fijos: desde 1.2.0 se **detectan solos** en los últimos 6 meses auditados: una cuenta del EERR o un proveedor
@@ -92,6 +98,17 @@ liquidaciones del equipo por etiqueta (no el "- AUTOMATICO"); los `.xls` no se l
     que se apartan 30% de su mediana.
 21. NC de compras del papel = libro de compras del Portal IVA (con o sin las NCR ya eliminadas del libro), con el detalle
     NCR / NC comerciales.
+
+Control del libro IVA (desde 1.3.0):
+
+22. Prorrateo vs libro IVA: el IVA que no se computó por prorrateo sale de los libros del Portal IVA y de la DDJJ
+    presentada, sin depender de la clasificación mercadería / servicios: **IVA de las facturas del libro de compras −
+    (crédito fiscal de la DDJJ − IVA de las NC del libro de ventas)**. Rojo si la fila IVA Prorrateo del EERR se aparta
+    más de $1.000 o 2% de ese importe; rojo si el crédito fiscal declarado supera al IVA del libro de compras (el libro no
+    es el presentado); amarillo si el IVA no computable del papel difiere en más de $100 (el papel no usa el libro
+    presentado o su crédito fiscal no es el de la DDJJ). En los meses donde corre, el control 19 ya no compara el EERR
+    contra el papel (el EERR se controla contra lo declarado). Usa el libro "(DDJJ presentada)"
+    si está; si no, el de la carpeta IVA. Meses sin DDJJ de IVA: aviso en el historial.
 
 Excepciones por sociedad (una sola auditoría, criterio de Javi): en `auditor_eerr_config.json`,
 `"excepciones": {"<sociedad o CUIT>": [19]}` saltea esos controles para esa sociedad (queda anotado en el historial).

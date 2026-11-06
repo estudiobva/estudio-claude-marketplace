@@ -255,6 +255,18 @@ async function relevarArba(browser, { cuit, usuario, clave }, { timeout = 45000 
       page.waitForURL(u => !/sso\.arba\.gov\.ar/.test(String(u)), { timeout: 25000 }).catch(() => {}),
       page.locator('#frmDatos button[type=submit], button[type=submit]').first().click(),
     ]);
+    // Las que además son agentes de recaudación pasan por "Seleccione un rol"
+    // después de la clave (no es un rechazo): se elige Contribuyente.
+    if (/sso\.arba\.gov\.ar/.test(page.url()) && await page.$('select[name=rol]')) {
+      const sel = page.locator('select[name=rol]');
+      const ops = await sel.locator('option').evaluateAll(os => os.map(o => ({ v: o.value, t: o.textContent.trim() })));
+      const op = ops.find(o => /Contribuyente/i.test(o.t)) || ops[0];
+      if (op) await sel.selectOption(op.v);
+      await Promise.all([
+        page.waitForURL(u => !/sso\.arba\.gov\.ar/.test(String(u)), { timeout: 25000 }).catch(() => {}),
+        page.locator('button[type=submit]').first().click(),
+      ]);
+    }
     if (/sso\.arba\.gov\.ar/.test(page.url())) {
       const t = limpio(await page.innerText('body').catch(() => ''));
       const msg = (t.match(/Ingresá con tu Clave de Identificación Tributaria \(CIT\)\s*(.*?)\s*Completá el formulario/) || [])[1] || t.slice(0, 160);
