@@ -1,0 +1,15 @@
+{
+  "name": "papel-trabajo-ventas-tsh",
+  "version": "1.0.0",
+  "description": "Etapa 1 del papel de trabajo de ventas (TSH / IIBB): Zetti, Portal IVA de la DDJJ presentada, Mis Comprobantes, papel y cruce.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "papel": "node scripts/papel-ventas.js"
+  },
+  "dependencies": {
+    "officecrypto-tool": "^0.0.19",
+    "playwright": "^1.56.0"
+  }
+}

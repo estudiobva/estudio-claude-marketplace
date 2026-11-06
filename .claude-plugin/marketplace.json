@@ -170,6 +170,12 @@
       "source": "./saldos-farmacias-iva-iibb",
       "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",
       "category": "contabilidad"
+    },
+    {
+      "name": "papel-trabajo-ventas-tsh",
+      "source": "./papel-trabajo-ventas-tsh",
+      "description": "Etapa 1 del papel de trabajo de ventas (TSH / IIBB), de punta a punta con un script de Playwright: baja Zetti 5.6.5, el Libro IVA Ventas de la DDJJ presentada y Mis Comprobantes de uno o varios meses, arma el papel con depurado y cuadro resumen, y cruza las tres fuentes separando corrimientos y cortes de mes de las diferencias reales.",
+      "category": "contabilidad"
     }
   ]
 }
