@@ -25,6 +25,7 @@
 !.claude-plugin/marketplace.json
 !**/.claude-plugin/plugin.json
 !**/hooks/hooks.json
+!**/apps-script/appsscript.json
 
 # Salidas y volcados de los scripts
 descargas/
