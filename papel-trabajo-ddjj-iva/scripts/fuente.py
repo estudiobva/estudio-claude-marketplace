@@ -27,6 +27,6 @@ def aplicar(ws, nombre_tam, celdas=None):
         f = copy(c.font)
         f.name, f.sz = nombre_tam
         # Sin esto la letra queda como "fuente del tema" (scheme minor) y Excel, al guardar, la
-        # reemplaza por la del tema (Calibri): paso con Compras Zetti en Sanar 1 202609.
+        # reemplaza por la del tema (Calibri): paso con Compras Zetti en un papel de 09/2026.
         f.scheme = None
         c.font = f

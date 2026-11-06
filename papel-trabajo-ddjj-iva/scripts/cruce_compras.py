@@ -681,8 +681,16 @@ def main():
     renglones = clasificar(pares, solo_p, solo_z, tol)
     tot = totales({'portal': portal, 'zetti': zetti})
 
-    sociedad = os.path.basename(os.path.dirname(os.path.dirname(mes)))
-    sociedad = re.sub(r'^\d+\s*-\s*|\s*-\s*\d{11}$', '', sociedad)
+    # Nombre del papel ("AAAAMM- papeles de trabajo- <Sociedad>.xlsx"); si no, la carpeta de la sociedad
+    # (sirve tambien con el papel en 01-Impuestos Mensuales/controles/AAAAMM o en una carpeta de anio).
+    m_papel = re.match(r'^\d{6}\s*-\s*papeles de trabajo\s*-\s*(.+)\.xlsx$', os.path.basename(papel), re.I)
+    if m_papel:
+        sociedad = m_papel.group(1).strip()
+    else:
+        d = mes
+        while d and os.path.dirname(d) != d and not re.search(r'-\s*\d{11}\s*$', os.path.basename(d)):
+            d = os.path.dirname(d)
+        sociedad = re.sub(r'^\d+\s*-\s*|\s*-\s*\d{11}$', '', os.path.basename(d))
     titulo = (f'CRUCE DE COMPRAS - Portal IVA / Zetti - {sociedad}' + (f' ({razon})' if razon else '')
               + f' - {MESES[int(periodo[4:]) - 1]} {periodo[:4]}')
     avisos = [f'Coinciden por CUIT + punto de venta + numero: {sum(1 for x in pares if x[2] == "numero")} comprobantes.']

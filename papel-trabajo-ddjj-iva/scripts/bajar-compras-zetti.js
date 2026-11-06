@@ -7,8 +7,9 @@
  *
  *   [Sociedad]/01-Impuestos Mensuales/AAAAMM/AAAAMM - ZETTI - COMPRAS.xlsx
  *
- *   node scripts/bajar-compras-zetti.js --cuits="30699346019;30595259548" --periodo=202609
- *   node scripts/bajar-compras-zetti.js --cuit=30699346019 --periodo=09/2026 --si-existe=reemplazar
+ *   node scripts/bajar-compras-zetti.js --cuits="<CUIT A>;<CUIT B>" --periodo=202609
+ *   node scripts/bajar-compras-zetti.js --cuit=<CUIT> --periodo=09/2026 --si-existe=reemplazar
+ *   node scripts/bajar-compras-zetti.js --cuit=<CUIT> --periodo=202609 --dir=<carpeta del papel>
  *
  * Un solo login para todas. Login automatico con el usuario de Zetti de la planilla de claves. Solo lee Zetti.
  */
@@ -73,7 +74,8 @@ async function subdiarioIvaCompras(ctx, auth, entidad, destino) {
 function destinoDe(cuit) {
   const socDir = rutas.carpetaSociedad(cuit);
   const mensuales = path.join(socDir, '01-Impuestos Mensuales');
-  const mesDir = rutas.carpetaMes(mensuales, PERIODO);
+  // --dir=<carpeta>: destino explicito (lo usa papel-ddjj-iva.js; solo con una sociedad).
+  const mesDir = args.dir && CUITS.length === 1 ? String(args.dir) : rutas.carpetaMes(mensuales, PERIODO);
   if (!fs.existsSync(mesDir)) throw Object.assign(new Error(`No existe la carpeta ${mesDir}`), { code: 'sin_carpeta' });
   return { socDir, archivo: path.join(mesDir, `${PERIODO} - ZETTI - COMPRAS.xlsx`) };
 }

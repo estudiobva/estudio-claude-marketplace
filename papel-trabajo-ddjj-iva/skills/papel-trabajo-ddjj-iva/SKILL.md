@@ -1,229 +1,151 @@
 ---
 name: papel-trabajo-ddjj-iva
-description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - baja el Libro IVA Compras del Portal IVA y lo pega como "Compras portal iva" al lado. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores y arma el cuadro resumen de compras. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
+description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - baja el Libro IVA Compras del Portal IVA y lo pega como "Compras portal iva" al lado. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores y arma el cuadro resumen de compras. Lo hace de punta a punta un script de Playwright (scripts/papel-ddjj-iva.js) con login automático. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
 ---
 
 # Papel de trabajo para la DDJJ de IVA (etapa 2)
 
-Se trabaja sobre el papel de trabajo del mes que arrancó la etapa 1 (ventas para TSH e IIBB, pasos 1 a 6).
-Se arma paso a paso: mostrar el resultado de cada paso y esperar su OK antes del siguiente.
+Se trabaja sobre el papel de trabajo del mes que armó la etapa 1 (ventas para TSH e IIBB, plugin `papel-trabajo-ventas-tsh`).
+Lo hace un solo script de Playwright, con login automático (planilla de claves del estudio). No pedir ni escribir contraseñas.
 
 ## Datos de entrada
 
-- Sociedad y período (AAAAMM). El CUIT sale de la carpeta de la sociedad en la unidad compartida
-  (`<unidad>\Unidades compartidas\BVA - Sociedades Farmaceuticas\<N> - <Sociedad> - <CUIT>`; la unidad es I: en
-  las máquinas del estudio, o la de `BVA_UNIDAD_PATH` en el `.env`).
-- Papel: `<Sociedad>/01-Impuestos Mensuales/AAAAMM/AAAAMM- papeles de trabajo- <Sociedad>.xlsx`
-  (mismo formato de nombre para todas las sociedades, ej. `202609- papeles de trabajo- Sanar 1.xlsx`).
-  Si el papel no existe o no tiene la solapa "cruce ventas" (en papeles viejos, "cruce"), la etapa 1 no está terminada: avisar y no seguir.
-- Fecha: la etapa 2 no se corre antes del día 11 del mes siguiente al período (IVA 202609 → desde el 11/10/2026).
+- Sociedad (nombre o CUIT) y período (AAAAMM). El script busca la carpeta de la sociedad por CUIT en la unidad compartida
+  (`BVA_UNIDAD_PATH` del `.env`). Si te dan solo el nombre, buscá la carpeta (`<N> - <Sociedad> - <CUIT>`).
+- Papel: `<Sociedad>/01-Impuestos Mensuales/AAAAMM/AAAAMM- papeles de trabajo- <Sociedad>.xlsx`. Si la etapa 1 quedó en
+  `controles`, agregar `--subcarpeta=controles`; o pasar la ruta con `--papel=`. Si no existe o no tiene "cruce ventas",
+  el script corta: la etapa 1 no está terminada.
+- Fecha: no se corre antes del día 11 del mes siguiente al período (el script corta; `--antes-del-11` solo si el usuario lo pide).
+- El papel tiene que estar **cerrado en Excel**.
 
-## Scripts
-
-En `scripts/` del plugin (se corren con `cd "${CLAUDE_PLUGIN_ROOT:-.}" && ...`). Necesita Node (Playwright) y
-Python con openpyxl; `setup-bva` instala las dependencias. Ninguno escribe en ARCA ni en Zetti.
-
-- `bajar-compras-zetti.js` — 5.6.4 (formName `rpt_subdiario_iva_compra`), sociedad completa, emisión del 1 al
-  último día, CSV → Excel con `zetti_compras_excel.py`. Login automático con el usuario de Zetti de la planilla
-  de claves (`lib/` copiada de zetti-subdiario-iva-ventas). Solo lee Zetti.
-- `cruce_compras.py` (paso 3), `filtrar_servicios.py` (paso 4), `agregar_servicios_portal.py` (paso 5),
-  `clasificar_proveedores.py` y `cuadro_compras.py` (paso 7).
-- El paso 2 usa el script del plugin **portal-iva-descarga** (tiene que estar instalado).
-- `copiar_solapa.py` — copia la primera hoja de un Excel como solapa del papel (si ya existe la reemplaza en su lugar).
-- `fuente.py` — letras: Aptos Narrow 11 para lo que sale de Zetti, Arial 10 para lo que sale de ARCA. Nunca Calibri.
-- Importes siempre con formato número `#,##0.00` (no contabilidad).
-- Si la DDJJ de IVA ya está presentada, lo que se baje del Portal IVA va con `--presentada` (skill portal-iva-descarga).
-
-## Paso 1 — Compras Zetti
-
-1. Bajar las compras (con `--si-existe=reemplazar` si ya había una descarga anterior):
-
-   ```bash
-   cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/bajar-compras-zetti.js --cuit=<CUIT> --periodo=AAAAMM --si-existe=reemplazar
-   ```
-
-   Deja `AAAAMM - ZETTI - COMPRAS.xlsx` en `01-Impuestos Mensuales/AAAAMM/` (no en IVA), hoja "Compras Zetti":
-   fila 1 razón social, CUIT y "Desde: DD-MM-AAAA  Hasta: DD-MM-AAAA"; fila 2 títulos (Fecha, TC, M, Nro. Comp. en
-   D = PV y E = número, Proveedor, CUIT, R, Exen, Grav, IVA, P/R IIBB, P/R IVA, P/R IG, Total); comprobantes en el
-   orden original de Zetti; fila TOTAL (I a O). Varias sociedades a la vez: `--cuits="A;B"` (un solo login).
-
-   Controlar el JSON: `ok: true`, `control_total_reporte: "ok"` (la suma coincide con la fila Total: del reporte),
-   `desde`/`hasta` cubren el mes completo y `fechas_fuera_de_periodo` vacío. Si hay `aviso_nro`, informar
-   cuáles comprobantes quedaron con el número entero en la columna D (ej. NC de Monroe que Zetti trae como
-   `00NC-A-3116-`): se dejan tal cual salen de Zetti.
-
-2. Pegarlas en el papel como solapa "Compras Zetti", a continuación de "cruce ventas":
-
-   ```bash
-   cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/copiar_solapa.py" "<carpeta del mes>/AAAAMM - ZETTI - COMPRAS.xlsx" "<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx" "Compras Zetti"
-   ```
-
-   Antes de guardar, copiar el papel al scratchpad como respaldo. Si da `PermissionError`, el papel está abierto
-   en Excel: pedir que lo cierre y volver a correr (no guardar con otro nombre).
-
-3. Informar: cantidad de comprobantes por TC, totales (Exen, Grav, IVA, P/R IIBB, P/R IVA, P/R IG, Total),
-   control contra el total del reporte y el orden de solapas resultante.
-
-## Paso 2 — Compras portal iva
-
-1. Bajar el Libro IVA Compras del Portal IVA con el script del plugin portal-iva-descarga, desde la carpeta de
-   la última versión instalada:
-
-   ```bash
-   cd "$(ls -d ~/.claude/plugins/cache/estudiobva-skills/portal-iva-descarga/*/ | sort -V | tail -1)" && node scripts/portal-iva-descarga.js --cuit=<CUIT> --periodo=AAAAMM --libros=compras --no-archivar --si-existe=reemplazar
-   ```
-
-   - **Caso normal (período abierto):** sin `--presentada`. El script importa desde ARCA al borrador del Libro
-     Compras, espera la importación y baja el CSV. Si ARCA ya tiene acuse de la DDJJ del período, el script corta:
-     NO usar `--aunque-presentada` por iniciativa propia; avisar y preguntar.
-   - **Período ya presentado:** agregar `--presentada` (solo lectura, última secuencia, no toca el borrador). Controla
-     el neto gravado contra la vista previa de la DDJJ y, si no coincide, no guarda. Piloto Sanar 1 202609 se hizo así
-     (F2083 DJ Original presentada el 19/10/2026).
-
-   Con `--no-archivar` el Excel queda en `~/Documents/BVA-salidas/portal-iva/<carpeta> - AAAAMM - PORTAL IVA - COMPRAS.xlsx`.
-   Copiarlo como `AAAAMM - PORTAL IVA - COMPRAS.xlsx` en `01-Impuestos Mensuales/AAAAMM/` (al lado del papel, no en IVA),
-   igual que las ventas de la etapa 1.
-
-   Controlar en el JSON: `ok: true`, `filasFueraDePeriodo: 0` y, con `--presentada`, `control_ddjj` (IVA del CSV vs DDJJ;
-   diferencias de centavos son redondeo).
-
-2. Pegarlo tal cual como solapa "Compras portal iva", a continuación de "Compras Zetti" (respaldo previo del papel):
-
-   ```bash
-   cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/copiar_solapa.py" "<carpeta del mes>/AAAAMM - PORTAL IVA - COMPRAS.xlsx" "<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx" "Compras portal iva"
-   ```
-
-   Sale como de ARCA: Arial 10, `#,##0.00`, títulos en fila 1 inmovilizados con filtro, fila TOTAL (=SUM) y nota al pie
-   (las NC vienen en negativo, el total ya es neto). Mismo formato que "Ventas portal iva".
-
-3. Informar: cantidad de comprobantes, DDJJ (si estaba presentada), control contra la DDJJ y orden de solapas.
-
-## Paso 3 — cruce compras
-
-Cruza "Compras Zetti" contra "Compras portal iva" y escribe (o reemplaza) la solapa "cruce compras" a continuación
-de "Compras portal iva". Es el equivalente al "cruce" de ventas, con dos diferencias:
-**de Zetti no se elimina nada** y **no se usa Mis Comprobantes**. Respaldo previo del papel, y papel cerrado en Excel.
+## Correr el script
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/cruce_compras.py" --papel="<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx"
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=AAAAMM > "$HOME/Documents/BVA-salidas/papel-ddjj-iva/ultimo.json" 2> "$HOME/Documents/BVA-salidas/papel-ddjj-iva/ultimo.log"
 ```
 
-Cómo cruza: 1) CUIT + PV + número; 2) lo que sobra, por CUIT + clase (factura/NC) + mismo total ("Numero distinto",
-ej. las NC de Monroe que Zetti guarda como `00NC-A-3116-`); 3) el resto queda "Solo en Portal IVA" / "Solo en Zetti".
-Columnas: Exento/No grav., Gravado, IVA (suma por alícuota), Perc. IIBB, Perc. IVA, Otros (Zetti P/R IG; Portal Otros
-Imp. Nac. + municipales + internos + otros tributos), Total.
+Corre los 7 pasos en orden (abajo, qué hace cada uno). Antes de tocar el papel lo copia a `BVA-salidas/papel-ddjj-iva/respaldos`.
+Navegador siempre oculto; `--ver` solo si el usuario pide ver la ventana. Nunca escribe en Zetti.
+
+**De dónde sale el Libro IVA Compras (paso 2), `--portal=`:**
+- `auto` (por defecto): el de la DDJJ **presentada**, en solo lectura y controlado contra la vista previa de la DDJJ.
+  Si el período no está presentado, el script para con código 4 y `falta_decidir`. **Preguntar al usuario** y volver a correr
+  con `--desde-paso=2` y una de estas:
+  - `--portal=iva`: el `AAAAMM - PORTAL IVA - COMPRAS.xlsx` que ya está en la carpeta IVA del mes (el que bajó el circuito NCR).
+  - `--portal=<ruta.xlsx>`: otro archivo.
+  - `--portal=borrador`: importa desde ARCA al borrador del Libro Compras y lo baja. **Escribe en el borrador de ARCA** (no presenta).
+    Si ya se eliminaron NCR del borrador (conciliacion-ncr), importar puede volver a traerlas: usarlo solo con el OK del usuario.
+
+**Códigos de salida:** 0 OK · 1 falló un paso (`paso_fallido`, `pasos.<paso>.error`) · 2 papel no listo o argumentos ·
+3 ARCA pidió captcha o rechazó la clave (no reintentar en loop) · 4 falta una decisión (`falta_decidir`) · 5 el control del
+cuadro difiere en $1 o más.
+
+**NO CLASIFICADOS (paso 7):** si algún proveedor no está en el Maestro (o está sin cuenta), el script para con código 4 y lista
+CUIT, nombre, comprobantes y total en `pasos.7_clasificacion.no_clasificados`. Preguntar al usuario la cuenta de cada uno y volver a correr:
+
+```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=AAAAMM --desde-paso=7 --cuentas="<CUIT>=<CUENTA>;<CUIT>=<CUENTA>"
+```
+
+Eso escribe la cuenta solo en el papel; recordarle al usuario que la cargue en el Maestro de Proveedores para la próxima.
+
+**Retomar:** `--desde-paso=N` (y `--hasta-paso=N`) corre solo esos pasos, por ejemplo después de corregir algo a mano.
+
+**Informar al terminar**, con el JSON (también queda en `BVA-salidas/papel-ddjj-iva/<CUIT>-<AAAAMM>-<fecha>.json`):
+1. Compras Zetti: comprobantes por TC, totales, control contra el total del reporte (`control_total_reporte`), `aviso_nro` si hay.
+2. Compras portal iva: modo (presentada / archivo / borrador), DDJJ, comprobantes, control contra la DDJJ (centavos = redondeo).
+3. Cruce compras: diferencia Zetti − Portal por columna, los estados con su importe y lo más relevante para revisar.
+4-5. Servicios: cada factura de AySA / EDESUR / METROGAS (fecha, comprobante, total), cuáles se agregaron al Portal con su
+   alícuota, las no tomadas por mal cargadas y qué servicio no tiene factura en Zetti.
+7. Clasificación por cuenta y cuadro: totales del cuadro, otros conceptos y el control (diferencia de centavos = OK).
+
+## Qué hace cada paso
+
+Scripts en `scripts/`; cada uno se puede correr suelto (`python scripts/<x>.py --papel="<papel>"`) e imprime un JSON.
+Letras: Aptos Narrow 11 para lo que sale de Zetti, Arial 10 para lo que sale de ARCA (`fuente.py`). Nunca Calibri.
+Importes con formato número `#,##0.00` (no contabilidad).
+
+### Paso 1 — Compras Zetti (`bajar-compras-zetti.js` + `copiar_solapa.py`)
+
+Reporte 5.6.4 (formName `rpt_subdiario_iva_compra`), sociedad completa, emisión del 1 al último día, CSV → Excel con
+`zetti_compras_excel.py`. Deja `AAAAMM - ZETTI - COMPRAS.xlsx` al lado del papel (no en IVA), hoja "Compras Zetti":
+fila 1 razón social, CUIT y "Desde/Hasta"; fila 2 títulos (Fecha, TC, M, Nro. Comp. en D = PV y E = número, Proveedor,
+CUIT, R, Exen, Grav, IVA, P/R IIBB, P/R IVA, P/R IG, Total); comprobantes en el orden original de Zetti; fila TOTAL (I a O).
+La pega como solapa "Compras Zetti" a continuación de "cruce ventas".
+Controles: `control_total_reporte: "ok"` (la suma coincide con la fila Total: del reporte), mes completo, sin fechas fuera
+del período. `aviso_nro`: comprobantes con el número entero en la columna D (ej. NC de droguería que Zetti trae como
+`00NC-A-3116-`): se dejan tal cual salen de Zetti.
+
+### Paso 2 — Compras portal iva (plugin `portal-iva-descarga` + `copiar_solapa.py`)
+
+Según `--portal` (ver arriba). Con la DDJJ presentada: última secuencia, solo lectura, controla el neto gravado contra la
+vista previa de la DDJJ y, si no coincide, no guarda. Copia el libro como `AAAAMM - PORTAL IVA - COMPRAS.xlsx` al lado del
+papel (no en IVA) y lo pega tal cual como "Compras portal iva": Arial 10, `#,##0.00`, títulos en fila 1 inmovilizados con
+filtro, fila TOTAL (=SUM) y nota al pie (las NC vienen en negativo, el total ya es neto).
+
+### Paso 3 — cruce compras (`cruce_compras.py`)
+
+Cruza "Compras Zetti" contra "Compras portal iva" en la solapa "cruce compras". Como el cruce de ventas, con dos
+diferencias: **de Zetti no se elimina nada** y **no se usa Mis Comprobantes**.
+
+Cómo cruza: 1) CUIT + PV + número; 2) lo que sobra, por CUIT + clase (factura/NC) + mismo total ("Numero distinto");
+3) el resto queda "Solo en Portal IVA" / "Solo en Zetti". Columnas: Exento/No grav., Gravado, IVA (suma por alícuota),
+Perc. IIBB, Perc. IVA, Otros (Zetti P/R IG; Portal Otros Imp. Nac. + municipales + internos + otros tributos), Total.
 
 **Comprobantes C (facturas, NC y ND C, tique factura C) = OK:** no tienen IVA. El Portal IVA los expone solo en
-Importe Total (defecto del sistema, no es un error) y Zetti los carga en Exento o No gravado. El script toma el total
+Importe Total (defecto del sistema, no es un error) y Zetti los carga en Exento o No gravado. Se toma el total
 del Portal como Exento/No grav., quedan OK y se informa en Avisos. Nunca marcarlos como diferencia.
 
-Contenido de la solapa (letra Arial, `#,##0.00`, mismos colores que el cruce de ventas):
-1. Totales de cada fuente por grupo (Facturas y ND, NC, Liquidaciones, Comprobantes X).
-2. Diferencia Zetti − Portal IVA por columna.
-3. Qué explica las diferencias, por estado; la suma da el punto 2.
-4. Detalle comprobante por comprobante (Portal / Zetti / diferencia) con observación.
-5. Percepciones con el mismo total pero en otra columna o que no cierran, agrupado por proveedor.
-6. Diferencias de total por proveedor.
+Contenido de la solapa: 1) totales de cada fuente por grupo (Facturas y ND, NC, Liquidaciones, Comprobantes X);
+2) diferencia Zetti − Portal IVA por columna; 3) qué explica las diferencias, por estado (la suma da el punto 2);
+4) detalle comprobante por comprobante con observación; 5) percepciones con el mismo total pero en otra columna o que
+no cierran, por proveedor; 6) diferencias de total por proveedor.
 
-Estados y observaciones que arma solo: Solo en Portal IVA (anulaciones FC/NC dentro del Portal, comprobantes en $0
-o por centavos, liquidaciones de bancos, NC de Suizo/Monroe → revisar si es NCR), Solo en Zetti (comprobantes X no
-fiscales), Duplicado en Zetti, Importe distinto, Numero distinto, Portal IVA sin desglose (solo trae el total, salvo comprobantes C),
-Distinta apertura, Percepcion en otra columna (ojo con percepciones de IVA que en el Portal quedan en Otros Imp. Nac.:
-no computan en la DDJJ) y Percepcion de Zetti no cierra (columnas de Zetti que no suman el total).
+Estados: Solo en Portal IVA (anulaciones FC/NC dentro del Portal, comprobantes en $0 o por centavos, liquidaciones de
+bancos, NC de Suizo/Monroe → revisar si es NCR), Solo en Zetti (comprobantes X no fiscales), Duplicado en Zetti, Importe
+distinto, Numero distinto, Portal IVA sin desglose (salvo comprobantes C), Distinta apertura, Percepcion en otra columna
+(ojo con percepciones de IVA que en el Portal quedan en Otros Imp. Nac.: no computan en la DDJJ) y Percepcion de Zetti
+no cierra (columnas de Zetti que no suman el total).
 
-Informar: diferencia total Zetti − Portal, los estados con su importe y lo más relevante para revisar.
+### Paso 4 — Servicios en Compras Zetti (`filtrar_servicios.py`)
 
-## Paso 4 — Servicios en Compras Zetti (AySA, EDESUR, METROGAS)
+Filtra en "Compras Zetti" las facturas de AySA (agua), EDESUR (luz) y METROGAS (gas), por CUIT (AySA 30-70956507-5,
+EDESUR 30-65511651-2, METROGAS 30-65786367-6) y por nombre: deja el filtro de la fila 2 en la columna Proveedor y oculta
+el resto (la fila TOTAL queda visible). No cambia datos. Suelen ser las que no vienen con la importación del Portal IVA
+(en el cruce figuran como "Solo en Zetti").
 
-Filtrar en la solapa "Compras Zetti" las facturas de AySA (agua), EDESUR (luz) y METROGAS (gas). Respaldo previo del
-papel, y papel cerrado en Excel.
+### Paso 5 — Servicios agregados a Compras portal iva (`agregar_servicios_portal.py`)
 
-```bash
-cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/filtrar_servicios.py" --papel="<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx"
-```
-
-Los busca por CUIT (AySA 30-70956507-5, EDESUR 30-65511651-2, METROGAS 30-65786367-6) y por nombre, deja aplicado el
-filtro de la fila 2 en la columna Proveedor y oculta el resto de los comprobantes (la fila TOTAL queda visible).
-No cambia datos. Informar cada factura (fecha, comprobante, total) y qué servicio no tiene factura en Zetti ese mes.
-Suelen ser las que no vienen con la importación del Portal IVA (en el cruce de compras figuran como "Solo en Zetti").
-
-## Paso 5 — Agregar los servicios a Compras portal iva
-
-Agregar las facturas de AySA / EDESUR / METROGAS filtradas en el paso 4 al final de "Compras portal iva" (debajo del
-último comprobante) y volver a totalizar. Respaldo previo del papel, y papel cerrado en Excel.
-
-```bash
-cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/agregar_servicios_portal.py" --papel="<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx"
-```
-
-- **Alícuota de IVA:** antes de copiar se chequea con qué porcentaje está cargado el IVA en Zetti (IVA / Grav: 2,5 /
-  5 / 10,5 / 21 / 27 %; los servicios suelen ser 27 %) y el neto y el IVA van a las columnas de esa alícuota. Si no da
-  ninguna alícuota, el script corta sin grabar: avisar.
-- **Registro de la alícuota en Compras Zetti (obligatorio):** debajo del TOTAL de "Compras Zetti" queda el bloque
-  "Control alicuota IVA servicios": un renglón por factura con proveedor, comprobante, fila y alícuota en la columna
-  Proveedor, y en la columna IVA la fórmula `=+J<fila>*0,27` (Grav × alícuota), como se controla a mano.
-  La alícuota varía: la mayoría al 27 %, otras al 21 %, y a veces todo exento (queda "todo exento / no gravado, sin
-  IVA" con 0). Las no tomadas por mal cargadas también figuran ahí. Si se vuelve a correr, el bloque se reemplaza.
-- **Importes negativos sin ser NC** (suele pasar en el exento/no gravado): NO se agrega al Portal; en "Compras Zetti",
-  al costado de su fila, queda "No lo tomamos porque esta mal cargado".
+- **Alícuota de IVA:** IVA / Grav de Zetti (2,5 / 5 / 10,5 / 21 / 27 %; los servicios suelen ser 27 %): el neto y el IVA
+  van a las columnas de esa alícuota. Si no da ninguna, corta sin grabar: avisar.
+- **Registro de la alícuota en Compras Zetti:** debajo del TOTAL queda el bloque "Control alicuota IVA servicios", un
+  renglón por factura con proveedor, comprobante, fila y alícuota, y en la columna IVA `=+J<fila>*0,27` (Grav × alícuota).
+  A veces todo exento ("todo exento / no gravado, sin IVA" con 0). Si se vuelve a correr, el bloque se reemplaza.
+- **Importes negativos sin ser NC:** NO se agrega; en "Compras Zetti", al costado, "No lo tomamos porque esta mal cargado".
 - Columnas como las carga ARCA: Exen → Importe Exento, P/R IIBB → Perc. IIBB, P/R IVA → Perc. IVA, P/R IG → Per. Otros
   Imp. Nac., Total Neto Gravado y Total IVA. Si ya está en el Portal (CUIT + PV + número), no se duplica.
-- No se escribe nada a la derecha de las filas agregadas: la columna AG de "Compras portal iva" queda libre (se usa
-  para la clasificación del paso 7). La fila TOTAL (=SUM) se rehace hasta la
-  última fila nueva y la nota de abajo suma los agregados.
-- Después, volver a correr el cruce del paso 3 (`cruce_compras.py`): esas facturas pasan a OK.
+- La columna AG queda libre; la fila TOTAL (=SUM) se rehace hasta la última fila nueva y la nota suma los agregados.
+- Si agregó alguna, el script vuelve a correr el cruce: esas facturas pasan a OK.
 
-Informar: cada factura agregada con su alícuota, neto, IVA y total; las no tomadas por mal cargadas; el nuevo total.
+### Paso 6 — Columna PROVEEDORES (`titulo_proveedores.py`)
 
-## Paso 6 — Columna PROVEEDORES en Compras portal iva
+AG1 = `PROVEEDORES` con el estilo de AF1 (Arial negrita blanca sobre azul 1F4E79), ancho 22, filtro de la fila 1 hasta AG.
 
-En "Compras portal iva", celda AG1, el título `PROVEEDORES` con el mismo formato que los
-demás títulos (copiar el estilo de AF1: Arial negrita blanca sobre azul 1F4E79), ancho ~22, y extender el filtro de la
-fila 1 hasta AG. La columna queda vacía debajo del título (se completa en el paso siguiente).
+### Paso 7 — Clasificar proveedores y cuadro resumen (`clasificar_proveedores.py`, `asignar_cuentas.py`, `cuadro_compras.py`)
 
-```python
-ws['AG1'] = 'PROVEEDORES'; ws['AG1']._style = copy(ws['AF1']._style)
-ws.auto_filter.ref = 'A1:AG' + <ultima fila del filtro actual>
-```
+**Padrón:** `0 - ESTUDIO - 00000000000/Maestro de Proveedores.xlsx` de la unidad compartida (`BVA_UNIDAD_PATH`; si no,
+`--maestro=<ruta>` al script suelto), solapa "MAESTRO", títulos en la fila 2: A = CUIT, E = CUENTA CONTABLE.
+Busca el CUIT de F en el padrón y escribe la cuenta en AG; los que no están (o sin cuenta) van como `NO CLASIFICADO`
+y el script para (ver arriba). Distribución esperada de "Compras portal iva": F = Nro. Doc. Vendedor, H = Importe Total,
+K = No Gravado, L = Exento, N a S = percepciones/impuestos, T = Neto 0 %, Y/Z = 10,5 %, AA/AB = 21 %, AC/AD = 27 %,
+AG = PROVEEDORES; si es otra, los scripts cortan.
 
-## Paso 7 — Clasificar proveedores y cuadro resumen (Compras portal iva)
-
-Dos partes. **Si no queda ningún NO CLASIFICADO, la parte 2 se arma
-directo, sin preguntar.** Solo se frena cuando falta clasificar algún proveedor (ver parte 1).
-
-**Padrón:** `0 - ESTUDIO - 00000000000\Maestro de Proveedores.xlsx` de la unidad compartida (el script lo busca en
-`BVA_UNIDAD_PATH`, I: y G:; si no, `--maestro=<ruta>`),
-solapa "MAESTRO", títulos en la fila 2, datos desde la 3: A = CUIT, B = razón social, E = CUENTA CONTABLE (la
-clasificación). El resto de las columnas se ignora.
-
-Antes de empezar, verificar la distribución de columnas de "Compras portal iva" (F = Nro. Doc. Vendedor, H = Importe
-Total, K = No Gravado, L = Exento, N a S = percepciones/impuestos, T = Neto 0 %, Y/Z = 10,5 %, AA/AB = 21 %,
-AC/AD = 27 %, AG = PROVEEDORES). Si es otra, avisar antes de seguir.
-
-### Parte 1 — Clasificar proveedores
-
-```bash
-cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/clasificar_proveedores.py" --papel="<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx"
-```
-
-Busca el CUIT de F en el padrón (sin guiones ni ceros a la izquierda) y escribe la cuenta contable en AG. Los que no
-están (o están sin cuenta) van como `NO CLASIFICADO`.
-- **Si hay NO CLASIFICADOS:** PARAR y preguntar cómo se clasifica cada uno (CUIT, nombre, cantidad de
-  comprobantes). Con su respuesta, escribir esa cuenta en AG y recién ahí seguir con la parte 2.
-- **Si no hay ninguno:** seguir directo con la parte 2, sin preguntar.
-
-### Parte 2 — Cuadro resumen
-
-```bash
-cd "${CLAUDE_PLUGIN_ROOT:-.}" && python "scripts/cuadro_compras.py" --papel="<carpeta del mes>/AAAAMM- papeles de trabajo- <Sociedad>.xlsx"
-```
-
-Corta sin grabar si queda algún NO CLASIFICADO. Arma el cuadro dos filas debajo de la nota del Portal: G = tipo,
+Cuadro resumen: Corta sin grabar si queda algún NO CLASIFICADO. Arma el cuadro dos filas debajo de la nota del Portal: G = tipo,
 H = grupo, I a Q = los nueve conceptos, R = TOTAL; debajo el bloque de otros conceptos (G a J) y el CONTROL. Fórmulas
 SUMIFS vivas sobre las filas 2 a la última de comprobantes; no hay Excel para recalcular, así que el script verifica
 calculando lo mismo en Python e imprime los totales y la diferencia del control (sale con código 2 si es de $1 o más).
 Si se vuelve a correr, borra lo que hay debajo de la nota y lo rehace. Informar los totales del cuadro, los
-otros conceptos y el control. (Piloto Sanar 1 202609: diferencia −0,23.)
+otros conceptos y el control. (Piloto 09/2026: diferencia −0,23.)
 
 Abajo de los datos (dejando un par de filas libres), cuadro por tipo de comprobante y MERCADERIA/SERVICIOS.
 Regla: AG = "CMV" es MERCADERIA; todo lo demás es SERVICIOS.
