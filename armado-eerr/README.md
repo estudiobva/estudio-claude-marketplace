@@ -33,6 +33,8 @@ Reglas:
 - Solo completa celdas vacías: lo que cargó o corrigió el equipo no se toca (salvo `--pisar`).
 - Cada carga queda registrada con su archivo de origen en la hoja **Armado** del EERR.
 - Respaldo del EERR anterior en `EERR 2026/_respaldos/`; si el archivo cambió mientras corría, no se pisa.
+- Desde 1.0.3: las NCR que eliminó la conciliación (hoja Eliminados del `AAAAMM-COMPRAS-SIN-NCR`) no entran a las compras
+  aunque el libro elegido todavía las traiga (antes dejaban el CMV subvaluado: Sanar 1 y Soy Nueva Ventura en 09/2026).
 - Necesita Microsoft Excel para recalcular (Windows: PowerShell; Mac: AppleScript).
 
 ## Instalación

@@ -190,7 +190,8 @@ class Fuentes:
     def libro(self, per, cual):
         # orden: libro de la DDJJ presentada ("(DDJJ presentada)" en el nombre) > el más nuevo entre el libro del Portal IVA
         # (carpeta IVA primero) y, en compras, el libro sin NCR de la conciliación: un libro bajado después de conciliar
-        # ya viene sin NCR y con lo que el equipo agregó (Edesur, AySA...), uno anterior trae las NCR. Nunca cruces ni CSV.
+        # suele venir sin NCR y con lo que el equipo agregó (Edesur, AySA...). Nunca cruces ni CSV. Desde 1.0.3, si el libro
+        # elegido todavía trae las NCR conciliadas (bajado antes de eliminarlas o con el borrador reimportado), datos_mes las saltea.
         C = cual.upper()
         cand = [p for p in self.buscar(rf'^{per}\s*-\s*PORTAL IVA\s*-\s*{C}.*\.xlsx$', per) if 'cruce' not in norm(os.path.basename(p))]
         pres = [p for p in cand if 'presentada' in norm(os.path.basename(p))]
@@ -208,6 +209,24 @@ class Fuentes:
             if sin and (libro is None or os.path.getmtime(sin[0]) > os.path.getmtime(libro)):
                 return sin[0], 'libro de compras sin NCR (conciliación NCR)'
         return (libro, que) if libro else (None, None)
+
+    # ---- NCR conciliadas
+    def ncr_conciliadas(self, per):
+        # (archivo, {(CUIT, PV, número)}) de las NCR que eliminó la conciliación (hoja Eliminados del AAAAMM-COMPRAS-SIN-NCR).
+        # Un libro bajado (o reimportado) después de conciliar puede volver a traerlas: no van al EERR.
+        sin = self.buscar(rf'^{per}-COMPRAS-SIN-NCR.*\.xlsx$', per)
+        if not sin: return None, set()
+        try:
+            wb = abrir(sin[0], read_only=True, data_only=True)
+            if 'Eliminados' not in wb.sheetnames: return sin[0], set()
+            it = wb['Eliminados'].iter_rows(values_only=True); h = {nfc(k): i for i, k in enumerate(next(it)) if k}
+            out = set()
+            for r in it:
+                if not {'_cuit', '_pv', '_nro'} <= set(h) or r[h['_cuit']] is None: continue
+                pv, nro = a_num(r[h['_pv']]), a_num(r[h['_nro']])
+                if pv and nro: out.add((ndoc(r[h['_cuit']]), int(pv), int(nro)))
+            return sin[0], out
+        except Exception: return sin[0], set()
 
     # ---- DJ de ARBA
     def dj_arba(self, per):
@@ -299,7 +318,9 @@ def filas_libro(f):
         doc = 'Nro. Doc. Vendedor' if 'Nro. Doc. Vendedor' in h else 'Nro. Doc. Comprador'
         den = 'Denominación Vendedor' if 'Denominación Vendedor' in h else 'Denominación Comprador'
         ivas = {a: g(f'Importe IVA {a}') for a in ALICS}
+        ent = lambda k: int(a_num(r[h[k]])) if k in h and a_num(r[h[k]]) else None
         yield dict(cuit=ndoc(r[h[doc]]) if doc in h else '', den=nfc(r[h[den]]) if den in h else '',
+                   pv=ent('Punto de Venta'), nro=ent('Número de Comprobante'),
                    tipo=int(tipo[1]) if tipo else None, nograv=g('Importe No Gravado'), exento=g('Importe Exento'),
                    neto=sum(g(f'Neto Gravado IVA {a}') for a in ALICS), neto0=g('Neto Gravado IVA 0%'),
                    tot_neto=g('Total Neto Gravado'), iva=g('Total IVA') or sum(ivas.values()), ivas=ivas,
@@ -410,8 +431,13 @@ def datos_mes(F, per):
     if f:
         acc = collections.defaultdict(float); info = {}; iva_serv = collections.defaultdict(float); iva_merc = iva_fuera = 0.0
         n = 0
+        # las NCR que eliminó la conciliación no van al EERR aunque el libro las traiga (libro bajado o reimportado antes de
+        # eliminarlas, o después del acuse con el borrador reimportado)
+        fsin, ncr = (None, set()) if 'SIN-NCR' in os.path.basename(f).upper() else F.ncr_conciliadas(per)
+        n_ncr = 0; imp_ncr = 0.0
         for x in filas_libro(f):
             if not x['cuit']: continue
+            if (x['cuit'], x['pv'], x['nro']) in ncr: n_ncr += 1; imp_ncr += gasto(x); continue
             cta, rubro, est, razon = imputacion(x['cuit'], x['den'])
             k = (x['cuit'], cta, rubro, est); info[k] = razon; acc[k] += gasto(x); n += 1
             if rubro.startswith('EXCLUIDO'): iva_fuera += x['iva']
@@ -421,9 +447,9 @@ def datos_mes(F, per):
                 iva_serv['otros'] += x['iva'] - sum(x['ivas'].values())
         d['compras'] = dict(acc); d['compras_info'] = info; d['comprobantes'] = n
         d['iva_serv'] = dict(iva_serv); d['iva_merc'] = iva_merc; d['iva_fuera'] = iva_fuera
+        if n_ncr:
+            que += f"; sin las {n_ncr} NCR conciliadas que todavía estaban en el libro ({pesos(imp_ncr)}, {os.path.basename(fsin)})"
         d['fuentes']['compras'] = (f, que)
-        if 'sin NCR' not in que and F.buscar(rf'^{per}-COMPRAS-SIN-NCR', per) == [] and que != 'libro de la DDJJ presentada':
-            pass
     # IIBB
     v, f = F.dj_arba(per)
     if v is not None: d['iibb'] = v; d['fuentes']['iibb'] = (f, 'DJ de anticipo de ARBA')
