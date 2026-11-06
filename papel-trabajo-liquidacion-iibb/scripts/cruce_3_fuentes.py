@@ -703,7 +703,10 @@ def redactar_observaciones(filas, dif_mes, tol):
                          + ") que no esta en Zetti: posible comprobante anulado o emitido en cero. No afecta los totales.")
             continue
 
-        if abs(d) <= tol * 4 and not rg['dif_mc_portal']:
+        # Redondeo solo si TAMBIEN coinciden exento, gravado e IVA: un Z con el mismo total y otra
+        # composicion (Norte 202610, Z 16-1820 con gravado 3.064.446,29 contra 306.446,29) no es redondeo.
+        if abs(d) <= tol * 4 and not rg['dif_mc_portal'] \
+                and not (z and p and any(abs(z[k] - p[k]) > tol * 4 for k, _ in COMPS)):
             rg['obs'] = ('Diferencia minima de redondeo en el cierre Z, sin relevancia' if tiq else
                          'Diferencia minima de redondeo entre Zetti y Portal IVA, sin relevancia')
             continue

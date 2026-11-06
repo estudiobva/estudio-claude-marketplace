@@ -58,6 +58,10 @@ Reglas:
   - Bloques de facturas que faltan en Zetti.
 - No volver a correr sociedades ya terminadas salvo que lo pidan.
 
+- **Cada diferencia real sin compensar se deja escrita en el papel**, no solo en el chat. Va en la columna Observacion del renglon en la solapa `cruce ventas` (punto 4, "Detalle de las diferencias"). Se escribe con el mismo detalle que el reporte: importe y columna (exento, gravado, IVA), comprobantes con PV-numero, fecha e importe, que paso en cada fuente y los importes de Zetti contra ARCA. Si el renglon del dia vecino es un corrimiento, reescribir tambien su observacion para que diga con que Z compensa.
+- **Resaltar en verde `99FFCC` (fila entera)** los comprobantes que originan esa diferencia, en las solapas de las fuentes: Ventas Zetti (depurado), Ventas portal iva y Ventas MCR. Va para las diferencias sin compensar, las que forman el Zetti - Portal del mes, y para los Z con el mismo total y distinta composicion (cambian exento, gravado e IVA). En esos Z se resalta la fila del Z en el depurado y todos los tiques de ese dia en Portal y MCR. No va para corrimientos ni cortes de mes. La observacion de un Z con distinta composicion se escribe asi: "Zetti: gravado $X e IVA $Y. ARCA: ...", y el estado es "Distinta composicion (mismo total)". Nunca se rotula como redondeo.
+- Estos cambios se hacen con Excel (COM desde PowerShell), no con openpyxl. Asi no se pierden las imagenes, notas ni resaltados que haya agregado el usuario. No volver a correr `cruce_3_fuentes.py` sobre un papel que el usuario ya toco, porque reescribe la solapa entera.
+
 Reporte al usuario: una tabla por período con `Zetti − Portal IVA` real y su causa. Después, las aclaraciones (corrimientos, cortes, composición) y lo que se eliminó en la depuración (cantidad e importe por PV).
 
 ## Archivos
