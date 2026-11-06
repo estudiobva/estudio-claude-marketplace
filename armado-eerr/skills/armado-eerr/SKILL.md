@@ -29,7 +29,9 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 
 1. **Libros del Portal IVA** (ventas y compras) en la carpeta del mes: `portal-iva-descarga`, mejor con `--presentada`.
    Si para compras solo está el libro sin NCR de la conciliación o un borrador, se usa igual pero se avisa: pueden faltar
-   Edesur, AySA o Metrogas que el equipo carga a mano antes de presentar.
+   Edesur, AySA o Metrogas que el equipo carga a mano antes de presentar. Desde 1.0.3, si el libro de compras elegido todavía
+   trae las NCR que eliminó la conciliación (hoja Eliminados del `AAAAMM-COMPRAS-SIN-NCR`), esas filas no se cargan y queda
+   anotado en la hoja Armado (pasa con un libro bajado antes de eliminarlas o con el borrador reimportado después del acuse).
 2. **DJ de anticipo de ARBA** (`AAAAMM-IIBB-DJ-*.pdf` o `AAAAMM-IIBB-DDJJ-*.pdf`): `constancias-anticipo-arba`.
    AGIP y Convenio Multilateral no tienen fuente automática: IIBB queda vacío y se carga a mano.
 3. **F.931** (`02-Sueldos y F.931/AAAA/AAAAMM-F931-DDJJ-*.pdf`): `f931-descarga-arca`.
