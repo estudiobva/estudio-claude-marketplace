@@ -1,6 +1,6 @@
 ---
 name: papel-trabajo-ddjj-iva
-description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - baja el Libro IVA Compras del Portal IVA y lo pega como "Compras portal iva" al lado. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores y arma el cuadro resumen de compras. Lo hace de punta a punta un script de Playwright (scripts/papel-ddjj-iva.js) con login automático. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
+description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - baja el Libro IVA Compras del Portal IVA y lo pega como "Compras portal iva" al lado. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores y arma el cuadro resumen de compras. Paso 8 - completa la solapa "imputacion compras" (resumen CMV / SERVICIOS y detalle por cuenta contable). Lo hace de punta a punta un script de Playwright (scripts/papel-ddjj-iva.js) con login automático. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
 ---
 
 # Papel de trabajo para la DDJJ de IVA (etapa 2)
@@ -24,7 +24,7 @@ Lo hace un solo script de Playwright, con login automático (planilla de claves 
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=AAAAMM > "$HOME/Documents/BVA-salidas/papel-ddjj-iva/ultimo.json" 2> "$HOME/Documents/BVA-salidas/papel-ddjj-iva/ultimo.log"
 ```
 
-Corre los 7 pasos en orden (abajo, qué hace cada uno). Antes de tocar el papel lo copia a `BVA-salidas/papel-ddjj-iva/respaldos`.
+Corre los 8 pasos en orden (abajo, qué hace cada uno). Antes de tocar el papel lo copia a `BVA-salidas/papel-ddjj-iva/respaldos`.
 Navegador siempre oculto; `--ver` solo si el usuario pide ver la ventana. Nunca escribe en Zetti.
 
 **De dónde sale el Libro IVA Compras (paso 2), `--portal=`:**
@@ -175,6 +175,24 @@ otras solapas.
 
 Aclaración: que el No Gravado dé negativo no es un error (se compensa con el exento del mismo comprobante); no
 marcarlo como observación.
+
+### Paso 8 — imputacion compras (`imputacion_compras.py`)
+
+Completa la solapa "imputacion compras" (si el papel ya la trae como plantilla, respeta rótulos y formato; si no, la
+crea después de "Compras portal iva") con SUMIFS vivas contra "Compras portal iva" (filas 2 a la última de
+comprobantes), según la clasificación de la columna AG (paso 7):
+
+- **Resumen global (filas 3 a 5):** CMV (AG = "CMV"), SERVICIOS (todo lo demás) y Total. Columnas: Comprobantes,
+  Neto Gravado (T + U + W + Y + AA + AC, los netos de cada alícuota; no AE, que en filas agregadas a mano suele quedar
+  vacía), No Gravado (K, y en los tipos sin IVA discriminado 6, 8, 11, 13, 15 y 111 además H − N a S, como el cuadro del
+  paso 7), Exento (L), IVA (V + X + Z + AB + AD) e Importe Total (H).
+- **Detalle por cuenta contable (fila 9 en adelante):** Comprobantes y "gravado + exento" = K + L + T + U + Y + AA + AC
+  (más el mismo agregado de los tipos sin IVA, si no las facturas C quedarían en cero). Se mantienen las cuentas de la
+  plantilla aunque den cero y se **agregan las que aparezcan en AG y falten**, en orden alfabético; al pie, fila Total.
+
+Controles (calculados en Python, sale con código 2 si no cierran): comprobantes del detalle = fila SERVICIOS, y
+neto + no gravado + exento + IVA + N a S = Importe Total (centavos). Informar el resumen, las cuentas agregadas y las
+que quedaron en cero. (Piloto Quilmes Oeste 09/2026: se agregó GASTOS DE MANTENIMIENTO; control 0,09.)
 
 ## Próximos pasos
 

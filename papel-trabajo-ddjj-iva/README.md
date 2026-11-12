@@ -17,6 +17,7 @@ Antes de tocar el papel lo respalda en `BVA-salidas/papel-ddjj-iva/respaldos`.
 | 5 | Las agrega al final de Compras portal iva con su alícuota (y deja el control de alícuota debajo de Compras Zetti); las mal cargadas no se toman | `agregar_servicios_portal.py` |
 | 6 | Título PROVEEDORES en la columna AG de Compras portal iva | `titulo_proveedores.py` |
 | 7 | Clasifica los proveedores con el Maestro de Proveedores (y las cuentas que se pasen con `--cuentas` para los NO CLASIFICADOS) y arma el cuadro resumen de compras (SUMIFS, otros conceptos y control) | `clasificar_proveedores.py`, `asignar_cuentas.py`, `cuadro_compras.py` |
+| 8 | Completa la solapa **imputacion compras**: resumen CMV / SERVICIOS (neto, no gravado, exento, IVA, total) y detalle por cuenta contable (gravado + exento), agregando las cuentas que falten | `imputacion_compras.py` |
 
 ## Requisitos
 
