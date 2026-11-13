@@ -7,7 +7,8 @@ Si la solapa ya existe (plantilla del equipo) se respetan sus rotulos y formato;
 con el mismo esquema:
 
     A1  Resumen por clasificacion
-    2   Clasificacion | Comprobantes | Neto Gravado | No Gravado | Exento | IVA | Importe Total
+    2   Clasificacion | Comprobantes | Neto Gravado | No Gravado | Exento | IVA |
+        Percepciones y otros impuestos | Importe Total     (C + D + E + F + G = H en cada fila)
     3   CMV           (AG = "CMV")
     4   SERVICIOS     (todo lo demas)
     5   Total
@@ -22,7 +23,9 @@ Fuentes (SUMIFS vivas contra 'Compras portal iva', filas 2 a la ultima de compro
     IVA = V + X + Z + AB + AD (IVA de cada alicuota, no "Total IVA");
     No Gravado = K, y en los comprobantes sin IVA discriminado (tipos 6, 8, 11, 13, 15, 111) ademas
         H - (N a S), igual que el cuadro resumen del paso 7 (el Portal los trae solo en Importe Total);
-    gravado + exento = K + L + T + U + Y + AA + AC, mas el mismo agregado de los tipos sin IVA.
+    Percepciones y otros impuestos = N + O + P + Q + R + S (solo en el resumen global, para que cierre);
+    gravado + exento = K + L + T + U + Y + AA + AC, mas el mismo agregado de los tipos sin IVA (H - N a S:
+        las facturas C entran por su total). El detalle NUNCA incluye percepciones ni otros impuestos.
 
 No hay Excel para recalcular: el script calcula lo mismo en Python e imprime los importes y los
 controles (detalle = fila SERVICIOS; neto + no grav. + exento + IVA + N a S = Importe Total).
@@ -46,6 +49,7 @@ IVAS = ['V', 'X', 'Z', 'AB', 'AD']
 GRAV_EXENTO = ['K', 'L', 'T', 'U', 'Y', 'AA', 'AC']
 NETOS = ['T', 'U', 'W', 'Y', 'AA', 'AC']
 FMT = '#,##0.00;[Red]-#,##0.00'
+PERC_TIT = 'Percepciones y otros impuestos'
 CELESTE = PatternFill('solid', fgColor='DDEBF7')
 F = dict(name='Aptos Narrow', size=11)
 FINA = Side(style='thin')
@@ -93,7 +97,7 @@ def main():
         ws = wb.create_sheet(HOJA, wb.sheetnames.index(hp) + 1)
         ws['A1'] = 'Resumen por clasificación'
         for j, t in enumerate(['Clasificación', 'Comprobantes', 'Neto Gravado', 'No Gravado', 'Exento', 'IVA',
-                               'Importe Total'], start=1):
+                               PERC_TIT, 'Importe Total'], start=1):
             ws.cell(2, j, t)
         ws['A3'], ws['A4'], ws['A5'] = 'CMV', 'SERVICIOS', 'Total'
         ws['A7'] = 'Detalle Servicios por cuenta contable'
@@ -101,12 +105,21 @@ def main():
             ws.cell(8, j, t)
         for c in ('A1', 'A7'):
             ws[c].font = Font(bold=True, **F)
-        for r, n in ((2, 7), (8, 3)):
+        for r, n in ((2, 8), (8, 3)):
             for j in range(1, n + 1):
                 ws.cell(r, j).font, ws.cell(r, j).fill = Font(bold=True, **F), CELESTE
         ws.column_dimensions['A'].width = 37
-        for L in 'BCDEFG':
+        for L in 'BCDEFGH':
             ws.column_dimensions[L].width = 16
+    if str(ws['G2'].value or '').strip().lower() == 'importe total':
+        # plantilla vieja (Importe Total en G): se agrega la columna de percepciones y el total pasa a H
+        ws['H2']._style = copy(ws['G2']._style)
+        ws['H2'] = 'Importe Total'
+        ws['G2'] = PERC_TIT
+        ws.column_dimensions['H'].width = ws.column_dimensions['G'].width or 16
+        ws.column_dimensions['G'].width = max(ws.column_dimensions['G'].width or 0, 18)
+        for r in (3, 4, 5):
+            ws.cell(r, 8)._style = copy(ws.cell(r, 7)._style)
 
     q = f"'{hp}'!"
 
@@ -152,13 +165,14 @@ def main():
         escribir((r, 4), '=' + sumifs('K', crit) + '+' + sin_iva(crit))
         escribir((r, 5), '=' + sumifs('L', crit))
         escribir((r, 6), '=' + '+'.join(sumifs(c, crit) for c in IVAS))
-        escribir((r, 7), '=' + sumifs('H', crit))
+        escribir((r, 7), '=' + '+'.join(sumifs(c, crit) for c in NS))
+        escribir((r, 8), '=' + sumifs('H', crit))
         resumen[rot] = {'comprobantes': sum(1 for d in datos if pred(d)), 'neto_gravado': py(pred, NETOS),
                         'no_gravado': py(pred, ['K'], True), 'exento': py(pred, ['L']), 'iva': py(pred, IVAS),
                         'importe_total': py(pred, ['H']),
                         'otros_N_a_S': py(pred, NS)}
     escribir((5, 1), 'Total', bold=True, fmt=None)
-    for j in range(2, 8):
+    for j in range(2, 9):
         L = chr(64 + j)
         escribir((5, j), f'=SUM({L}3:{L}4)', bold=True, fmt='0' if j == 2 else FMT)
 

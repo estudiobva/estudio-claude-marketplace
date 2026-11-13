@@ -185,9 +185,12 @@ comprobantes), según la clasificación de la columna AG (paso 7):
 - **Resumen global (filas 3 a 5):** CMV (AG = "CMV"), SERVICIOS (todo lo demás) y Total. Columnas: Comprobantes,
   Neto Gravado (T + U + W + Y + AA + AC, los netos de cada alícuota; no AE, que en filas agregadas a mano suele quedar
   vacía), No Gravado (K, y en los tipos sin IVA discriminado 6, 8, 11, 13, 15 y 111 además H − N a S, como el cuadro del
-  paso 7), Exento (L), IVA (V + X + Z + AB + AD) e Importe Total (H).
+  paso 7), Exento (L), IVA (V + X + Z + AB + AD), Percepciones y otros impuestos (N a S, todo junto) e Importe
+  Total (H): neto + no gravado + exento + IVA + percepciones = Importe Total en cada fila. Si la plantilla tiene
+  Importe Total en G, se agrega la columna de percepciones en G y el total pasa a H.
 - **Detalle por cuenta contable (fila 9 en adelante):** Comprobantes y "gravado + exento" = K + L + T + U + Y + AA + AC
-  (más el mismo agregado de los tipos sin IVA, si no las facturas C quedarían en cero). Se mantienen las cuentas de la
+  (más el mismo agregado de los tipos sin IVA, H − N a S, si no las facturas C quedarían en cero). **Nunca incluye
+  percepciones ni otros impuestos.** Se mantienen las cuentas de la
   plantilla aunque den cero y se **agregan las que aparezcan en AG y falten**, en orden alfabético; al pie, fila Total.
 
 Controles (calculados en Python, sale con código 2 si no cierran): comprobantes del detalle = fila SERVICIOS, y
