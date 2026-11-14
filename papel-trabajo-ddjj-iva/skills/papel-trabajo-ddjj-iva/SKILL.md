@@ -92,9 +92,10 @@ Cómo cruza: 1) CUIT + PV + número; 2) lo que sobra, por CUIT + clase (factura/
 3) el resto queda "Solo en Portal IVA" / "Solo en Zetti". Columnas: Exento/No grav., Gravado, IVA (suma por alícuota),
 Perc. IIBB, Perc. IVA, Otros (Zetti P/R IG; Portal Otros Imp. Nac. + municipales + internos + otros tributos), Total.
 
-**Comprobantes C (facturas, NC y ND C, tique factura C) = OK:** no tienen IVA. El Portal IVA los expone solo en
-Importe Total (defecto del sistema, no es un error) y Zetti los carga en Exento o No gravado. Se toma el total
-del Portal como Exento/No grav., quedan OK y se informa en Avisos. Nunca marcarlos como diferencia.
+**Comprobantes que el Portal trae solo en Importe Total = OK** (facturas C, facturas B y cualquier otro tipo): el
+Portal IVA los expone solo en Importe Total (defecto del sistema, no es un error) y Zetti los carga en Exento o No
+gravado; el cuadro resumen del paso 7 los suma en No Gravado. El script toma el total del Portal como Exento/No grav.,
+quedan OK y se informa en Avisos (cantidad por tipo). Nunca marcarlos como diferencia.
 
 Contenido de la solapa: 1) totales de cada fuente por grupo (Facturas y ND, NC, Liquidaciones, Comprobantes X);
 2) diferencia Zetti − Portal IVA por columna; 3) qué explica las diferencias, por estado (la suma da el punto 2);
