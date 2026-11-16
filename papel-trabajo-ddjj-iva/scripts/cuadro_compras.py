@@ -29,7 +29,8 @@ import sys
 from datetime import datetime
 
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment, Border, Font, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles.colors import Color
 from openpyxl.utils import column_index_from_string as ci
 
 from fuente import ZETTI
@@ -37,6 +38,10 @@ from fuente import ZETTI
 HOJA = 'Compras portal iva'
 FMT = '_-* #,##0.00_-;[Red]\\-* #,##0.00_-;_-* "-"??_-;_-@_-'
 FINA = Side(style='thin')
+GRUESA = Side(style='medium')
+# Retoques de la usuaria sobre Norte 202610 (2026-11-16): encabezado U a AD con relleno gris (blanco del tema
+# oscurecido 15 %), recuadro grueso del encabezado al TOTAL (U a AE) y TOTAL con linea gruesa abajo.
+GRIS = PatternFill('solid', fgColor=Color(theme=0, tint=-0.1499984740745262))
 F = dict(name=ZETTI[0], size=ZETTI[1])
 
 DESC = {1: 'Factura A', 2: 'Nota de Débito A', 3: 'Nota de Crédito A', 4: 'Recibo A', 6: 'Factura B',
@@ -159,7 +164,10 @@ def main():
         estilo(c, bold=V <= j <= AD)
         if V <= j <= AD:
             c.alignment = Alignment(horizontal='center', wrap_text=True)
-        c.border = Border(top=FINA, bottom=FINA)
+        if U <= j <= AD:
+            c.fill = GRIS
+        c.border = Border(left=GRUESA if j == U else None, right=GRUESA if j == AE else None,
+                          top=GRUESA, bottom=FINA)
     ws.row_dimensions[cab].height = 28.8
     calc = {}
     r = cab
@@ -188,7 +196,11 @@ def main():
         estilo(ws.cell(r, j, f'=SUM({L}{d1}:{L}{d2})'), bold=True, fmt=FMT)
     estilo(ws.cell(r, AE, f'=SUM(V{r}:AD{r})'), bold=True, fmt=FMT)
     for j in range(U, AE + 1):
-        ws.cell(r, j).border = Border(top=FINA)
+        ws.cell(r, j).border = Border(left=GRUESA if j == U else None, right=GRUESA if j == AE else None,
+                                      top=FINA, bottom=GRUESA)
+    for rr in range(cab + 1, r):  # costados del recuadro en las filas del cuadro y la fila libre
+        ws.cell(rr, U).border = Border(left=GRUESA)
+        ws.cell(rr, AE).border = Border(right=GRUESA)
     tot_cuadro = {t: sum(f[t] for f in calc.values()) for t in [t for t, _ in CONCEPTOS] + ['TOTAL']}
 
     # --- bloque aparte: N a S (U = concepto, V MERCADERIA, W SERVICIOS, X TOTAL)

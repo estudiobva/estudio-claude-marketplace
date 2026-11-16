@@ -144,7 +144,9 @@ AG = PROVEEDORES; si es otra, los scripts cortan.
 Cuadro resumen: Corta sin grabar si queda algún NO CLASIFICADO. Arma el cuadro con el formato de Norte 202609, al final de las columnas: encabezado 5 filas debajo de la
 nota del Portal, U = tipo, V a AD = los nueve conceptos, AE = grupo (MERCADERIA / SERVICIOS; en la fila TOTAL PORTAL
 IVA, el total general), una fila libre antes del TOTAL; debajo "OTROS CONCEPTOS" (U a X) y el CONTROL con los
-importes en X. Letra Aptos Narrow 11, encabezado en negrita con línea fina arriba y abajo, sin relleno ni recuadro.
+importes en X. Letra Aptos Narrow 11; encabezado en negrita con relleno gris (blanco del tema oscurecido 15 %) de U a AD;
+recuadro grueso del encabezado al TOTAL PORTAL IVA (U a AE) y el TOTAL con línea fina arriba y gruesa abajo.
+Otros conceptos y control con líneas finas, sin relleno.
 No Gravado de los tipos sin IVA con SUMPRODUCT (H − N a S). Fórmulas
 SUMIFS vivas sobre las filas 2 a la última de comprobantes; no hay Excel para recalcular, así que el script verifica
 calculando lo mismo en Python e imprime los totales y la diferencia del control (sale con código 2 si es de $1 o más).
