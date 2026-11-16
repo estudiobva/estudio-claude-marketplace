@@ -194,12 +194,12 @@ comprobantes), según la clasificación de la columna AG (paso 7):
   paso 7), Exento (L), IVA (V + X + Z + AB + AD), Percepciones y otros impuestos (N a S, todo junto) e Importe
   Total (H): neto + no gravado + exento + IVA + percepciones = Importe Total en cada fila. Si la plantilla tiene
   Importe Total en G, se agrega la columna de percepciones en G y el total pasa a H.
-- **Detalle por cuenta contable (fila 9 en adelante):** Comprobantes y "gravado + exento" = K + L + T + U + Y + AA + AC
+- **Detalle por cuenta contable (fila 9 en adelante, CMV incluido):** Comprobantes y "gravado + exento" = K + L + T + U + Y + AA + AC
   (más el mismo agregado de los tipos sin IVA, H − N a S, si no las facturas C quedarían en cero). **Nunca incluye
   percepciones ni otros impuestos.** Se mantienen las cuentas de la
   plantilla aunque den cero y se **agregan las que aparezcan en AG y falten**, en orden alfabético; al pie, fila Total.
 
-Controles (calculados en Python, sale con código 2 si no cierran): comprobantes del detalle = fila SERVICIOS, y
+Controles (calculados en Python, sale con código 2 si no cierran): comprobantes del detalle = Total; gravado + exento del detalle = neto + no gravado + exento del resumen; y
 neto + no gravado + exento + IVA + N a S = Importe Total (centavos). Informar el resumen, las cuentas agregadas y las
 que quedaron en cero. (Piloto Quilmes Oeste 09/2026: se agregó GASTOS DE MANTENIMIENTO; control 0,09.)
 

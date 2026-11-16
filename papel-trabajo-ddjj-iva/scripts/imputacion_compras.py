@@ -12,7 +12,7 @@ con el mismo esquema:
     3   CMV           (AG = "CMV")
     4   SERVICIOS     (todo lo demas)
     5   Total
-    A7  Detalle Servicios por cuenta contable
+    A7  Detalle por cuenta contable (todas las cuentas de AG, CMV incluido: el Total da neto + no grav. + exento)
     8   Cuenta contable | Comprobantes | gravado + exento
     9.. una fila por cuenta (las de la plantilla mas las que aparezcan en AG y falten, en orden
         alfabetico), y al pie la fila Total.
@@ -28,7 +28,8 @@ Fuentes (SUMIFS vivas contra 'Compras portal iva', filas 2 a la ultima de compro
         las facturas C entran por su total). El detalle NUNCA incluye percepciones ni otros impuestos.
 
 No hay Excel para recalcular: el script calcula lo mismo en Python e imprime los importes y los
-controles (detalle = fila SERVICIOS; neto + no grav. + exento + IVA + N a S = Importe Total).
+controles (comprobantes del detalle = Total; gravado + exento del detalle = neto + no grav. + exento del
+resumen; neto + no grav. + exento + IVA + N a S = Importe Total).
 Sale con codigo 2 si un control no cierra ($1 o mas). Si hay filas sin clasificar en AG corta sin grabar.
 """
 import json
@@ -50,6 +51,7 @@ GRAV_EXENTO = ['K', 'L', 'T', 'U', 'Y', 'AA', 'AC']
 NETOS = ['T', 'U', 'W', 'Y', 'AA', 'AC']
 FMT = '#,##0.00;[Red]-#,##0.00'
 PERC_TIT = 'Percepciones y otros impuestos'
+TITULO_DETALLE = 'Detalle por cuenta contable'
 CELESTE = PatternFill('solid', fgColor='DDEBF7')
 F = dict(name='Aptos Narrow', size=11)
 FINA = Side(style='thin')
@@ -100,7 +102,7 @@ def main():
                                PERC_TIT, 'Importe Total'], start=1):
             ws.cell(2, j, t)
         ws['A3'], ws['A4'], ws['A5'] = 'CMV', 'SERVICIOS', 'Total'
-        ws['A7'] = 'Detalle Servicios por cuenta contable'
+        ws['A7'] = TITULO_DETALLE
         for j, t in enumerate(['Cuenta contable', 'Comprobantes', 'gravado + exento'], start=1):
             ws.cell(8, j, t)
         for c in ('A1', 'A7'):
@@ -183,7 +185,10 @@ def main():
         r += 1
     fin_viejo = r if str(ws.cell(r, 1).value or '').strip().lower() == 'total' else r - 1
     estilo_fila = [copy(ws.cell(9, j)._style) for j in (1, 2, 3)] if existentes else None
-    en_ag = sorted({d['cuenta'] for d in datos if d['cuenta'] != 'CMV'})
+    # todas las cuentas, CMV incluido (pedido 2026-11-16: el detalle tiene que dar neto + no grav. + exento)
+    if str(ws['A7'].value or '').strip().lower() == 'detalle servicios por cuenta contable':
+        ws['A7'] = TITULO_DETALLE
+    en_ag = sorted({d['cuenta'] for d in datos})
     agregadas = [c for c in en_ag if c.upper() not in {e.upper() for e in existentes}]
     cuentas = sorted(existentes + agregadas, key=lambda s: s.upper())
     for rr in range(9, max(fin_viejo, 9 + len(cuentas)) + 2):  # limpiar el bloque anterior
@@ -213,7 +218,9 @@ def main():
     serv = resumen['SERVICIOS']
     tot = {k: round(resumen['CMV'][k] + serv[k], 2) for k in serv}
     control = {
-        'comprobantes_detalle_vs_servicios': sum(d['comprobantes'] for d in detalle) - serv['comprobantes'],
+        'comprobantes_detalle_vs_total': sum(d['comprobantes'] for d in detalle) - tot['comprobantes'],
+        'gravado_exento_detalle_vs_resumen': round(sum(d['gravado_mas_exento'] for d in detalle)
+                                                   - (tot['neto_gravado'] + tot['no_gravado'] + tot['exento']), 2),
         'componentes_vs_importe_total': round(tot['neto_gravado'] + tot['no_gravado'] + tot['exento'] + tot['iva']
                                               + tot['otros_N_a_S'] - tot['importe_total'], 2),
     }
@@ -225,7 +232,8 @@ def main():
         'cuentas_en_cero': [d['cuenta'] for d in detalle if d['comprobantes'] == 0],
         'control': control,
     }, ensure_ascii=False, indent=1))
-    if control['comprobantes_detalle_vs_servicios'] or abs(control['componentes_vs_importe_total']) >= 1:
+    if (control['comprobantes_detalle_vs_total'] or abs(control['gravado_exento_detalle_vs_resumen']) >= 1
+            or abs(control['componentes_vs_importe_total']) >= 1):
         sys.exit(2)
 
 
