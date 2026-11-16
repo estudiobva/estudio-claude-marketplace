@@ -141,8 +141,11 @@ y el script para (ver arriba). Distribución esperada de "Compras portal iva": F
 K = No Gravado, L = Exento, N a S = percepciones/impuestos, T = Neto 0 %, Y/Z = 10,5 %, AA/AB = 21 %, AC/AD = 27 %,
 AG = PROVEEDORES; si es otra, los scripts cortan.
 
-Cuadro resumen: Corta sin grabar si queda algún NO CLASIFICADO. Arma el cuadro dos filas debajo de la nota del Portal: G = tipo,
-H = grupo, I a Q = los nueve conceptos, R = TOTAL; debajo el bloque de otros conceptos (G a J) y el CONTROL. Fórmulas
+Cuadro resumen: Corta sin grabar si queda algún NO CLASIFICADO. Arma el cuadro con el formato de Norte 202609, al final de las columnas: encabezado 5 filas debajo de la
+nota del Portal, U = tipo, V a AD = los nueve conceptos, AE = grupo (MERCADERIA / SERVICIOS; en la fila TOTAL PORTAL
+IVA, el total general), una fila libre antes del TOTAL; debajo "OTROS CONCEPTOS" (U a X) y el CONTROL con los
+importes en X. Letra Aptos Narrow 11, encabezado en negrita con línea fina arriba y abajo, sin relleno ni recuadro.
+No Gravado de los tipos sin IVA con SUMPRODUCT (H − N a S). Fórmulas
 SUMIFS vivas sobre las filas 2 a la última de comprobantes; no hay Excel para recalcular, así que el script verifica
 calculando lo mismo en Python e imprime los totales y la diferencia del control (sale con código 2 si es de $1 o más).
 Si se vuelve a correr, borra lo que hay debajo de la nota y lo rehace. Informar los totales del cuadro, los

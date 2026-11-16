@@ -5,22 +5,23 @@
 Requiere la columna AG (PROVEEDORES) completa (parte 1, clasificar_proveedores.py). Si hay
 filas sin clasificar o NO CLASIFICADO, corta sin grabar.
 
-Abajo de los datos (dos filas libres despues de la nota) arma, con SUMIFS vivas sobre las filas
-de comprobantes:
+Abajo de los datos (encabezado 5 filas debajo de la nota) arma, con SUMIFS vivas sobre las filas
+de comprobantes, con el formato de Norte 202609:
   * Cuadro por tipo de comprobante y MERCADERIA (AG = "CMV") / SERVICIOS (todo lo demas): 15 filas
     fijas en el orden de la usuaria, aunque queden en cero, mas las combinaciones que aparezcan y
     no esten en la lista (se avisan). Columnas: Neto Gravado 0% (T), 10,5 (Y), 21 (AA), 27 (AC),
     No Gravado (K), Exento (L), IVA 10,5 (Z), IVA 21 (AB), IVA 27 (AD) y Total. En los tipos sin IVA
-    discriminado (6, 8, 11, 13, 15, 111) No Gravado suma ademas Importe Total (H) - N a S. Los tipos
-    cargados como texto ("FC") van en "1 - Factura A / SERVICIOS" (criterio {1,"FC"}), sin tocar B.
-    Fila TOTAL PORTAL IVA al pie.
+    discriminado (6, 8, 11, 13, 15, 111) No Gravado suma ademas, con SUMPRODUCT, Importe Total (H) - N a S.
+    Los tipos cargados como texto ("FC") se suman en "1 - Factura A / SERVICIOS", sin tocar B.
+    Una fila libre y TOTAL PORTAL IVA (en AE, el total general).
   * Bloque aparte: N a S (Otros Imp. Nac., Perc. IIBB, Municipales, Perc. IVA, Internos, Otros
     Tributos) por MERCADERIA / SERVICIOS / TOTAL.
   * Control: cuadro + otros conceptos contra el Importe Total (H), con la diferencia.
 
-Columnas del cuadro: G (tipo), H (grupo), I a Q (conceptos), R (total). Letra Aptos Narrow 11,
-encabezado gris en negrita, recuadro grueso, formato contable con negativos en rojo, tipo y grupo
-de las NC (3, 8 y 13) en rojo. Las formulas se verifican calculando lo mismo en Python (no hay
+Columnas del cuadro: U (tipo), V a AD (conceptos), AE (grupo MERCADERIA / SERVICIOS; en la fila
+TOTAL, el total general). Otros conceptos en U a X y control con los importes en X. Letra Aptos
+Narrow 11, encabezado en negrita con linea fina arriba y abajo, formato contable con negativos en
+rojo, tipo y grupo de las NC (3, 8 y 13) en rojo. Las formulas se verifican calculando lo mismo en Python (no hay
 Excel/LibreOffice para recalcular): imprime los totales y la diferencia del control.
 """
 import json
@@ -28,15 +29,13 @@ import sys
 from datetime import datetime
 
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import column_index_from_string as ci
 
 from fuente import ZETTI
 
 HOJA = 'Compras portal iva'
-FMT = '_-* #,##0.00_-;[Red]-* #,##0.00_-;_-* "-"??_-;_-@_-'
-GRIS = PatternFill('solid', fgColor='D9D9D9')
-GRUESA = Side(style='medium')
+FMT = '_-* #,##0.00_-;[Red]\\-* #,##0.00_-;_-* "-"??_-;_-@_-'
 FINA = Side(style='thin')
 F = dict(name=ZETTI[0], size=ZETTI[1])
 
@@ -58,8 +57,6 @@ OTROS = [('Per. o Pagos a Cta. de Otros Imp. Nac.', 'N'), ('Percepciones de Ingr
          ('Impuestos Municipales', 'P'), ('Percepciones o Pagos a Cuenta de IVA', 'Q'),
          ('Impuestos Internos', 'R'), ('Otros Tributos', 'S')]
 NS = [c for _, c in OTROS]
-C_TIPO, C_GRUPO, C0 = 7, 8, 9  # G, H, I..Q; total en R
-C_TOT = C0 + len(CONCEPTOS)
 
 
 def fallar(msg, **extra):
@@ -113,147 +110,137 @@ def main():
         + [c for c in FIJAS if c[0] in NC] + [c for c in extras if c[0] in NC]
     texto = sorted({d['tipo'] for d in datos if isinstance(d['tipo'], str)})
 
-    # --- limpiar lo que haya debajo de la nota (re-ejecucion) y ubicar el cuadro
+    # --- limpiar lo que haya debajo de la nota (re-ejecucion) y ubicar el cuadro.
+    # Formato de Norte 202609 (pedido 2026-11-16): cuadro al final de las columnas, tipo en U, los nueve
+    # conceptos en V a AD y el grupo (MERCADERIA / SERVICIOS) en AE; encabezado 5 filas debajo de la nota.
     nota = next((r for r in range(u + 1, ws.max_row + 1)
                  if isinstance(ws.cell(r, 1).value, str) and 'comprobantes' in ws.cell(r, 1).value), None)
-    base = (nota or next((r for r in range(u + 1, ws.max_row + 1) if ws.cell(r, 1).value == 'TOTAL'), u)) + 1
+    fila_tot_datos = next((r for r in range(u + 1, ws.max_row + 1) if ws.cell(r, 1).value == 'TOTAL'), None)
+    base = (nota or fila_tot_datos or u) + 1
     for r in range(base, ws.max_row + 1):
         for c in range(1, ci('AH') + 1):
             cel = ws.cell(r, c)
             cel.value = None
             cel.style = 'Normal'
-    ini = base + 2
+    cab = base + 4
 
     def rng(c):
         return f'${c}$2:${c}${u}'
 
-    def crit(tipo, grupo):
-        g = '"CMV"' if grupo == 'MERCADERIA' else '"<>CMV"'
-        t = '{1,"FC"}' if (tipo, grupo) == (1, 'SERVICIOS') else str(tipo)
-        return f'{rng("B")},{t},{rng("AG")},{g}'
+    def grupo_crit(grupo):
+        return '"CMV"' if grupo == 'MERCADERIA' else '"<>CMV"'
 
     def sumifs(col, tipo, grupo):
-        f = f'SUMIFS({rng(col)},{crit(tipo, grupo)})'
-        return f'SUM({f})' if (tipo, grupo) == (1, 'SERVICIOS') else f
+        f = f'SUMIFS({rng(col)},{rng("B")},{tipo},{rng("AG")},{grupo_crit(grupo)})'
+        if (tipo, grupo) == (1, 'SERVICIOS') and texto:
+            # tipos cargados como texto ("FC", servicios publicos) van en 1 - Factura A / SERVICIOS
+            f += ''.join(f'+SUMIFS({rng(col)},{rng("B")},"{t}",{rng("AG")},"<>CMV")' for t in texto)
+        return f
+
+    def sumproduct_sin_iva(tipo, grupo):
+        cond = '="CMV"' if grupo == 'MERCADERIA' else '<>"CMV"'
+        resta = ''.join(f'-{rng(c)}' for c in NS)
+        return f'SUMPRODUCT(({rng("B")}={tipo})*({rng("AG")}{cond})*({rng("H")}{resta}))'
 
     def valor(col, tipo, grupo):
-        tipos = {tipo, 'FC'} if (tipo, grupo) == (1, 'SERVICIOS') else {tipo}
+        tipos = {tipo, *texto} if (tipo, grupo) == (1, 'SERVICIOS') else {tipo}
         return sum(d[col] for d in datos if d['tipo'] in tipos and d['grupo'] == grupo)
 
-    def estilo(c, bold=False, red=False, fmt=None, fill=None):
-        c.font = Font(bold=bold, color='FF0000' if red else None, **F)
+    def estilo(c, bold=False, red=False, fmt=None):
+        c.font = Font(bold=bold, color='FFFF0000' if red else None, **F)
         if fmt:
             c.number_format = fmt
-        if fill:
-            c.fill = fill
 
-    def recuadro(r1, r2, c1, c2):
-        for r in range(r1, r2 + 1):
-            for c in range(c1, c2 + 1):
-                b = ws.cell(r, c).border
-                ws.cell(r, c).border = Border(left=GRUESA if c == c1 else b.left, right=GRUESA if c == c2 else b.right,
-                                              top=GRUESA if r == r1 else b.top, bottom=GRUESA if r == r2 else b.bottom)
+    U, V, AD, AE = ci('U'), ci('V'), ci('AD'), ci('AE')
 
-    # --- cuadro
-    r = ini
-    estilo(ws.cell(r, C_TIPO, 'CUADRO RESUMEN COMPRAS PORTAL IVA (por tipo de comprobante y MERCADERIA / SERVICIOS)'), bold=True)
-    r += 1
-    cab = r
-    for j, t in enumerate(['Tipo de comprobante', 'Grupo'] + [t for t, _ in CONCEPTOS] + ['TOTAL'], start=C_TIPO):
-        c = ws.cell(r, j, t)
-        estilo(c, bold=True, fill=GRIS)
-        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        c.border = Border(bottom=FINA)
+    # --- cuadro: encabezado (U y AE vacios), filas por tipo/grupo, una fila libre y TOTAL PORTAL IVA
+    for j in range(U, AE + 1):
+        c = ws.cell(cab, j, CONCEPTOS[j - V][0] if V <= j <= AD else None)
+        estilo(c, bold=V <= j <= AD)
+        if V <= j <= AD:
+            c.alignment = Alignment(horizontal='center', wrap_text=True)
+        c.border = Border(top=FINA, bottom=FINA)
+    ws.row_dimensions[cab].height = 28.8
     calc = {}
+    r = cab
     for tipo, grupo in filas_cuadro:
         r += 1
         es_nc = tipo in NC
-        estilo(ws.cell(r, C_TIPO, f'{tipo} - {DESC.get(tipo, f"Tipo {tipo}")}'), red=es_nc)
-        estilo(ws.cell(r, C_GRUPO, grupo), red=es_nc)
+        estilo(ws.cell(r, U, f'{tipo} - {DESC.get(tipo, f"Tipo {tipo}")}'), red=es_nc)
         fila = {}
         for k, (t, col) in enumerate(CONCEPTOS):
             f = sumifs(col, tipo, grupo)
             v = valor(col, tipo, grupo)
             if col == 'K' and tipo in SIN_IVA:
-                f += f'+{sumifs("H", tipo, grupo)}' + ''.join(f'-{sumifs(c, tipo, grupo)}' for c in NS)
+                f += '+' + sumproduct_sin_iva(tipo, grupo)
                 v += valor('H', tipo, grupo) - sum(valor(c, tipo, grupo) for c in NS)
-            estilo(ws.cell(r, C0 + k, '=' + f), fmt=FMT)
+            estilo(ws.cell(r, V + k, '=' + f), fmt=FMT)
             fila[t] = v
-        L0, L1 = letra_col(C0), letra_col(C_TOT - 1)
-        estilo(ws.cell(r, C_TOT, f'=SUM({L0}{r}:{L1}{r})'), bold=True, fmt=FMT)
+        estilo(ws.cell(r, AE, grupo), red=es_nc)
         fila['TOTAL'] = sum(fila.values())
         calc[(tipo, grupo)] = fila
     d1, d2 = cab + 1, r
-    r += 1
+    r += 2
     fila_total_cuadro = r
-    estilo(ws.cell(r, C_TIPO, 'TOTAL PORTAL IVA'), bold=True)
-    for j in range(C0, C_TOT + 1):
+    estilo(ws.cell(r, U, 'TOTAL PORTAL IVA'), bold=True)
+    for j in range(V, AD + 1):
         L = letra_col(j)
-        c = ws.cell(r, j, f'=SUM({L}{d1}:{L}{d2})')
-        estilo(c, bold=True, fmt=FMT)
-        c.border = Border(top=FINA)
-    recuadro(cab, r, C_TIPO, C_TOT)
+        estilo(ws.cell(r, j, f'=SUM({L}{d1}:{L}{d2})'), bold=True, fmt=FMT)
+    estilo(ws.cell(r, AE, f'=SUM(V{r}:AD{r})'), bold=True, fmt=FMT)
+    for j in range(U, AE + 1):
+        ws.cell(r, j).border = Border(top=FINA)
     tot_cuadro = {t: sum(f[t] for f in calc.values()) for t in [t for t, _ in CONCEPTOS] + ['TOTAL']}
 
-    # --- bloque aparte: N a S
+    # --- bloque aparte: N a S (U = concepto, V MERCADERIA, W SERVICIOS, X TOTAL)
     r += 3
-    estilo(ws.cell(r, C_TIPO, 'OTROS CONCEPTOS (columnas N a S, fuera del cuadro)'), bold=True)
+    estilo(ws.cell(r, U, 'OTROS CONCEPTOS (columnas N a S) - no integran el cuadro'), bold=True)
     r += 1
-    cab2 = r
-    for j, t in enumerate(['Concepto', 'MERCADERIA', 'SERVICIOS', 'TOTAL'], start=C_TIPO):
+    for j, t in enumerate([None, 'MERCADERIA', 'SERVICIOS', 'TOTAL'], start=U):
         c = ws.cell(r, j, t)
-        estilo(c, bold=True, fill=GRIS)
-        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        estilo(c, bold=t is not None)
+        c.border = Border(top=FINA, bottom=FINA)
+    o1 = r + 1
     otros = {}
-    for t, col in OTROS:
+    for col in NS:
         r += 1
-        estilo(ws.cell(r, C_TIPO, f'{t} ({col})'))
-        estilo(ws.cell(r, C_TIPO + 1, f'=SUMIFS({rng(col)},{rng("AG")},"CMV")'), fmt=FMT)
-        estilo(ws.cell(r, C_TIPO + 2, f'=SUMIFS({rng(col)},{rng("AG")},"<>CMV")'), fmt=FMT)
-        estilo(ws.cell(r, C_TIPO + 3, f'=SUM({letra_col(C_TIPO + 1)}{r}:{letra_col(C_TIPO + 2)}{r})'), bold=True, fmt=FMT)
-        otros[t] = {g: sum(d[col] for d in datos if d['grupo'] == g) for g in ('MERCADERIA', 'SERVICIOS')}
-    o1, o2 = cab2 + 1, r
+        titulo = str(ws[f'{col}1'].value)
+        estilo(ws.cell(r, U, titulo))
+        estilo(ws.cell(r, U + 1, f'=SUMIF({rng("AG")},"CMV",{rng(col)})'), fmt=FMT)
+        estilo(ws.cell(r, U + 2, f'=SUMIF({rng("AG")},"<>CMV",{rng(col)})'), fmt=FMT)
+        estilo(ws.cell(r, U + 3, f'=SUM(V{r}:W{r})'), fmt=FMT)
+        otros[titulo] = {g: sum(d[col] for d in datos if d['grupo'] == g) for g in ('MERCADERIA', 'SERVICIOS')}
+    o2 = r
     r += 1
     fila_total_otros = r
-    estilo(ws.cell(r, C_TIPO, 'TOTAL OTROS CONCEPTOS'), bold=True)
-    for j in range(C_TIPO + 1, C_TIPO + 4):
+    estilo(ws.cell(r, U, 'TOTAL OTROS CONCEPTOS'), bold=True)
+    for j in range(U + 1, U + 4):
         L = letra_col(j)
-        c = ws.cell(r, j, f'=SUM({L}{o1}:{L}{o2})')
-        estilo(c, bold=True, fmt=FMT)
-        c.border = Border(top=FINA)
-    recuadro(cab2, r, C_TIPO, C_TIPO + 3)
+        estilo(ws.cell(r, j, f'=SUM({L}{o1}:{L}{o2})'), bold=True, fmt=FMT)
+    for j in range(U, U + 4):
+        ws.cell(r, j).border = Border(top=FINA)
     tot_otros = sum(v['MERCADERIA'] + v['SERVICIOS'] for v in otros.values())
 
-    # --- control
-    r += 3
-    estilo(ws.cell(r, C_TIPO, 'CONTROL'), bold=True)
-    c_val = C_TIPO + 3  # misma columna que el TOTAL del bloque aparte
+    # --- control (valores en X)
+    r += 2
+    estilo(ws.cell(r, U, 'CONTROL: cuadro + otros conceptos vs. Importe Total'), bold=True)
     total_h = sum(d['H'] for d in datos)
-    renglones = [
-        ('Total cuadro (TOTAL PORTAL IVA)', f'={letra_col(C_TOT)}{fila_total_cuadro}'),
-        ('Otros conceptos (N a S)', f'={letra_col(C_TIPO + 3)}{fila_total_otros}'),
-        ('Cuadro + otros conceptos', None),
-        ('Importe Total Portal IVA (columna H)', f'=SUM({rng("H")})'),
-        ('Diferencia', None),
-    ]
-    r0 = r + 1
-    for i, (t, f) in enumerate(renglones):
-        r += 1
-        L = letra_col(c_val)
-        if t == 'Cuadro + otros conceptos':
-            f = f'={L}{r0}+{L}{r0 + 1}'
-        if t == 'Diferencia':
-            f = f'={L}{r0 + 2}-{L}{r0 + 3}'
-        estilo(ws.cell(r, C_TIPO, t), bold=t in ('Cuadro + otros conceptos', 'Diferencia'))
-        estilo(ws.cell(r, c_val, f), bold=t == 'Diferencia', fmt=FMT)
-    recuadro(r0, r, C_TIPO, c_val)
+    r += 1
+    estilo(ws.cell(r, U, 'Cuadro (TOTAL PORTAL IVA)'))
+    estilo(ws.cell(r, U + 3, f'=+AE{fila_total_cuadro}'), fmt=FMT)
+    estilo(ws.cell(r + 1, U, 'Otros conceptos (N a S)'))
+    estilo(ws.cell(r + 1, U + 3, f'=+X{fila_total_otros}'), fmt=FMT)
+    estilo(ws.cell(r + 2, U, 'Importe Total (columna H)'))
+    estilo(ws.cell(r + 2, U + 3, f'=+H{fila_tot_datos}' if fila_tot_datos else f'=SUM({rng("H")})'), fmt=FMT)
+    estilo(ws.cell(r + 3, U, 'Diferencia'), bold=True)
+    c = ws.cell(r + 3, U + 3, f'=+X{r}+X{r + 1}-X{r + 2}')
+    estilo(c, bold=True, fmt=FMT)
+    c.border = Border(top=FINA)
     dif = round(tot_cuadro['TOTAL'] + tot_otros - total_h, 2)
+    ini = cab
 
-    # anchos minimos para que se lean los importes (no cambia datos)
-    for j in range(C0, C_TOT + 1):
-        L = letra_col(j)
-        if (ws.column_dimensions[L].width or 0) < 16:
-            ws.column_dimensions[L].width = 16
+    for L, w in (('U', 42), ('V', 14.33), ('W', 13.66), ('X', 17), ('Y', 20.11), ('Z', 20), ('AA', 16.44),
+                 ('AB', 13.22), ('AC', 14.33), ('AD', 14), ('AE', 17.66)):
+        ws.column_dimensions[L].width = w
     wb.save(papel)
 
     r2 = lambda x: round(x + 0.0, 2)  # noqa: E731
