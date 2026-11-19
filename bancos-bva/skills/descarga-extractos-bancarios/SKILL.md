@@ -1,6 +1,6 @@
 ---
 name: descarga-extractos-bancarios
-description: Descarga extractos bancarios (PDF/Excel) del home banking de empresas de los 9 bancos del Estudio BVA (Galicia, Comafi, Santander, Hipotecario, Macro, Nación, BBVA/Francés, Patagonia, Provincia), los renombra y los deja en ~/Documents/BVA-salidas/extractos/[N] - [Sociedad] - [CUIT]/[BANCO]/[AAAA]/ (o, con --unidad, en 03-Bancos y Conciliaciones/[BANCO]/[AAAA]/ de la sociedad). Todo lo hace el script de Playwright scripts/extractos-banco.js (login solo con Claves_Bancos.xlsx cifrado, captura de descargas, renombrado y archivado sin pisar nada), que corre Claude igual que los scripts de ARCA. Usar SIEMPRE que pidan "descargar extractos de [banco] para [sociedad]", "bajá los resúmenes de [sociedad] de enero a junio", "extractos de todos los bancos de [sociedad]", "automatizar descarga bancaria", o quieran avanzar banco por banco/sociedad por sociedad. Es el paso PREVIO a extractico-bva (depura los PDF) y a extractos-bancarios (ordena el Excel depurado).
+description: Descarga extractos bancarios (PDF/Excel) del home banking de empresas de los 9 bancos del Estudio BVA (Galicia, Comafi, Santander, Hipotecario, Macro, Nación, BBVA/Francés, Patagonia, Provincia), los renombra y los deja en ~/Documents/BVA-salidas/extractos/[N] - [Sociedad] - [CUIT]/[BANCO]/[AAAA]/ (o, con --unidad, en 03-Bancos y Conciliaciones/[BANCO]/[AAAA]/ de la sociedad). Todo lo hace el script de Playwright scripts/extractos-banco.js (login solo con Claves_Bancos.xlsx cifrado, captura de descargas, renombrado y archivado sin pisar nada), que corre Claude igual que los scripts de ARCA. Usar SIEMPRE que pidan "descargar extractos de [banco] para [sociedad]", "bajá los resúmenes de [sociedad] de enero a junio", "extractos de todos los bancos de [sociedad]", "automatizar descarga bancaria", o quieran avanzar banco por banco/sociedad por sociedad. Los bancos donde el script no puede entrar (captcha o antibots: hoy Comafi, BBVA y Santander; ver validar-ingreso.js) se bajan por Claude in Chrome con login a mano de la persona, y archivar-descargas.js los renombra y archiva igual. Es el paso PREVIO a extractico-bva (depura los PDF) y a extractos-bancarios (ordena el Excel depurado).
 ---
 
 # Descarga de extractos bancarios
@@ -99,6 +99,59 @@ Límites de `control.js`: no escribe en campos de clave/token/PIN/código, avisa
 página sale del sitio del banco y no cierra la sesión (la cierra `extractos-banco.js` al
 terminar cada banco). Dentro del banco, solo navegar y descargar resúmenes: nada de
 transferencias, pagos ni configuración.
+
+## Qué bancos entran por script y cuáles por Claude in Chrome
+
+Algunos bancos frenan al navegador automatizado aunque la clave esté bien (Comafi:
+captcha de Cloudflare que falla aun tildado por la persona; BBVA: queda en
+"Verificando tus credenciales"). Esos **no se reintentan con el script**: se bajan por
+**Claude in Chrome**, en el Chrome normal de la persona.
+
+**1. Validar el ingreso** (una vez por semana, o cuando un banco falla):
+
+```bash
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/validar-ingreso.js
+```
+
+Prueba **una vez** el login de cada banco (Galicia: cada sociedad del bloque Galicia),
+oculto, cierra la sesión y no navega ni baja nada. `--banco=COMAFI,MACRO` para algunos,
+`--banco=GALICIA --sociedad="<nombre>"` para una, `--banco=GALICIA --solo-fallidas` para
+repetir las que no entraron. Guarda el resultado en
+`~/Documents/BVA-salidas/extractos/ingreso-bancos.json`, con una vía por banco:
+
+| via | Cuándo (code) | Cómo se baja |
+|---|---|---|
+| `script` | `ok` | `extractos-banco.js` (lo de arriba). |
+| `chrome` | `captcha`, `antibots`, `sitio_rechazo`, `segundo_factor` | Por Claude in Chrome (abajo). |
+| `claves` | `credenciales_invalidas`, `clave_vencida`, `bloqueado`, `sin_credenciales` | Primero arreglar la clave en el banco y en Claves_Bancos.xlsx. Ninguna herramienta la cambia. |
+| `revisar` | `sesion_activa`, `login_sin_confirmar`, `error` | Validar de nuevo ese banco en unos minutos. |
+
+Antes de cada descarga, Claude lee `ingreso-bancos.json` y corre `extractos-banco.js`
+**solo con los bancos `script`** de la sociedad; los `chrome` van por el paso 2 y los
+`claves` se informan sin intentar. Si el archivo no existe o tiene más de 7 días, validar
+primero esos bancos.
+
+**2. Bancos por Claude in Chrome** (`via: chrome`):
+
+1. Claude abre en Chrome (Claude in Chrome) el link de ingreso del banco (tabla "Login por
+   banco") y le pide a la persona que **ingrese ella** usuario, claves y el captcha o
+   token. Claude **nunca** tipea claves, nunca abre Claves_Bancos.xlsx para leerlas y
+   nunca resuelve captchas.
+2. Cuando la persona avisa que está adentro, Claude elige la empresa de la sociedad
+   (confirmar por CUIT o razón social; si no está, cortar: nunca otra empresa), va a la
+   sección de resúmenes/extractos y baja los períodos pedidos. Solo consultar y
+   descargar: nada de transferencias, pagos ni configuración.
+3. Anotar la hora de inicio y, al terminar, archivar desde Descargas:
+   ```bash
+   cd "${CLAUDE_PLUGIN_ROOT:-.}" && node scripts/archivar-descargas.js --banco=COMAFI --cuit=<CUIT> --desde-hora=HH:MM --unidad
+   ```
+   (o `--recientes=<minutos>`; sin `--unidad` va a BVA-salidas). Lo que quede en
+   `sin_periodo` se abre, se lee el período dentro del PDF y se archiva con
+   `--archivo="<ruta>" --periodo=AAAAMM`. No borra nada de Descargas.
+4. Cerrar la sesión del banco en Chrome (Salir) y reportar como en el paso 5 de abajo.
+
+Lo que se aprenda de cada banco en Chrome (menú, nombres de archivo, período) se anota en
+la tabla de sección fija de abajo.
 
 ### Sección fija de extractos por banco
 
@@ -229,7 +282,9 @@ Con --unidad:
 1. Confirmar sociedad (con CUIT), bancos y períodos. Si el nombre es ambiguo,
    mostrar candidatos con CUIT.
 2. Revisar `claves-bancos.js --faltantes`: si a la sociedad le faltan claves de
-   un banco, avisar y sacarlo del pedido.
+   un banco, avisar y sacarlo del pedido. Leer `ingreso-bancos.json` (validar si falta
+   o tiene más de 7 días) y separar: bancos `script` → paso 3; `chrome` → sección
+   "Bancos por Claude in Chrome"; `claves` → se informan sin intentar.
 3. Correr `extractos-banco.js` en segundo plano (Bash con `run_in_background`).
    Primera vez con un banco: agregar `--grabar`. Una sociedad por corrida.
 4. Avisar a la persona que se abre la ventana del banco: ahí elige la sociedad,
@@ -286,6 +341,12 @@ Con --unidad:
   por qué URL entra; sección fija de extractos con elección de empresa por CUIT (Macro,
   Nación, Patagonia, Provincia); el script cierra la sesión del banco al terminar cada uno;
   `sesion_activa` también para Provincia. Probado con el período 09/2026 en los 4 bancos.
+- 19/11/2026 (0.4.0): `validar-ingreso.js` (prueba el login de cada banco y de cada
+  sociedad de Galicia, cierra la sesión, guarda captura y deja `ingreso-bancos.json` con la
+  vía de cada uno) y `archivar-descargas.js` (archiva lo bajado por Claude in Chrome desde
+  Descargas). Los bancos con captcha/antibots se bajan por Claude in Chrome con login a mano
+  (pedido de Victoria, 17/11: la habilidad no entraba a Comafi). Patagonia: se detecta
+  "Existe otra sesión activa" como `sesion_activa`.
 - 29/10/2026: Galicia con sección fija (Cuentas → Resúmenes y extractos), elección de
   empresa por CUIT desde "Elegir otra empresa" y cierre de sesión. Probado con el
   período 09/2026: 2 resúmenes, CC pesos y CC especial dólares.
