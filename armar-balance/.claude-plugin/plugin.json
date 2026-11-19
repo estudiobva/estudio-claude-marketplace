@@ -1,0 +1,11 @@
+{
+  "name": "armar-balance",
+  "description": "Arma el libro de Balance (EECC) de cada sociedad: Situación Patrimonial, Estado de Resultados, Evolución del PN, Flujo de Efectivo, Nota 2 y Anexos 1, 2 y 3, con fórmulas y el comparativo del ejercicio anterior, desde el EERR y las fuentes acordadas (papel de trabajo, T&S, FCI, F.931, planes de facilidades, anticipos). Incluye pub-descarga para bajar de PUB de ARCA el balance presentado del ejercicio anterior y el instructivo para transcribirlo al config de la sociedad.",
+  "version": "0.4.0",
+  "author": {
+    "name": "Estudio BVA",
+    "email": "joaquin@estudiobva.com"
+  },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["balance", "eecc", "estados contables", "anexo 2", "pub", "arca", "argentina"]
+}
