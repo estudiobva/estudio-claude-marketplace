@@ -33,7 +33,7 @@ import os
 import re
 import sys
 import unicodedata
-from collections import OrderedDict, defaultdict
+from collections import Counter, OrderedDict, defaultdict
 from datetime import date, datetime
 
 from openpyxl import load_workbook
@@ -60,9 +60,9 @@ TIPOS = {
 }
 NOTAS_CREDITO = {3, 8, 13, 21, 53, 90, 110, 112, 113, 114, 119, 203, 208, 213}
 LIQUIDACIONES = {60, 61, 63, 64}
-# Comprobantes C: no tienen IVA. El Portal IVA los expone solo en Importe Total (defecto del sistema, no es
-# un error) y Zetti los carga en Exento/No gravado: se toman como Exento/No grav. y quedan OK (pedido 2026-11-02).
-TIPOS_C = {11, 12, 13, 15, 111, 114, 117, 211, 212, 213}
+# Comprobantes que el Portal IVA trae SOLO en Importe Total (facturas C y B sin IVA discriminado, y cualquier
+# otro): defecto del sistema, no es un error. Zetti los carga en Exento/No gravado y el cuadro resumen los
+# suma en No Gravado, asi que se toman como Exento/No grav. y quedan OK.
 DROGUERIAS_NCR = {'30516968431': 'Suizo Argentina', '30517059095': 'Monroe Americana'}
 
 F_TIT = Font(name='Arial', size=12, bold=True)
@@ -176,9 +176,9 @@ def leer_portal(ws):
             'otros_nac': num(g('otros_nac')),
         })
         f = out[-1]
-        if tipo in TIPOS_C and abs(f['total']) > 0.005 and all(abs(f[k]) <= 0.005 for k in COMP if k != 'total'):
+        if abs(f['total']) > 0.005 and all(abs(f[k]) <= 0.005 for k in COMP if k != 'total'):
             f['exen'] = f['total']
-            f['c_solo_total'] = True
+            f['solo_total'] = True
     return out
 
 
@@ -703,11 +703,12 @@ def main():
         provs = sorted({z['proveedor'] for z in no_cierran})
         avisos.append(f'En Zetti hay {len(no_cierran)} comprobantes cuyas columnas no suman el Total ({", ".join(provs)}): '
                       'la suma de columnas de la solapa Compras Zetti no da el TOTAL.')
-    solo_total_c = [p for p in portal if p.get('c_solo_total')]
-    if solo_total_c:
-        avisos.append(f'Comprobantes C: {len(solo_total_c)} vienen del Portal IVA solo con el Importe Total '
-                      f'({pesos(sum(p["total"] for p in solo_total_c))}); como no tienen IVA se toman como Exento/No grav., '
-                      'igual que en Zetti. No es diferencia.')
+    solo_total = [p for p in portal if p.get('solo_total')]
+    if solo_total:
+        tipos = Counter(TIPOS.get(p['tipo'], f"Tipo {p['tipo']}") for p in solo_total)
+        avisos.append(f'{len(solo_total)} comprobantes vienen del Portal IVA solo con el Importe Total '
+                      f'({pesos(sum(p["total"] for p in solo_total))}; ' + ', '.join(f'{n} {t}' for t, n in tipos.items())
+                      + '): se toman como Exento/No grav., igual que en Zetti y en el cuadro resumen. No es diferencia.')
     if any(p['tipo'] not in TIPOS for p in portal):
         avisos.append('Tipos de comprobante del Portal no reconocidos: '
                       + ', '.join(sorted({str(p['tipo']) for p in portal if p['tipo'] not in TIPOS})))
