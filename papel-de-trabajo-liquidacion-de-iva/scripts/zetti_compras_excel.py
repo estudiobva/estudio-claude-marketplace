@@ -16,7 +16,7 @@ Salida: hoja "Compras Zetti"
     datos   desde la fila 3, en el orden original de Zetti; al final fila TOTAL (I a O).
 
 Imprime un JSON con razon social, CUIT, fechas, cantidad por TC, totales y control contra la
-fila "Total:" del reporte. Sale con 1 si el Total no coincide (tolerancia $0,05 en las demas
+fila "Total:" del reporte. Sale con 1 si el Total no coincide (tolerancia $0,50 en las demas
 columnas), si hay filas que no reconoce o fechas fuera del periodo.
 """
 import csv
@@ -39,7 +39,7 @@ COLUMNAS = [
 ]
 IMPORTES = ['exen', 'grav', 'iva', 'priibb', 'priva', 'prig', 'total']
 TEXTO = ['tc', 'm', 'nro', 'proveedor', 'cuit', 'resp']
-TOLERANCIA = 0.05
+TOLERANCIA = 0.50  # centavos de redondeo en una columna con el Total exacto (Salud y Belleza 202610: Exen 0,07)
 
 
 def fallar(msg, **extra):

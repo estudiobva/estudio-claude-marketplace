@@ -1,4 +1,4 @@
-# papel-trabajo-ddjj-iva
+# papel-de-trabajo-liquidacion-de-iva
 
 Etapa 2 del papel de trabajo mensual de cada sociedad: prepara las compras para presentar la DDJJ de IVA
 sobre el **mismo** papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya armó la etapa de ventas
@@ -49,6 +49,6 @@ node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --p
 
 Cada paso también se puede correr suelto (`python scripts/<x>.py --papel="<papel>"`).
 Cada script imprime un JSON con el resultado. El detalle de cada paso y sus reglas está en
-`skills/papel-trabajo-ddjj-iva/SKILL.md`.
+`skills/papel-de-trabajo-liquidacion-de-iva/SKILL.md`.
 
 Piloto: período 202609 (control del cuadro: diferencia −0,23).
