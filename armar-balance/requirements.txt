@@ -1,0 +1,6 @@
+openpyxl>=3.1
+pypdf>=4
+pypdfium2>=4
+pillow>=10
+# opcional: validar / calcular sin Excel (herramientas/validar.py y calcular_eerr.py)
+pycel>=1.0b30

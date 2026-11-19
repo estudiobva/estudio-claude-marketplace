@@ -148,6 +148,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "armar-balance",
+      "source": "./armar-balance",
+      "description": "Libro de Balance (EECC) prototipo por sociedad con los cuatro estados, Nota 2 y Anexos, comparativo del ejercicio anterior y descarga del balance presentado en PUB de ARCA.",
+      "category": "contabilidad"
+    },
+    {
       "name": "papel-trabajo-automatico",
       "source": "./papel-trabajo-automatico",
       "description": "Arma el papel de trabajo unificado de liquidaciones de los meses presentados desde libros del Portal IVA, Maestro de Proveedores, DDJJ de IVA y DJ de ARBA, aparte como '... - AUTOMATICO.xlsx'.",
