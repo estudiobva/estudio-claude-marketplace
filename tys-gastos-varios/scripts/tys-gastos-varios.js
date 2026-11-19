@@ -146,14 +146,16 @@ function py(argv) {
   }
 }
 
-// EERR de la sociedad (carpeta "0 - ESTUDIO - 00000000000/EERR 2026" de la unidad).
+// EERR de la sociedad: "0 - ESTUDIO - 00000000000/EERR 2026/EECC anterior" desde el 19/11/2026
+// (si esa subcarpeta no existe, "EERR 2026" como antes).
 function eerrDe(cuit) {
   let raiz;
   try { raiz = rutas.raiz(); } catch { return { eerr: null }; }
   const estudio = fs.readdirSync(raiz).find((d) => /^0 - ESTUDIO/i.test(d));
   if (!estudio) return { eerr: null };
-  const dir = path.join(raiz, estudio, 'EERR 2026');
-  if (!fs.existsSync(dir)) return { eerr: null };
+  const base = path.join(raiz, estudio, 'EERR 2026');
+  const dir = [path.join(base, 'EECC anterior'), base].find((d) => fs.existsSync(d));
+  if (!dir) return { eerr: null };
   let nombre = '';
   try {
     const base = path.basename(rutas.carpetaSociedad(cuit)).normalize('NFC');

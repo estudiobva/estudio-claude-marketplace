@@ -1,7 +1,7 @@
 # auditor-eerr
 
 Auditor de los Estados de Resultados (EERR 2026) de las sociedades. Corre 22 controles sobre cada
-`EERR ... .xlsx` de `0 - ESTUDIO - 00000000000/EERR 2026/` y documenta los hallazgos en la hoja **Auditorias**
+`EERR ... .xlsx` de `0 - ESTUDIO - 00000000000/EERR 2026/EECC anterior/` (antes del 19/11/2026, `EERR 2026/`) y documenta los hallazgos en la hoja **Auditorias**
 del mismo archivo.
 
 ```

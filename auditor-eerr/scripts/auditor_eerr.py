@@ -66,7 +66,10 @@ def raiz_unidad():
     sys.exit('No encuentro la unidad compartida: definí BVA_UNIDAD_PATH en ~/.fisco-ar/.env.')
 
 U = raiz_unidad()
-EERR_DIR = os.path.join(U, '0 - ESTUDIO - 00000000000', 'EERR 2026')
+# Desde el 19/11/2026 los EERR están en 'EERR 2026/EECC anterior'; sin esa subcarpeta, 'EERR 2026' como antes.
+_EERR_BASE = os.path.join(U, '0 - ESTUDIO - 00000000000', 'EERR 2026')
+EERR_DIR = os.environ.get('AUDITOR_EERR_DIR') or next(
+    (d for d in (os.path.join(_EERR_BASE, 'EECC anterior'), _EERR_BASE) if os.path.isdir(d)), _EERR_BASE)
 MAESTRO = os.path.join(U, '0 - ESTUDIO - 00000000000', 'Maestro de Proveedores.xlsx')
 SP = os.path.dirname(os.path.abspath(__file__))
 SALIDAS = var('BVA_SALIDAS_PATH') or os.path.expanduser('~/Documents/BVA-salidas')

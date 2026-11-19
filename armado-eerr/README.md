@@ -1,7 +1,7 @@
 # armado-eerr
 
 Arma y actualiza los Estados de Resultados (EERR) mensuales de las sociedades de la unidad compartida
-(`0 - ESTUDIO - 00000000000/EERR 2026`). Es el armado con el que se hicieron los EERR 2026 (octubre 2026), guardado
+(`0 - ESTUDIO - 00000000000/EERR 2026/EECC anterior`; antes del 19/11/2026, `EERR 2026`). Es el armado con el que se hicieron los EERR 2026 (octubre 2026), guardado
 como herramienta para que cualquiera del equipo lo pueda repetir mes a mes.
 
 ## Uso
@@ -32,7 +32,7 @@ Reglas:
 
 - Solo completa celdas vacías: lo que cargó o corrigió el equipo no se toca (salvo `--pisar`).
 - Cada carga queda registrada con su archivo de origen en la hoja **Armado** del EERR.
-- Respaldo del EERR anterior en `EERR 2026/_respaldos/`; si el archivo cambió mientras corría, no se pisa.
+- Respaldo del EERR anterior en `EERR 2026/EECC anterior/_respaldos/`; si el archivo cambió mientras corría, no se pisa.
 - Desde 1.0.3: las NCR que eliminó la conciliación (hoja Eliminados del `AAAAMM-COMPRAS-SIN-NCR`) no entran a las compras
   aunque el libro elegido todavía las traiga (antes dejaban el CMV subvaluado: Sanar 1 y Soy Nueva Ventura en 09/2026).
 - Necesita Microsoft Excel para recalcular (Windows: PowerShell; Mac: AppleScript).
