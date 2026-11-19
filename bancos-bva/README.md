@@ -26,7 +26,7 @@ Estructura:
 ```
 .claude-plugin/   plugin.json
 lib/              motor (bancos/, prestamos/, extractos.js, claves-bancos.js, rutas-bva.js, + vendorizados de fisco-ar)
-scripts/          extractos-banco.js, cuadro-marcha.js, banco-login.js, claves-bancos.js, doctor.js
+scripts/          extractos-banco.js, validar-ingreso.js, archivar-descargas.js, cuadro-marcha.js, banco-login.js, claves-bancos.js, doctor.js, control.js
 skills/           bancos-setup, cuadro-marcha-prestamos, descarga-extractos-bancarios
 ```
 
@@ -36,6 +36,26 @@ skills/           bancos-setup, cuadro-marcha-prestamos, descarga-extractos-banc
 (`--salida` o `BVA_SALIDAS_PATH`). Con `--unidad`, directo en la unidad compartida:
 `[Sociedad]/03-Bancos y Conciliaciones/[BANCO]/[AAAA]/`. Nunca pisa: si el contenido ya
 está lo saltea, si hay otro distinto con el mismo nombre agrega `_2`.
+
+## Ingreso validado (19/11/2026, `validar-ingreso.js`)
+
+`node scripts/validar-ingreso.js` prueba una vez el login de cada banco (Galicia: cada
+sociedad), oculto, cierra la sesión y deja `~/Documents/BVA-salidas/extractos/ingreso-bancos.json`
+con la vía de cada uno. Los bancos `chrome` se bajan por **Claude in Chrome**: la persona
+entra en su Chrome (usuario, claves y captcha a mano), Claude navega y descarga, y
+`archivar-descargas.js` renombra y archiva desde Descargas igual que el script.
+
+| Banco | Resultado | Vía |
+|---|---|---|
+| Macro | Entra | script |
+| Nación | Entra | script |
+| Provincia | Entra | script |
+| Hipotecario | Entra (el primer intento, la página de login no cargó en 45 s) | script |
+| Comafi | Captcha de Cloudflare | **Claude in Chrome** |
+| BBVA (Francés) | Queda en "Verificando tus credenciales" (antibots de Akamai) | **Claude in Chrome** |
+| Santander | `ERR_HTTP2_PROTOCOL_ERROR` al abrir el login | **Claude in Chrome** |
+| Patagonia | "Existe otra sesión activa para el mismo usuario" | revisar (validar de nuevo cuando nadie lo use) |
+| Galicia | Por sociedad: 2 entran, 44 "Tu clave está vencida", 4 rechazadas, 10 sin datos en el Excel | script las que entran; el resto, arreglar la clave primero |
 
 ## Estado por banco (primera corrida real, 28-29/09/2026)
 

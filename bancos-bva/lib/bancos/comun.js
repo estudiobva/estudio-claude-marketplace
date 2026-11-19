@@ -34,7 +34,7 @@ const RX = {
   // Santander ("Tu contraseña venció"), Galicia ("tiene la clave vencida").
   // Macro: "ya contás con una sesión activa ... deberás esperar 10 minutos".
   // Provincia: "Tu usuario ya se encuentra conectado a la aplicación" (28/10/2026).
-  sesionActiva:  /(ya )?(contas|tenes|posee|existe) (con )?una sesion activa|sesion (abierta|activa) (en otro|anterior)|ya se encuentra conectado/,
+  sesionActiva:  /(ya )?(contas|tenes|posee|existe) (con )?(una|otra) sesion activa|sesion (abierta|activa) (en otro|anterior)|ya se encuentra conectado/,
   claveVencida:  /(clave|contrasena) (esta )?(vencida|expirada|caducada)|(clave|contrasena) (vencio|expiro|caduco)|(vencio|expiro) tu (clave|contrasena)|(debes|necesitas|tenes que) (cambiar|crear|renovar) (tu|una nueva) (clave|contrasena)/,
 };
 
