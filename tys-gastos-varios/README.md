@@ -2,7 +2,7 @@
 
 Baja de **Zetti (T&S Web)** el **Reporte Seguimiento de Valores (4.5.2)** filtrado
 por el tipo de valor **56 GAVA - GASTOS VARIOS**, lo parte por mes, lo cruza con
-el **EERR** de la sociedad (`0 - ESTUDIO/EERR 2026`) y guarda cada mes en la
+el **EERR** de la sociedad (`0 - ESTUDIO/EERR 2026/EECC anterior`) y guarda cada mes en la
 carpeta del mes de la sociedad:
 
 ```

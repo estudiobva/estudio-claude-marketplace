@@ -23,7 +23,7 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 Libro del Portal IVA de cada mes (desde 1.3.1, el mismo criterio que armado-eerr): el de la DDJJ presentada ("presentada" en el nombre),
 si no el de la carpeta IVA; en compras, si no hay libro en .xlsx, el `AAAAMM-COMPRAS-SIN-NCR` de la conciliación.
 
-Lee los EERR de `0 - ESTUDIO - 00000000000/EERR 2026/` y, de cada sociedad, su carpeta en la unidad: libros
+Lee los EERR de `0 - ESTUDIO - 00000000000/EERR 2026/EECC anterior/` y, de cada sociedad, su carpeta en la unidad: libros
 `AAAAMM - PORTAL IVA - VENTAS/COMPRAS.xlsx`, cruce Zetti (hoja "cruze" del papel del mes), papel de liquidaciones
 (`202600-liquidaciones-IVA, IIBB y Tasa Municipal-X.xlsx`, hojas `MM-AAAA`), DDJJ de IVA (`AAAAMM-IVA-DDJJ-*.pdf`), F.931 (`02-Sueldos y F.931`), DJ de anticipo de ARBA
 (`AAAAMM-IIBB-DJ-*.pdf`), conciliación de NCR (`AAAAMM-COMPRAS-SIN-NCR-*.xlsx`) y el Maestro de Proveedores.

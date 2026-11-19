@@ -71,7 +71,11 @@ def raiz_unidad():
 
 U = raiz_unidad()
 ESTUDIO = os.path.join(U, '0 - ESTUDIO - 00000000000')
-EERR_DIR = os.environ.get('ARMADO_EERR_DIR') or os.path.join(ESTUDIO, 'EERR 2026')
+# Desde el 19/11/2026 los EERR están en 'EERR 2026/EECC anterior' (la carpeta EERR 2026 queda para el modelo nuevo de EECC).
+# Si la subcarpeta no existe (unidad sin reorganizar), se usa 'EERR 2026' como antes.
+_EERR_BASE = os.path.join(ESTUDIO, 'EERR 2026')
+EERR_DIR = os.environ.get('ARMADO_EERR_DIR') or next(
+    (d for d in (os.path.join(_EERR_BASE, 'EECC anterior'), _EERR_BASE) if os.path.isdir(d)), _EERR_BASE)
 MAESTRO = os.path.join(ESTUDIO, 'Maestro de Proveedores.xlsx')
 SALIDAS = var('BVA_SALIDAS_PATH') or os.path.expanduser('~/Documents/BVA-salidas')
 SALIDA = os.path.join(SALIDAS, 'armado-eerr')

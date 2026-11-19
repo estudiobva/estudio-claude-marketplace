@@ -1,6 +1,6 @@
 ---
 name: armado-eerr
-description: "Arma y actualiza los Estados de Resultados (EERR) mensuales de las sociedades en '0 - ESTUDIO - 00000000000/EERR 2026' desde las fuentes de la unidad: ventas y compras del Portal IVA (compras imputadas por proveedor con el Maestro de Proveedores), IIBB de la DJ de anticipo de ARBA, sueldos del F.931, IVA prorrateo, Seguridad e Higiene y Publicidad del papel de trabajo. Completa solo lo que está vacío (no pisa lo que cargó el equipo), registra cada carga con su fuente en la hoja 'Armado' y crea el EERR del ejercicio nuevo cuando cierra el anterior. Usar SIEMPRE que pidan \"armar el EERR de [sociedad]\", \"actualizar los EERR con [mes]\", \"cargar septiembre en los EERR\", \"pasar el mes a los EERR\", \"hacer el EERR del ejercicio nuevo\", \"EERR de [sociedad] que cerró en [mes]\" o \"completar los estados de resultados\". No confundir con auditor-eerr (controla un EERR ya armado) ni con papel-trabajo-automatico (arma el papel de liquidaciones)."
+description: "Arma y actualiza los Estados de Resultados (EERR) mensuales de las sociedades en '0 - ESTUDIO - 00000000000/EERR 2026/EECC anterior' desde las fuentes de la unidad: ventas y compras del Portal IVA (compras imputadas por proveedor con el Maestro de Proveedores), IIBB de la DJ de anticipo de ARBA, sueldos del F.931, IVA prorrateo, Seguridad e Higiene y Publicidad del papel de trabajo. Completa solo lo que está vacío (no pisa lo que cargó el equipo), registra cada carga con su fuente en la hoja 'Armado' y crea el EERR del ejercicio nuevo cuando cierra el anterior. Usar SIEMPRE que pidan \"armar el EERR de [sociedad]\", \"actualizar los EERR con [mes]\", \"cargar septiembre en los EERR\", \"pasar el mes a los EERR\", \"hacer el EERR del ejercicio nuevo\", \"EERR de [sociedad] que cerró en [mes]\" o \"completar los estados de resultados\". No confundir con auditor-eerr (controla un EERR ya armado) ni con papel-trabajo-automatico (arma el papel de liquidaciones)."
 ---
 
 # Armado de EERR
@@ -67,7 +67,7 @@ Hoja **"Armado"**: una fila por carga (fecha, modo, mes, concepto, acción, valo
 quedó sin fuente y los proveedores a revisar. Lo que ya tenía dato no se registra.
 
 **Necesita Microsoft Excel**: recalcula cada archivo antes de devolverlo a la unidad. Antes de pisar un EERR deja un
-respaldo en `EERR 2026/_respaldos/AAAAMMDD-HHMM/`; si el archivo cambió en la unidad mientras se armaba, no lo pisa y
+respaldo en `EERR 2026/EECC anterior/_respaldos/AAAAMMDD-HHMM/`; si el archivo cambió en la unidad mientras se armaba, no lo pisa y
 deja la copia en `BVA-salidas/armado-eerr/no-guardados/`. Pedir que el EERR esté cerrado en Excel mientras corre.
 
 ## Después
