@@ -46,7 +46,9 @@ F = dict(name=ZETTI[0], size=ZETTI[1])
 
 DESC = {1: 'Factura A', 2: 'Nota de Débito A', 3: 'Nota de Crédito A', 4: 'Recibo A', 6: 'Factura B',
         7: 'Nota de Débito B', 8: 'Nota de Crédito B', 9: 'Recibo B', 11: 'Factura C', 12: 'Nota de Débito C',
-        13: 'Nota de Crédito C', 15: 'Recibo C', 51: 'Factura M', 52: 'Nota de Débito M', 53: 'Nota de Crédito M',
+        13: 'Nota de Crédito C', 15: 'Recibo C', 19: 'Factura por operaciones con el exterior', 20: 'Nota de Débito por operaciones con el exterior',
+        21: 'Nota de Crédito por operaciones con el exterior',
+        51: 'Factura M', 52: 'Nota de Débito M', 53: 'Nota de Crédito M',
         60: 'Cta. de Vta. y Liq. A', 63: 'Liquidaciones A', 64: 'Liquidaciones B', 81: 'Tique Factura A',
         82: 'Tique Factura B', 83: 'Tique', 111: 'Tique Factura C', 112: 'Tique NC A', 113: 'Tique NC B',
         114: 'Tique NC C', 201: 'FCE MiPyME A', 203: 'NC MiPyME A', 206: 'FCE MiPyME B', 211: 'FCE MiPyME C'}
@@ -54,7 +56,7 @@ FIJAS = [(1, 'SERVICIOS'), (1, 'MERCADERIA'), (63, 'SERVICIOS'), (4, 'SERVICIOS'
          (81, 'MERCADERIA'), (2, 'SERVICIOS'), (6, 'SERVICIOS'), (11, 'SERVICIOS'),
          (11, 'MERCADERIA'), (15, 'SERVICIOS'),
          (111, 'SERVICIOS'), (3, 'MERCADERIA'), (3, 'SERVICIOS'), (8, 'MERCADERIA'), (13, 'SERVICIOS')]
-NC = {3, 8, 13, 53, 112, 113, 114, 203}
+NC = {3, 8, 13, 21, 53, 112, 113, 114, 203}
 SIN_IVA = {6, 8, 11, 13, 15, 111}
 CONCEPTOS = [('Neto Gravado 0%', 'T'), ('Neto Gravado 10,5', 'Y'), ('Neto Gravado 21', 'AA'),
              ('Neto Gravado 27', 'AC'), ('No Gravado', 'K'), ('Exento', 'L'), ('IVA 10,5', 'Z'),
