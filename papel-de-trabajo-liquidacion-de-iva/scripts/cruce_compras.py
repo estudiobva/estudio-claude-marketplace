@@ -50,6 +50,8 @@ TIPOS = {
     1: 'Factura A', 2: 'Nota de Debito A', 3: 'Nota de Credito A', 4: 'Recibo A',
     6: 'Factura B', 7: 'Nota de Debito B', 8: 'Nota de Credito B', 9: 'Recibo B',
     11: 'Factura C', 12: 'Nota de Debito C', 13: 'Nota de Credito C', 15: 'Recibo C',
+    19: 'Factura por operaciones con el exterior', 20: 'Nota de Debito por operaciones con el exterior',
+    21: 'Nota de Credito por operaciones con el exterior',
     51: 'Factura M', 52: 'Nota de Debito M', 53: 'Nota de Credito M',
     60: 'Cta. de Vta. y Liq. A', 61: 'Cta. de Vta. y Liq. B', 63: 'Liquidacion A', 64: 'Liquidacion B',
     81: 'Tique Factura A', 82: 'Tique Factura B', 83: 'Tique', 111: 'Tique Factura C',
