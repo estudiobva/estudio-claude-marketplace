@@ -7,7 +7,7 @@ filas sin clasificar o NO CLASIFICADO, corta sin grabar.
 
 Abajo de los datos (encabezado 5 filas debajo de la nota) arma, con SUMIFS vivas sobre las filas
 de comprobantes, con el formato de Norte 202609:
-  * Cuadro por tipo de comprobante y MERCADERIA (AG = "CMV") / SERVICIOS (todo lo demas): 15 filas
+  * Cuadro por tipo de comprobante y MERCADERIA (AG = "CMV") / SERVICIOS (todo lo demas): 16 filas
     fijas en el orden de la usuaria, aunque queden en cero, mas las combinaciones que aparezcan y
     no esten en la lista (se avisan). Columnas: Neto Gravado 0% (T), 10,5 (Y), 21 (AA), 27 (AC),
     No Gravado (K), Exento (L), IVA 10,5 (Z), IVA 21 (AB), IVA 27 (AD) y Total. En los tipos sin IVA
@@ -51,7 +51,8 @@ DESC = {1: 'Factura A', 2: 'Nota de Débito A', 3: 'Nota de Crédito A', 4: 'Rec
         82: 'Tique Factura B', 83: 'Tique', 111: 'Tique Factura C', 112: 'Tique NC A', 113: 'Tique NC B',
         114: 'Tique NC C', 201: 'FCE MiPyME A', 203: 'NC MiPyME A', 206: 'FCE MiPyME B', 211: 'FCE MiPyME C'}
 FIJAS = [(1, 'SERVICIOS'), (1, 'MERCADERIA'), (63, 'SERVICIOS'), (4, 'SERVICIOS'), (81, 'SERVICIOS'),
-         (81, 'MERCADERIA'), (2, 'SERVICIOS'), (6, 'SERVICIOS'), (11, 'SERVICIOS'), (15, 'SERVICIOS'),
+         (81, 'MERCADERIA'), (2, 'SERVICIOS'), (6, 'SERVICIOS'), (11, 'SERVICIOS'),
+         (11, 'MERCADERIA'), (15, 'SERVICIOS'),
          (111, 'SERVICIOS'), (3, 'MERCADERIA'), (3, 'SERVICIOS'), (8, 'MERCADERIA'), (13, 'SERVICIOS')]
 NC = {3, 8, 13, 53, 112, 113, 114, 203}
 SIN_IVA = {6, 8, 11, 13, 15, 111}
