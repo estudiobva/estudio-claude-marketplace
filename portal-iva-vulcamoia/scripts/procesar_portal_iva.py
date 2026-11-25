@@ -12,9 +12,10 @@ Genera en --out:
   input_portal_VENTAS.xlsx   (PORTAL IVA completo + hoja Comprobantes Ventas)
   Clasificacion_Proveedores_*.xlsx (padrón con variantes de escritura unificadas)
   resumen.json               (conteos, sin clasificar, controles) para informar al usuario
-Después hay que recalcular ambos inputs con el recalc.py del skill xlsx.
+Los libros quedan con fullCalcOnLoad: Excel recalcula las fórmulas al abrirlos. Los controles
+los calcula en Python portal-iva-vulcamoia.py (no hace falta LibreOffice).
 """
-import argparse, glob, json, os, re, shutil, zipfile, datetime as dt, unicodedata, copy
+import argparse, glob, json, os, re, shutil, tempfile, zipfile, datetime as dt, unicodedata, copy
 import xml.etree.ElementTree as ET
 from collections import Counter
 import pandas as pd
@@ -110,6 +111,7 @@ def cargar_padron(path, out_dir):
             c.value = nv
             cambios += 1
     out = os.path.join(out_dir, os.path.basename(path))
+    wb.calculation.fullCalcOnLoad = True   # Excel recalcula al abrir (no hay recalc.py fuera de claude.ai)
     wb.save(out)
     pad = pd.read_excel(out)
     pad['CLASIFICACION'] = pad['CLASIFICACION'].astype(str).str.strip()
@@ -180,6 +182,7 @@ def armar_compras(periodos, tmpl, clasif, out_dir):
     hoja_resumen(wb, anio)
     sc = hoja_sin_clasificar(wb, c)
     out = os.path.join(out_dir, os.path.basename(tmpl))
+    wb.calculation.fullCalcOnLoad = True   # Excel recalcula al abrir (no hay recalc.py fuera de claude.ai)
     wb.save(out)
     return out, c, sc
 
@@ -388,6 +391,7 @@ def armar_ventas(periodos, tmpl, out_dir):
     for rr, qs in src.items():
         ws[f'A{rr}'].comment = Comment('libro_iva.xml > iva_ventas: ' + ' + '.join(qs), 'Claude')
     out = os.path.join(out_dir, os.path.basename(tmpl))
+    wb.calculation.fullCalcOnLoad = True   # Excel recalcula al abrir (no hay recalc.py fuera de claude.ai)
     wb.save(out)
     return out, v, faltan
 
@@ -399,7 +403,7 @@ def main():
     ap.add_argument('--ventas', required=True)
     ap.add_argument('--padron', required=True)
     ap.add_argument('--out', required=True)
-    ap.add_argument('--work', default='/home/claude/portal_iva_work')
+    ap.add_argument('--work', default=os.path.join(tempfile.gettempdir(), 'portal_iva_work'))
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     periodos = extraer(a.zips, a.work)

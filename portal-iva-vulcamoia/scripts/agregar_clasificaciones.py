@@ -17,7 +17,8 @@ clasificaciones.json: lista de objetos
                     con comentario de actividad y fuente. NO toca el padrón.
 --modo confirmada : escribe la clasificación sin resaltado, la agrega al padrón (si el CUIT no está)
                     y marca Estado = "Agregado al padrón".
-Los archivos se modifican en el lugar. Después: recalcular COMPRAS con recalc.py del skill xlsx.
+Los archivos se modifican en el lugar (portal-iva-vulcamoia.py clasificar guarda antes una copia del padrón
+en _anteriores/). COMPRAS queda con fullCalcOnLoad: Excel recalcula al abrirlo.
 """
 import argparse, json, copy, sys, os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -72,6 +73,7 @@ def main():
                 s.cell(r, 6).fill = NOFILL
                 s.cell(r, 9, 'Agregado al padrón')
     hoja_resumen(wb)
+    wb.calculation.fullCalcOnLoad = True
     wb.save(a.compras)
     print('comprobantes actualizados:', n, '- resumen reconstruido')
 

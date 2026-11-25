@@ -1,0 +1,8 @@
+{
+  "name": "portal-iva-vulcamoia",
+  "description": "Vuelca los zips del Libro IVA Digital del Portal IVA (ARCA) en los input_portal COMPRAS y VENTAS de Vulcamoia (u otra sociedad con la misma estructura), clasifica los proveedores con su padrón, arma el Resumen por Clasificación y el Control con Portal IVA, y deja los 'Completo' en la carpeta PORTAL IVA de la sociedad. Skill de Melina. No entra a ARCA.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["portal iva", "libro iva digital", "compras", "ventas", "clasificacion", "padron proveedores", "vulcamoia", "argentina"]
+}

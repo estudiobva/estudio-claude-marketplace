@@ -188,6 +188,12 @@
       "source": "./papel-trabajo-ventas-tsh",
       "description": "Etapa 1 del papel de trabajo de ventas (TSH / IIBB), de punta a punta con un script de Playwright: baja Zetti 5.6.5, el Libro IVA Ventas de la DDJJ presentada y Mis Comprobantes de uno o varios meses, arma el papel con depurado y cuadro resumen, y cruza las tres fuentes separando corrimientos y cortes de mes de las diferencias reales.",
       "category": "contabilidad"
+    },
+    {
+      "name": "portal-iva-vulcamoia",
+      "source": "./portal-iva-vulcamoia",
+      "description": "Vuelca los zips del Libro IVA Digital en los input_portal COMPRAS y VENTAS de Vulcamoia, clasifica los proveedores con su padrón y arma el Resumen por Clasificación y el Control con Portal IVA. Skill de Melina.",
+      "category": "contabilidad"
     }
   ]
 }
