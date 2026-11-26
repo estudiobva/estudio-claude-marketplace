@@ -25,7 +25,9 @@
  *                     auto (default): periodo abierto -> importa desde ARCA al borrador del Libro Compras y lo
  *                       baja (escribe en el borrador de ARCA, no presenta nada). Si la DDJJ ya esta presentada,
  *                       baja la de la DDJJ presentada (solo lectura, controlada contra la vista previa).
- *                     borrador: solo el borrador (si esta presentada, corta).
+ *                       Resguardo NCR: si la carpeta ncr/ del periodo ya tiene conciliacion o eliminacion de
+ *                       NCR, no importa (las volveria a traer): presentada o, si no hay, codigo 4.
+ *                     borrador: solo el borrador (si esta presentada, corta). Importa aunque haya NCR conciliadas.
  *                     presentada: solo la DDJJ presentada.
  *                     iva: usa el "AAAAMM - PORTAL IVA - COMPRAS.xlsx" que ya esta en la carpeta IVA del mes.
  *                     <ruta.xlsx o .csv>: usa ese archivo (ej. el que el usuario bajo a mano del Portal).
@@ -38,7 +40,7 @@
  *
  * Nunca escribe en Zetti; en ARCA solo importa al borrador del Libro Compras (paso 2, periodo abierto). Salida: JSON por stdout (y en
  * BVA-salidas/papel-ddjj-iva/); progreso por stderr. Codigos: 0 OK, 1 fallo un paso, 2 argumentos o
- * papel no listo, 3 corte de ARCA (captcha/clave), 4 falta una decision (NO CLASIFICADOS), 5 el control del cuadro o de la imputacion difiere en $1 o mas.
+ * papel no listo, 3 corte de ARCA (captcha/clave), 4 falta una decision (NO CLASIFICADOS, NCR ya conciliadas con el periodo abierto), 5 el control del cuadro o de la imputacion difiere en $1 o mas.
  */
 const fs = require('fs');
 const os = require('os');
@@ -126,6 +128,20 @@ async function paso1() {
   terminar(1, { paso_fallido: '1_compras_zetti' });
 }
 
+// Archivos del circuito conciliacion-ncr en la carpeta ncr/ del periodo: la conciliacion
+// (AAAAMM-COMPRAS-SIN-NCR-<sociedad>.xlsx) y el log de una eliminacion ejecutada
+// (AAAAMM-ELIMINACION-NCR-<sello>.csv; las simulaciones no quedan ahi).
+function rastrosNcr() {
+  let dir;
+  try { dir = rutas.carpetaNcr(CUIT, PER, { crear: false }); } catch (e) {
+    // Mas de una carpeta ncr/ = no se sabe cual vale: se frena igual. Sin carpeta IVA = no hay NCR.
+    return /carpetas ncr\//.test(e.message) ? [`carpeta ncr/ ambigua: ${e.message}`] : [];
+  }
+  if (!dir || !fs.existsSync(dir)) return [];
+  const re = new RegExp(`^${PER}-(COMPRAS-SIN-NCR-.+\\.xlsx|ELIMINACION-NCR-\\d{8}-\\d{4}\\.csv)$`, 'i');
+  return fs.readdirSync(dir).filter((f) => !f.startsWith('~$') && re.test(f));
+}
+
 async function paso2() {
   const destino = path.join(D, `${PER} - PORTAL IVA - COMPRAS.xlsx`);
   let origen, info;
@@ -134,6 +150,15 @@ async function paso2() {
     // si ARCA ya tiene acuse de la DDJJ (ddjj_presentada), baja la DDJJ presentada en solo lectura.
     const pPortal = P.pluginDir('portal-iva-descarga');
     let presentada = PORTAL === 'presentada';
+    // Resguardo NCR: el circuito conciliacion-ncr elimina las NCR del borrador DESPUES de la ultima
+    // importacion; importar de nuevo las vuelve a traer. Si el periodo ya tiene conciliacion o
+    // eliminacion de NCR, auto no importa: busca la DDJJ presentada y, si no hay, frena (codigo 4).
+    // --portal=borrador importa igual (decision explicita del usuario).
+    const ncr = PORTAL === 'auto' ? rastrosNcr() : [];
+    if (ncr.length) {
+      log(`   el periodo ya tiene NCR conciliadas/eliminadas (${ncr.join(', ')}): no importo al borrador`);
+      presentada = true;
+    }
     let r;
     for (let i = 1; i <= 3; i++) {
       log(`2/8 Libro IVA Compras del Portal IVA (${presentada ? 'DDJJ presentada, solo lectura' : 'borrador: importa desde ARCA'})`);
@@ -149,6 +174,14 @@ async function paso2() {
         log('   la DDJJ del periodo ya esta presentada: bajo el Libro Compras de la DDJJ presentada');
         presentada = true;
         continue;
+      }
+      if (c === 'sin_presentacion' && presentada && ncr.length) {
+        salida.pasos['2_compras_portal'] = { ok: false, code: 'ncr_ya_conciliadas', error: errorDe(r) };
+        terminar(4, { paso_fallido: '2_compras_portal', ncr: ncr, falta_decidir:
+          `La DDJJ de IVA ${PER} no esta presentada y el periodo ya tiene NCR conciliadas o eliminadas del borrador ` +
+          `(${ncr.join(', ')}). Importar de nuevo desde ARCA las volveria a traer. Volver a correr con --desde-paso=2 y ` +
+          '--portal=iva (el libro de la carpeta IVA del mes), --portal=<ruta del libro bajado a mano> o, solo con el OK del ' +
+          'usuario y sabiendo que hay que volver a eliminar las NCR despues, --portal=borrador.' });
       }
       if (c === 'sin_presentacion' && presentada) {
         salida.pasos['2_compras_portal'] = { ok: false, code: 'sin_presentacion', error: errorDe(r) };

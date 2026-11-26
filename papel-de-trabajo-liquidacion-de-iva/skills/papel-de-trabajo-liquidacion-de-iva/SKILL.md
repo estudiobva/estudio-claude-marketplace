@@ -34,6 +34,11 @@ Navegador siempre oculto; `--ver` solo si el usuario pide ver la ventana. Nunca 
   que termine la importación y baja el libro. Escribe en el borrador de ARCA (no presenta nada). Si ARCA ya tiene acuse
   de la DDJJ del período, baja el Libro Compras de la DDJJ **presentada** (última secuencia, solo lectura, controlado
   contra la vista previa). Nunca entra al borrador de un período presentado.
+  **Resguardo NCR:** si la carpeta `ncr/` del período ya tiene la conciliación (`AAAAMM-COMPRAS-SIN-NCR-*.xlsx`) o el log
+  de una eliminación ejecutada (`AAAAMM-ELIMINACION-NCR-*.csv`), `auto` NO importa (volvería a traer las NCR eliminadas):
+  baja la DDJJ presentada y, si no está presentada, para con código 4 (`code: ncr_ya_conciliadas`). Preguntar al usuario
+  y seguir con `--portal=iva` o `--portal=<ruta>`; `--portal=borrador` solo con su OK, avisando que después hay que volver
+  a eliminar las NCR (conciliacion-ncr, paso 4).
 - `--portal=borrador` / `--portal=presentada`: solo esa fuente.
 - `--portal=iva`: el `AAAAMM - PORTAL IVA - COMPRAS.xlsx` que ya está en la carpeta IVA del mes.
 - `--portal=<ruta>`: otro archivo. Acepta el `.xlsx`, o el `.zip` / `.csv` tal como lo baja el Portal IVA
@@ -106,7 +111,7 @@ gravado; el cuadro resumen del paso 7 los suma en No Gravado. El script toma el 
 quedan OK y se informa en Avisos (cantidad por tipo). Nunca marcarlos como diferencia.
 
 **NC de droguerías (Suizo / Monroe) solo en el Portal:** se informan; no ofrecer conciliar ni eliminar NCR desde esta etapa.
-**Soy Tondi 69 (30719448360):** los comprobantes de Monroe y Suizo que están en Zetti son de la farmacéutica (DT), no de la
+**Sociedades donde el DT compra a su nombre:** los comprobantes de Monroe y Suizo que están en Zetti son de la farmacéutica (DT), no de la
 farmacia; el Portal no los trae y la DDJJ se arma solo con el Portal. Esos "Solo en Zetti" no son diferencia a revisar.
 
 Contenido de la solapa: 1) totales de cada fuente por grupo (Facturas y ND, NC, Liquidaciones, Comprobantes X);

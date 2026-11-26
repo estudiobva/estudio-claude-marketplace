@@ -37,7 +37,8 @@ node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --p
 ```
 
 - Libro IVA Compras (`--portal`): por defecto, período abierto → importa desde ARCA al borrador y lo baja; si la DDJJ ya
-  está presentada, baja la presentada (solo lectura, controlada contra la DDJJ). También `--portal=borrador`,
+  está presentada, baja la presentada (solo lectura, controlada contra la DDJJ). Si el período ya tiene NCR conciliadas o
+  eliminadas (carpeta `ncr/`), no importa: volvería a traer las NCR; para con código 4 si no hay DDJJ presentada. También `--portal=borrador`,
   `--portal=presentada`, `--portal=iva` (el de la carpeta IVA del mes) o `--portal=<ruta>` (.xlsx, o el .zip / .csv tal
   como lo baja el Portal IVA a mano).
 - NO CLASIFICADOS: para con código 4 y la lista; se retoma con `--desde-paso=7 --cuentas="CUIT=CUENTA;..."` (solo el papel,
