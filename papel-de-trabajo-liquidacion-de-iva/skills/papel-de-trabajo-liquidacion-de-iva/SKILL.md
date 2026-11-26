@@ -7,6 +7,8 @@ description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la e
 
 Se trabaja sobre el papel de trabajo del mes que armó la etapa 1 (ventas para TSH e IIBB, plugin `papel-trabajo-ventas-tsh`).
 Lo hace un solo script de Playwright, con login automático (planilla de claves del estudio). No pedir ni escribir contraseñas.
+Los 8 pasos se corren de una, sin pedir OK entre pasos; la única pausa es un proveedor NO CLASIFICADO (paso 7).
+Al final se informa el resultado de todos los pasos juntos.
 
 ## Datos de entrada
 
@@ -28,13 +30,23 @@ Corre los 8 pasos en orden (abajo, qué hace cada uno). Antes de tocar el papel 
 Navegador siempre oculto; `--ver` solo si el usuario pide ver la ventana. Nunca escribe en Zetti.
 
 **De dónde sale el Libro IVA Compras (paso 2), `--portal=`:**
-- `auto` (por defecto): el de la DDJJ **presentada**, en solo lectura y controlado contra la vista previa de la DDJJ.
-  Si el período no está presentado, el script para con código 4 y `falta_decidir`. **Preguntar al usuario** y volver a correr
-  con `--desde-paso=2` y una de estas:
-  - `--portal=iva`: el `AAAAMM - PORTAL IVA - COMPRAS.xlsx` que ya está en la carpeta IVA del mes (el que bajó el circuito NCR).
-  - `--portal=<ruta.xlsx>`: otro archivo.
-  - `--portal=borrador`: importa desde ARCA al borrador del Libro Compras y lo baja. **Escribe en el borrador de ARCA** (no presenta).
-    Si ya se eliminaron NCR del borrador (conciliacion-ncr), importar puede volver a traerlas: usarlo solo con el OK del usuario.
+- `auto` (por defecto): **período abierto (caso normal)** → importa desde ARCA al borrador del Libro Compras, espera
+  que termine la importación y baja el libro. Escribe en el borrador de ARCA (no presenta nada). Si ARCA ya tiene acuse
+  de la DDJJ del período, baja el Libro Compras de la DDJJ **presentada** (última secuencia, solo lectura, controlado
+  contra la vista previa). Nunca entra al borrador de un período presentado.
+  **Resguardo NCR:** si la carpeta `ncr/` del período ya tiene la conciliación (`AAAAMM-COMPRAS-SIN-NCR-*.xlsx`) o el log
+  de una eliminación ejecutada (`AAAAMM-ELIMINACION-NCR-*.csv`), `auto` NO importa (volvería a traer las NCR eliminadas):
+  baja la DDJJ presentada y, si no está presentada, para con código 4 (`code: ncr_ya_conciliadas`). Preguntar al usuario
+  y seguir con `--portal=iva` o `--portal=<ruta>`; `--portal=borrador` solo con su OK, avisando que después hay que volver
+  a eliminar las NCR (conciliacion-ncr, paso 4).
+- `--portal=borrador` / `--portal=presentada`: solo esa fuente.
+- `--portal=iva`: el `AAAAMM - PORTAL IVA - COMPRAS.xlsx` que ya está en la carpeta IVA del mes.
+- `--portal=<ruta>`: otro archivo. Acepta el `.xlsx`, o el `.zip` / `.csv` tal como lo baja el Portal IVA
+  (`comprobantes_periodo_AAAAMM_compras_...`): lo pasa a Excel con el conversor de `portal-iva-descarga`.
+
+**Si el Portal falla** (ej. ARCA no abre la importación): ofrecerle al usuario bajarlo a mano desde el Portal IVA o usar el
+de la carpeta IVA. **Si el usuario lo baja él, ese archivo es el paso 2 completo:** correr con `--desde-paso=2
+--portal=<el .zip de Descargas>` y dar los 8 pasos por terminados; no insistir con volver a importar ni bajarlo de nuevo.
 
 **Códigos de salida:** 0 OK · 1 falló un paso (`paso_fallido`, `pasos.<paso>.error`) · 2 papel no listo o argumentos ·
 3 ARCA pidió captcha o rechazó la clave (no reintentar en loop) · 4 falta una decisión (`falta_decidir`) · 5 el control del
@@ -53,7 +65,8 @@ Eso escribe la cuenta solo en el papel; recordarle al usuario que la cargue en e
 
 **Informar al terminar**, con el JSON (también queda en `BVA-salidas/papel-ddjj-iva/<CUIT>-<AAAAMM>-<fecha>.json`):
 1. Compras Zetti: comprobantes por TC, totales, control contra el total del reporte (`control_total_reporte`), `aviso_nro` si hay.
-2. Compras portal iva: modo (presentada / archivo / borrador), DDJJ, comprobantes, control contra la DDJJ (centavos = redondeo).
+2. Compras portal iva: modo (borrador / presentada / archivo), importación (registros / agregados), comprobantes y, si
+   estaba presentada, DDJJ y control contra la DDJJ (centavos = redondeo).
 3. Cruce compras: diferencia Zetti − Portal por columna, los estados con su importe y lo más relevante para revisar.
 4-5. Servicios: cada factura de AySA / EDESUR / METROGAS (fecha, comprobante, total), cuáles se agregaron al Portal con su
    alícuota, las no tomadas por mal cargadas y qué servicio no tiene factura en Zetti.
@@ -78,7 +91,7 @@ del período. `aviso_nro`: comprobantes con el número entero en la columna D (e
 
 ### Paso 2 — Compras portal iva (plugin `portal-iva-descarga` + `copiar_solapa.py`)
 
-Según `--portal` (ver arriba). Con la DDJJ presentada: última secuencia, solo lectura, controla el neto gravado contra la
+Según `--portal` (ver arriba). Período abierto: importa al borrador y baja el libro. Con la DDJJ presentada: última secuencia, solo lectura, controla el neto gravado contra la
 vista previa de la DDJJ y, si no coincide, no guarda. Copia el libro como `AAAAMM - PORTAL IVA - COMPRAS.xlsx` al lado del
 papel (no en IVA) y lo pega tal cual como "Compras portal iva": Arial 10, `#,##0.00`, títulos en fila 1 inmovilizados con
 filtro, fila TOTAL (=SUM) y nota al pie (las NC vienen en negativo, el total ya es neto).
@@ -96,6 +109,10 @@ Perc. IIBB, Perc. IVA, Otros (Zetti P/R IG; Portal Otros Imp. Nac. + municipales
 Portal IVA los expone solo en Importe Total (defecto del sistema, no es un error) y Zetti los carga en Exento o No
 gravado; el cuadro resumen del paso 7 los suma en No Gravado. El script toma el total del Portal como Exento/No grav.,
 quedan OK y se informa en Avisos (cantidad por tipo). Nunca marcarlos como diferencia.
+
+**NC de droguerías (Suizo / Monroe) solo en el Portal:** se informan; no ofrecer conciliar ni eliminar NCR desde esta etapa.
+**Sociedades donde el DT compra a su nombre:** los comprobantes de Monroe y Suizo que están en Zetti son de la farmacéutica (DT), no de la
+farmacia; el Portal no los trae y la DDJJ se arma solo con el Portal. Esos "Solo en Zetti" no son diferencia a revisar.
 
 Contenido de la solapa: 1) totales de cada fuente por grupo (Facturas y ND, NC, Liquidaciones, Comprobantes X);
 2) diferencia Zetti − Portal IVA por columna; 3) qué explica las diferencias, por estado (la suma da el punto 2);
@@ -123,6 +140,9 @@ el resto (la fila TOTAL queda visible). No cambia datos. Suelen ser las que no v
   renglón por factura con proveedor, comprobante, fila y alícuota, y en la columna IVA `=+J<fila>*0,27` (Grav × alícuota).
   A veces todo exento ("todo exento / no gravado, sin IVA" con 0). Si se vuelve a correr, el bloque se reemplaza.
 - **Importes negativos sin ser NC:** NO se agrega; en "Compras Zetti", al costado, "No lo tomamos porque esta mal cargado".
+- **Facturas B o C de servicios** (ej. EDESUR o METROGAS FC B, sin IVA discriminado): solo Importe Total (+ percepciones),
+  Exento en 0, como las trae ARCA; el cuadro y la imputación ya suman H − N a S en No Gravado (con el exento cargado
+  quedaba contado dos veces).
 - Columnas como las carga ARCA: Exen → Importe Exento, P/R IIBB → Perc. IIBB, P/R IVA → Perc. IVA, P/R IG → Per. Otros
   Imp. Nac., Total Neto Gravado y Total IVA. Si ya está en el Portal (CUIT + PV + número), no se duplica.
 - La columna AG queda libre; la fila TOTAL (=SUM) se rehace hasta la última fila nueva y la nota suma los agregados.
@@ -156,12 +176,12 @@ otros conceptos y el control. (Piloto 09/2026: diferencia −0,23.)
 Abajo de los datos (dejando un par de filas libres), cuadro por tipo de comprobante y MERCADERIA/SERVICIOS.
 Regla: AG = "CMV" es MERCADERIA; todo lo demás es SERVICIOS.
 
-Quince filas fijas, en este orden, aunque queden en cero: 1 Factura A / SERVICIOS, 1 Factura A / MERCADERIA,
+Dieciséis filas fijas, en este orden, aunque queden en cero: 1 Factura A / SERVICIOS, 1 Factura A / MERCADERIA,
 63 Liquidaciones A / SERVICIOS, 4 Recibo A / SERVICIOS, 81 Tique Factura A / SERVICIOS, 81 Tique Factura A /
-MERCADERIA, 2 Nota de Débito A / SERVICIOS, 6 Factura B / SERVICIOS, 11 Factura C / SERVICIOS, 15 Recibo C /
-SERVICIOS, 111 Tique Factura C / SERVICIOS, 3 Nota de Crédito A / MERCADERIA, 3 Nota de Crédito A / SERVICIOS,
+MERCADERIA, 2 Nota de Débito A / SERVICIOS, 6 Factura B / SERVICIOS, 11 Factura C / SERVICIOS, 11 Factura C /
+MERCADERIA (ej. Libros Educativos Sobre Alas: artículos para reventa), 15 Recibo C / SERVICIOS, 111 Tique Factura C / SERVICIOS, 3 Nota de Crédito A / MERCADERIA, 3 Nota de Crédito A / SERVICIOS,
 8 Nota de Crédito B / MERCADERIA, 13 Nota de Crédito C / SERVICIOS. Una combinación tipo/grupo que no está en la
-lista (ej. factura C de un proveedor CMV): agregar la fila y avisar.
+lista (ej. factura B o NC C de un proveedor CMV): agregar la fila y avisar.
 
 Nueve columnas de conceptos: Neto Gravado 0 % = T, Neto Gravado 10,5 = Y, Neto Gravado 21 = AA, Neto Gravado 27 = AC,
 No Gravado = K, Exento = L, IVA 10,5 = Z, IVA 21 = AB, IVA 27 = AD.

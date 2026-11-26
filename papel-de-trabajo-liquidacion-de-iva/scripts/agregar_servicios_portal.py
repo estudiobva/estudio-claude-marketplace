@@ -34,6 +34,7 @@ HOJA_P = 'Compras portal iva'
 MAL_CARGADO = 'No lo tomamos porque esta mal cargado'
 DENOMINACION = {'30709565075': 'AGUA Y SANEAMIENTOS ARGENTINOS S A', '30655116512': 'EDESUR S A',
                 '30657863676': 'METROGAS S A'}
+SIN_IVA_DISCRIMINADO = {6, 7, 8, 11, 12, 13, 15, 111}
 TIPO_ARCA = {('FC', 'A'): 1, ('ND', 'A'): 2, ('NC', 'A'): 3, ('FC', 'B'): 6, ('ND', 'B'): 7, ('NC', 'B'): 8,
              ('FC', 'C'): 11, ('ND', 'C'): 12, ('NC', 'C'): 13}
 ALICUOTAS = {0.025: '2,5%', 0.05: '5%', 0.105: '10,5%', 0.21: '21%', 0.27: '27%'}
@@ -189,12 +190,16 @@ def main():
             for c, st in estilos.items():
                 wp.cell(r, c)._style = copy(st)
             pct = ALICUOTAS.get(sv['alicuota'])
+            # Tipos sin IVA discriminado (FC/NC/ND B y C, tiques C, recibos C): ARCA los trae solo con el
+            # Importe Total; el cuadro y la imputacion suman H - (N a S) a No Gravado. Si ademas se
+            # escribiera el exento, el comprobante quedaria contado dos veces.
+            exento = 0 if sv['tipo'] in SIN_IVA_DISCRIMINADO else imp['exen']
             valores = {
                 'fecha de emision': sv['fecha'], 'tipo de comprobante': sv['tipo'], 'punto de venta': sv['pv'],
                 'numero de comprobante': sv['numero'], 'tipo doc. vendedor': 80,
                 'nro. doc. vendedor': int(sv['cuit']), 'denominacion vendedor': DENOMINACION.get(sv['cuit'], sv['proveedor']),
                 'importe total': imp['total'], 'moneda original': 'PES', 'tipo de cambio': 1,
-                'importe no gravado': 0, 'importe exento': imp['exen'], 'credito fiscal computable': 0,
+                'importe no gravado': 0, 'importe exento': exento, 'credito fiscal computable': 0,
                 'importe de per. o pagos a cta. de otros imp. nac.': imp['p/r ig'],
                 'importe de percepciones de ingresos brutos': imp['p/r iibb'],
                 'importe de impuestos municipales': 0,

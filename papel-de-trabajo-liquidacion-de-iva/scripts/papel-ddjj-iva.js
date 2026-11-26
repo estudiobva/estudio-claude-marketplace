@@ -5,7 +5,7 @@
  *
  *   node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202609
  *   node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202609 --desde-paso=7 --cuentas="<CUIT>=HONORARIOS"
- *   node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --portal=borrador
+ *   node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --portal=<libro bajado a mano>
  *
  * Pasos (cada uno con el script de scripts/; el papel se respalda antes de tocarlo):
  *   1. Zetti 5.6.4 (Playwright, login automatico) -> "AAAAMM - ZETTI - COMPRAS.xlsx" -> solapa "Compras Zetti".
@@ -22,13 +22,15 @@
  * Argumentos:
  *   --cuit, --periodo (AAAAMM o MM/AAAA).
  *   --portal        De donde sale el Libro IVA Compras (paso 2):
- *                     auto (default): el de la DDJJ PRESENTADA (solo lectura, controlado contra la DDJJ);
- *                       si el periodo no esta presentado, para (codigo 4) y pide elegir.
- *                     borrador: importa desde ARCA al borrador del Libro Compras y lo baja (escribe en el
- *                       borrador de ARCA, no presenta nada). Ojo: si ya se eliminaron NCR del borrador
- *                       (conciliacion-ncr), importar puede volver a traerlas.
+ *                     auto (default): periodo abierto -> importa desde ARCA al borrador del Libro Compras y lo
+ *                       baja (escribe en el borrador de ARCA, no presenta nada). Si la DDJJ ya esta presentada,
+ *                       baja la de la DDJJ presentada (solo lectura, controlada contra la vista previa).
+ *                       Resguardo NCR: si la carpeta ncr/ del periodo ya tiene conciliacion o eliminacion de
+ *                       NCR, no importa (las volveria a traer): presentada o, si no hay, codigo 4.
+ *                     borrador: solo el borrador (si esta presentada, corta). Importa aunque haya NCR conciliadas.
+ *                     presentada: solo la DDJJ presentada.
  *                     iva: usa el "AAAAMM - PORTAL IVA - COMPRAS.xlsx" que ya esta en la carpeta IVA del mes.
- *                     <ruta.xlsx>: usa ese archivo.
+ *                     <ruta.xlsx o .csv>: usa ese archivo (ej. el que el usuario bajo a mano del Portal).
  *   --subcarpeta    El papel esta en 01-Impuestos Mensuales/<subcarpeta>/AAAAMM (ej. controles). Default: carpeta del mes.
  *   --papel         Ruta del papel (en vez de buscarlo).
  *   --desde-paso / --hasta-paso   Para retomar o cortar (1 a 8).
@@ -36,10 +38,9 @@
  *   --antes-del-11  Corre aunque todavia no sea el dia 11 del mes siguiente al periodo.
  *   --ver           Navegador visible (solo si se pide).
  *
- * Nunca escribe en Zetti; en ARCA solo con --portal=borrador. Salida: JSON por stdout (y en
+ * Nunca escribe en Zetti; en ARCA solo importa al borrador del Libro Compras (paso 2, periodo abierto). Salida: JSON por stdout (y en
  * BVA-salidas/papel-ddjj-iva/); progreso por stderr. Codigos: 0 OK, 1 fallo un paso, 2 argumentos o
- * papel no listo, 3 corte de ARCA (captcha/clave), 4 falta una decision (NO CLASIFICADOS, periodo
- * sin presentar), 5 el control del cuadro o de la imputacion difiere en $1 o mas.
+ * papel no listo, 3 corte de ARCA (captcha/clave), 4 falta una decision (NO CLASIFICADOS, NCR ya conciliadas con el periodo abierto), 5 el control del cuadro o de la imputacion difiere en $1 o mas.
  */
 const fs = require('fs');
 const os = require('os');
@@ -127,36 +128,75 @@ async function paso1() {
   terminar(1, { paso_fallido: '1_compras_zetti' });
 }
 
+// Archivos del circuito conciliacion-ncr en la carpeta ncr/ del periodo: la conciliacion
+// (AAAAMM-COMPRAS-SIN-NCR-<sociedad>.xlsx) y el log de una eliminacion ejecutada
+// (AAAAMM-ELIMINACION-NCR-<sello>.csv; las simulaciones no quedan ahi).
+function rastrosNcr() {
+  let dir;
+  try { dir = rutas.carpetaNcr(CUIT, PER, { crear: false }); } catch (e) {
+    // Mas de una carpeta ncr/ = no se sabe cual vale: se frena igual. Sin carpeta IVA = no hay NCR.
+    return /carpetas ncr\//.test(e.message) ? [`carpeta ncr/ ambigua: ${e.message}`] : [];
+  }
+  if (!dir || !fs.existsSync(dir)) return [];
+  const re = new RegExp(`^${PER}-(COMPRAS-SIN-NCR-.+\\.xlsx|ELIMINACION-NCR-\\d{8}-\\d{4}\\.csv)$`, 'i');
+  return fs.readdirSync(dir).filter((f) => !f.startsWith('~$') && re.test(f));
+}
+
 async function paso2() {
   const destino = path.join(D, `${PER} - PORTAL IVA - COMPRAS.xlsx`);
   let origen, info;
-  if (PORTAL === 'auto' || PORTAL === 'borrador') {
+  if (['auto', 'borrador', 'presentada'].includes(PORTAL)) {
+    // auto (default): periodo abierto -> importa desde ARCA al borrador y lo baja (caso normal);
+    // si ARCA ya tiene acuse de la DDJJ (ddjj_presentada), baja la DDJJ presentada en solo lectura.
     const pPortal = P.pluginDir('portal-iva-descarga');
-    const presentada = PORTAL === 'auto';
-    log(`2/8 Libro IVA Compras del Portal IVA (${presentada ? 'DDJJ presentada, solo lectura' : 'borrador: importa desde ARCA'})`);
+    let presentada = PORTAL === 'presentada';
+    // Resguardo NCR: el circuito conciliacion-ncr elimina las NCR del borrador DESPUES de la ultima
+    // importacion; importar de nuevo las vuelve a traer. Si el periodo ya tiene conciliacion o
+    // eliminacion de NCR, auto no importa: busca la DDJJ presentada y, si no hay, frena (codigo 4).
+    // --portal=borrador importa igual (decision explicita del usuario).
+    const ncr = PORTAL === 'auto' ? rastrosNcr() : [];
+    if (ncr.length) {
+      log(`   el periodo ya tiene NCR conciliadas/eliminadas (${ncr.join(', ')}): no importo al borrador`);
+      presentada = true;
+    }
     let r;
-    for (let i = 1; i <= 2; i++) {
+    for (let i = 1; i <= 3; i++) {
+      log(`2/8 Libro IVA Compras del Portal IVA (${presentada ? 'DDJJ presentada, solo lectura' : 'borrador: importa desde ARCA'})`);
       r = await P.correr(process.execPath, ['scripts/portal-iva-descarga.js', `--cuit=${CUIT}`, `--periodo=${P.mmaaaa(PER)}`, '--libros=compras', '--no-archivar',
-        ...(presentada ? ['--presentada'] : [])], { cwd: pPortal, log, prefijo: '   ' });
+        '--si-existe=reemplazar', ...(presentada ? ['--presentada'] : [])], { cwd: pPortal, log, prefijo: '   ' });
       if (r.code === 0) break;
       const c = codeDe(r);
       if (['captcha', 'credenciales_invalidas'].includes(c)) {
         salida.pasos['2_compras_portal'] = { ok: false, error: errorDe(r), code: c };
         terminar(3, { paso_fallido: '2_compras_portal' });
       }
+      if (c === 'ddjj_presentada' && PORTAL === 'auto' && !presentada) {
+        log('   la DDJJ del periodo ya esta presentada: bajo el Libro Compras de la DDJJ presentada');
+        presentada = true;
+        continue;
+      }
+      if (c === 'sin_presentacion' && presentada && ncr.length) {
+        salida.pasos['2_compras_portal'] = { ok: false, code: 'ncr_ya_conciliadas', error: errorDe(r) };
+        terminar(4, { paso_fallido: '2_compras_portal', ncr: ncr, falta_decidir:
+          `La DDJJ de IVA ${PER} no esta presentada y el periodo ya tiene NCR conciliadas o eliminadas del borrador ` +
+          `(${ncr.join(', ')}). Importar de nuevo desde ARCA las volveria a traer. Volver a correr con --desde-paso=2 y ` +
+          '--portal=iva (el libro de la carpeta IVA del mes), --portal=<ruta del libro bajado a mano> o, solo con el OK del ' +
+          'usuario y sabiendo que hay que volver a eliminar las NCR despues, --portal=borrador.' });
+      }
       if (c === 'sin_presentacion' && presentada) {
         salida.pasos['2_compras_portal'] = { ok: false, code: 'sin_presentacion', error: errorDe(r) };
         terminar(4, { paso_fallido: '2_compras_portal', falta_decidir:
-          `La DDJJ de IVA ${PER} no esta presentada. Elegir de donde sale el Libro IVA Compras y volver a correr con --desde-paso=2: ` +
-          '--portal=iva (el que ya esta en la carpeta IVA del mes), --portal=<ruta.xlsx>, o --portal=borrador (importa al borrador de ARCA; ' +
-          'si ya se eliminaron NCR del borrador, puede volver a traerlas).' });
+          `La DDJJ de IVA ${PER} no esta presentada. Volver a correr con --desde-paso=2 y --portal=auto (importa al borrador), ` +
+          '--portal=iva (el que ya esta en la carpeta IVA del mes) o --portal=<ruta.xlsx>.' });
       }
       if (['ddjj_presentada', 'otro_borrador_abierto'].includes(c) || /no coincide con la DDJJ/i.test(errorDe(r))) break;
     }
     const libro = r.json && (r.json.libros || [])[0];
     if (r.code !== 0 || !libro || !libro.archivo) {
       salida.pasos['2_compras_portal'] = { ok: false, error: errorDe(r), code: codeDe(r) };
-      terminar(1, { paso_fallido: '2_compras_portal' });
+      terminar(1, { paso_fallido: '2_compras_portal', ...(PORTAL !== 'presentada' && !presentada ? { falta_decidir:
+        'No se pudo bajar el Libro Compras del Portal IVA. Si el usuario lo baja a mano, volver a correr con --desde-paso=2 ' +
+        '--portal=<ruta del .xlsx o .csv>; o --portal=iva si ya esta en la carpeta IVA del mes.' } : {}) });
     }
     origen = libro.archivo;
     info = { modo: presentada ? 'presentada' : 'borrador', ddjj: r.json.ddjj, filas: libro.filas,
@@ -169,6 +209,27 @@ async function paso2() {
     }
     log(`2/8 Libro IVA Compras desde ${origen}`);
     info = { modo: 'archivo', origen };
+    // Libro bajado a mano del Portal: el .zip o el .csv de ARCA se pasan a Excel con el mismo conversor
+    // del plugin portal-iva-descarga (mismo formato que la descarga automatica).
+    if (/\.(zip|csv)$/i.test(origen)) {
+      let csv = origen;
+      if (/\.zip$/i.test(origen)) {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'papel-ddjj-iva-'));
+        const z = await P.correr(P.PYTHON, ['-c', 'import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);n=[x for x in z.namelist() if x.lower().endswith(".csv")][0];print(z.extract(n,sys.argv[2]))', origen, tmp], { log });
+        csv = (z.stdout || '').trim().split(String.fromCharCode(10)).pop().trim();
+        if (z.code !== 0 || !csv || !fs.existsSync(csv)) {
+          salida.pasos['2_compras_portal'] = { ok: false, error: `No encontre el CSV dentro de ${origen}` };
+          terminar(2, { paso_fallido: '2_compras_portal' });
+        }
+      }
+      const pPortal = P.pluginDir('portal-iva-descarga');
+      const c = await P.correr(P.PYTHON, [path.join(pPortal, 'scripts', 'csv_a_excel.py'), csv, destino, '--libro=compras'], { log });
+      if (c.code !== 0) {
+        salida.pasos['2_compras_portal'] = { ok: false, error: `No pude convertir ${csv}: ${errorDe(c)}` };
+        terminar(1, { paso_fallido: '2_compras_portal' });
+      }
+      origen = destino;
+    }
   }
   if (path.resolve(origen) !== path.resolve(destino)) fs.copyFileSync(origen, destino);
   const pegado = await pyPaso('2_compras_portal', 'copiar_solapa.py', [destino, PA, 'Compras portal iva']);

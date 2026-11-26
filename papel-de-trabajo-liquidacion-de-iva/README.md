@@ -5,7 +5,7 @@ sobre el **mismo** papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya ar
 (Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva, Ventas MCR y cruce ventas).
 
 Lo hace de punta a punta un script de Playwright, `scripts/papel-ddjj-iva.js`, con login automático (desde Claude:
-"preparar el papel de IVA de <Sociedad> 202609"). Nunca escribe en Zetti; en ARCA solo si se pide `--portal=borrador`.
+"preparar el papel de IVA de <Sociedad> 202609"). Nunca escribe en Zetti; en ARCA solo importa al borrador del Libro Compras del período abierto (paso 2).
 Antes de tocar el papel lo respalda en `BVA-salidas/papel-ddjj-iva/respaldos`.
 
 | Paso | Qué hace | Script |
@@ -33,13 +33,14 @@ Antes de tocar el papel lo respalda en `BVA-salidas/papel-ddjj-iva/respaldos`.
 ```
 node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202609
 node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202609 --desde-paso=7 --cuentas="<CUIT proveedor>=HONORARIOS"
-node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --portal=iva
+node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --portal="<Descargas>/comprobantes_periodo_202610_compras_....zip"
 ```
 
-- Libro IVA Compras (`--portal`): por defecto el de la DDJJ **presentada** (solo lectura, controlado contra la DDJJ). Si el
-  período no está presentado, el script para y pide elegir: `--portal=iva` (el que ya está en la carpeta IVA del mes),
-  `--portal=<ruta.xlsx>` o `--portal=borrador` (importa al borrador de ARCA; si ya se eliminaron NCR del borrador, puede
-  volver a traerlas).
+- Libro IVA Compras (`--portal`): por defecto, período abierto → importa desde ARCA al borrador y lo baja; si la DDJJ ya
+  está presentada, baja la presentada (solo lectura, controlada contra la DDJJ). Si el período ya tiene NCR conciliadas o
+  eliminadas (carpeta `ncr/`), no importa: volvería a traer las NCR; para con código 4 si no hay DDJJ presentada. También `--portal=borrador`,
+  `--portal=presentada`, `--portal=iva` (el de la carpeta IVA del mes) o `--portal=<ruta>` (.xlsx, o el .zip / .csv tal
+  como lo baja el Portal IVA a mano).
 - NO CLASIFICADOS: para con código 4 y la lista; se retoma con `--desde-paso=7 --cuentas="CUIT=CUENTA;..."` (solo el papel,
   no el Maestro).
 - `--subcarpeta=controles` si el papel de la etapa 1 quedó en controles, o `--papel=<ruta>`.
