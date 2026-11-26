@@ -16,7 +16,7 @@ Claude del marketplace `estudiobva-skills`, tal cual se desarrollaron.
 
 **Instalar:**
 
-1. En la unidad compartida, abrí `0 - ESTUDIO - 00000000000 > automatizacion_bva > setup`.
+1. En la unidad compartida, abrí `0 - ESTUDIO - 00000000000 > 999 - AUTOMATIZACION Y PROCESOS > automatizacion_bva > setup`.
 2. Doble clic en **`Instalar Claude BVA.cmd`**.
 3. Seguí la ventana. Te va a pedir:
    - permiso de Windows para instalar programas (aceptá);
@@ -59,7 +59,7 @@ Claude qué hacer. La skill `setup-bva` hace los arreglos desde el chat.
 
 El instalador que usa el equipo es la copia de la unidad compartida. Después de
 cambiar `instalar.ps1` o `Instalar Claude BVA.cmd`, copiar los dos a
-`0 - ESTUDIO - 00000000000/automatizacion_bva/setup/`. El resto (dependencias,
+`0 - ESTUDIO - 00000000000/999 - AUTOMATIZACION Y PROCESOS/automatizacion_bva/setup/`. El resto (dependencias,
 configuración, diagnóstico) vive en el plugin y se actualiza con el marketplace.
 
 Para dar de alta a alguien: invitarlo a la organización `estudiobva` en GitHub con

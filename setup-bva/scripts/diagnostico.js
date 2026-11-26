@@ -20,7 +20,7 @@ const p = require('../lib/plugins');
 const JSON_OUT = process.argv.includes('--json');
 const checks = [];
 const add = (id, estado, detalle, arreglo) => checks.push({ id, estado, detalle, ...(arreglo ? { arreglo } : {}) });
-const INSTALADOR = 'Corre de nuevo "Instalar Claude BVA" (unidad compartida > 0 - ESTUDIO - 00000000000 > automatizacion_bva > setup).';
+const INSTALADOR = 'Corre de nuevo "Instalar Claude BVA" (unidad compartida > 0 - ESTUDIO - 00000000000 > 999 - AUTOMATIZACION Y PROCESOS > automatizacion_bva > setup).';
 
 (async () => {
   // Como los plugins: el .env completa lo que no este en el entorno.
