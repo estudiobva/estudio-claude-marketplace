@@ -27,7 +27,7 @@ quien tenga los scripts.
 | Paso | Que | Como |
 |---|---|---|
 | 1 | Compras del Portal IVA | `node scripts/portal-iva-descarga.js --nombre="<Sociedad>" --periodo=MM/AAAA --libros=compras` (el lote lo hace solo si faltan) |
-| 2 | NCR del SharePoint | `bundle-ncr.js` en Chrome + `node scripts/descargar-ncr.js` (ver abajo) |
+| 2 | NCR del SharePoint | `node scripts/descargar-ncr.js` (baja solo el paquete del SharePoint por Playwright oculto; ver abajo) |
 | 3 | Conciliacion | `python scripts/conciliar-ncr.py --cuit=<CUIT> --periodo=MM/AAAA` (ver **Script**) |
 | 4 | Eliminar las NCR del Libro Compras | `node scripts/eliminar-ncr.js` (ver abajo) |
 | 1+2+3+simulacion del 4, varias sociedades | Lote | `node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="A;B;C"` (ver **Lote**) |
@@ -69,19 +69,25 @@ los scripts usan el mes que esta adentro.
 
 ### Paso 2 — NCR del SharePoint
 
-Las droguerias las suben al SharePoint de las farmacias:
-`soytufarmaciams.sharepoint.com/sites/EstudioContable` → Documentos →
-`NC por NRF/<AAAA>/<MES>/SUIZO/` (un archivo del grupo) y `.../MONROE/` (~64,
-uno por farmacia de todas las sociedades). **Solo se entra desde el perfil de
-Chrome "Trabajo" (estudiobva)**, como invitado con la cuenta de Google que
-autorizaron las farmacias: no hay claves para loguear un script. El SharePoint
-es del cliente: solo se lee.
+Las droguerias las suben al SharePoint de las farmacias (sitio en `SHAREPOINT_SITIO`) →
+Documentos → `NC por NRF/<AAAA>/<MES>/SUIZO/` (un archivo del grupo) y `.../MONROE/`
+(~64, uno por farmacia de todas las sociedades). El SharePoint es del cliente: solo se lee.
 
-1. En la pestaña del SharePoint, con Claude in Chrome, correr
-   `scripts/sharepoint/bundle-ncr.js` con `window.__NCR_PERIODO = 'AAAAMM'`.
-   Baja Suizo y Monroe del mes en **una** descarga (Chrome frena las multiples):
-   `~/Downloads/SP-NCR-AAAAMM.bundle`. Un paquete sirve para todas las sociedades.
-2. `node scripts/descargar-ncr.js --nombre="<Sociedad>" --periodo=MM/AAAA`
+Desde la 1.3.0 se entra por Playwright con el **navegador oculto**, igual que a ARCA: el
+usuario y la clave de la cuenta Microsoft del estudio salen de la planilla de claves
+(grupo `SHAREPOINT`, o `SHAREPOINT_USUARIO` / `SHAREPOINT_CLAVE` en el `.env`) y la sesion
+queda en `~/.bva-playwright/sharepoint-state.json`, asi que las corridas siguientes no usan
+la clave. Si Microsoft la rechaza (`credenciales_invalidas`) **no reintentar** (puede bloquear
+la cuenta); si pide verificacion en dos pasos (`segundo_factor`) o captcha, avisar.
+
+1. `node scripts/sharepoint-login.js --carpeta="NC por NRF/<AAAA>"` prueba el ingreso (solo lectura).
+2. `node scripts/descargar-ncr.js --nombre="<Sociedad>" --periodo=MM/AAAA`: si el paquete del mes
+   (`~/Downloads/SP-NCR-AAAAMM.bundle`, Suizo y Monroe en **uno**, sirve para todas las sociedades)
+   no esta, lo baja con `scripts/sharepoint/bajar-bundle-ncr.js`. `--bajar` lo vuelve a bajar
+   aunque exista, para traer cambios de las farmacias.
+
+(El metodo anterior, `scripts/sharepoint/bundle-ncr.js` pegado en la pestaña del SharePoint en
+Chrome, arma el mismo paquete y sigue sirviendo.)
 
 `descargar-ncr` elige los archivos de Monroe **por el CUIT que trae cada archivo
 en la columna `Cuit`**, no por el nombre (cambia de un mes a otro: `F ALEMANA` en
@@ -463,8 +469,8 @@ print(json.dumps({
 
 ## Lote
 
-Para varias sociedades del mismo periodo, una vez armado el paquete del
-SharePoint:
+Para varias sociedades del mismo periodo (el lote baja el paquete del SharePoint una vez al
+empezar; `--no-bajar-bundle` usa el que ya esta en `~/Downloads`):
 
 ```
 node scripts/ncr-lote.js --periodo=MM/AAAA --nombres="<sociedad A>;<sociedad B>"
