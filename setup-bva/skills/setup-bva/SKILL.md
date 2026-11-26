@@ -12,7 +12,7 @@ Deja la computadora lista para correr los plugins del marketplace
   lo corre la persona una vez por computadora. Instala Git, Node, Python, GitHub CLI y
   Claude Code, hace el login de GitHub, agrega el marketplace, instala todos los
   plugins y pide la contrasena de la planilla de claves en su propia ventana.
-  Esta en la unidad compartida: `0 - ESTUDIO - 00000000000/automatizacion_bva/setup/`.
+  Esta en la unidad compartida: `0 - ESTUDIO - 00000000000/999 - AUTOMATIZACION Y PROCESOS/automatizacion_bva/setup/`.
 - **Esta skill**: para todo lo demas, desde Claude. Nunca pide contrasenas.
 
 ## Diagnostico (siempre primero)

@@ -19,7 +19,7 @@ Antes de escribir el .xlsx de salida, leer la skill `xlsx`.
 
 La conciliacion es el paso 3 de 4. Los pasos 1, 2 y 4 se corren con los scripts
 de Playwright del estudio (`C:\Users\<usuario>\bva-playwright`, espejo en
-`0 - ESTUDIO - 00000000000/automatizacion_bva/playwright/`) y necesitan una
+`0 - ESTUDIO - 00000000000/999 - AUTOMATIZACION Y PROCESOS/automatizacion_bva/playwright/`) y necesitan una
 sesion de Claude Code en la maquina, con la unidad compartida montada. Desde
 Cowork solo se puede hacer el paso 3: los otros se hacen a mano o se piden a
 quien tenga los scripts.

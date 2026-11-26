@@ -40,7 +40,7 @@ un script de Playwright y la skill que lo usa.
 ## Instalación
 
 **En Windows (el equipo):** doble clic en `Instalar Claude BVA.cmd`, en la unidad
-compartida > `0 - ESTUDIO - 00000000000/automatizacion_bva/setup/`. Instala los
+compartida > `0 - ESTUDIO - 00000000000/999 - AUTOMATIZACION Y PROCESOS/automatizacion_bva/setup/`. Instala los
 programas, el marketplace, todos los plugins y sus dependencias, y arma el `.env`.
 Requisitos y paso a paso en [setup-bva/README.md](setup-bva/README.md).
 

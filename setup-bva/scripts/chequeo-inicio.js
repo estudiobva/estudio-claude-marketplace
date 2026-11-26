@@ -26,7 +26,7 @@ try {
 
   if (!fs.existsSync(p.envFile())) {
     avisos.push(`No existe ${p.envFile()}: los scripts no van a encontrar la planilla de claves ni la unidad. ` +
-      'Pedile al usuario que corra "Instalar Claude BVA" (unidad compartida > 0 - ESTUDIO - 00000000000 > automatizacion_bva > setup); ' +
+      'Pedile al usuario que corra "Instalar Claude BVA" (unidad compartida > 0 - ESTUDIO - 00000000000 > 999 - AUTOMATIZACION Y PROCESOS > automatizacion_bva > setup); ' +
       'la contrasena de la planilla la escribe el en esa ventana, nunca en el chat.');
   }
 
