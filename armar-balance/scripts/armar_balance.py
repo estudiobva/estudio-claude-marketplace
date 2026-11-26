@@ -134,7 +134,8 @@ def valores_compras(e, hasta=HASTA):
 PAPEL = f"Papel de liquidaciones del equipo (01-Impuestos Mensuales/202600-liquidaciones…{CORTO.upper()}.xlsx, hoja EERR), copiado del EERR 2026"
 COMPRAS = ("Papel de trabajo mensual (AAAAMM- papeles de trabajo, hoja de compras, columna PROVEEDORES) en "
            + ", ".join(MESES_PAPEL) + "; los demás meses no están clasificados en el papel: libro de compras con el Maestro (ver 'Origen por mes')")
-CMV_F = "Libro IVA Compras sin NCR conciliadas (EERR 2026, criterio del 05/11). El papel mensual resta las NCR: ver 'Origen por mes'"
+CMV_F = ("Papel de trabajo mensual, hoja de compras: comprobantes clasificados como mercadería (CMV), con las notas de crédito y NCR que tiene el papel "
+         "(acuerdo con el socio a cargo, 26/11). Meses sin papel clasificado: libro de compras con el Maestro (EERR 2026). Ver 'Origen por mes'")
 F931 = "F.931 (02-Sueldos y F.931) → hoja 'Sueldos'; cargas sociales a revisar con SETI"
 TYS = "Zetti T&S Gastos Varios (01-Impuestos Mensuales/AAAAMM/AAAAMM - ZETTI - GASTOS VARIOS.xlsx, hoja Resumen, concepto COLEGIO)"
 
@@ -240,7 +241,13 @@ fila += 2
 rr_titulo("COSTO")
 for e, n, f, fa, o, t in LINEAS:
     if t == "compra":
-        rr_linea(n, meses_eerr(e), f, fa, o)
+        vals = meses_eerr(e)
+        cmv_p = COMPRAS_V.get("CMV", [None] * 12)
+        for i, m in enumerate(fuentes.MESES_AAAAMM):
+            if i < HASTA and ORIGEN.get(m, ("",))[0] == "Papel":
+                vals[i] = round(cmv_p[i], 2)
+        o = (f"Del papel mensual: {', '.join(MESES_PAPEL)}; resto del libro con el Maestro. " if MESES_PAPEL else "Sin papel mensual clasificado: libro con el Maestro. ") + o
+        rr_linea(n, vals, f, fa, o)
 fila += 1
 
 rr_titulo("GASTOS")
@@ -966,13 +973,13 @@ for m, conc, vp, vm in COMPARACION:
     num(og.cell(r, 4, vp)); num(og.cell(r, 5, vm)); num(og.cell(r, 6, f"=D{r}-E{r}"))
     if conc == "CMV":
         ncr = NCR.get(m)
-        og.cell(r, 7, f"El CMV del Balance sigue con el libro sin NCR. NCR del papel (hoja NCR): {ncr:,.2f}" if ncr else "El CMV del Balance sigue con el libro sin NCR")
+        og.cell(r, 7, f"El Balance usa el papel. La diferencia con el libro son las NCR del papel (hoja NCR: {ncr:,.2f})" if ncr else "El Balance usa el papel")
     elif abs(vp - vm) > 1:
         og.cell(r, 7, "Distinta clasificación entre el papel y el Maestro")
     for col in range(1, 8):
         og.cell(r, col).border = CAJA
     r += 1
-og.cell(r, 1, "En el CMV la diferencia son las NCR: el papel de trabajo las resta de las compras y el EERR (criterio del 05/11) no. A definir con el socio a cargo.").font = NOTA
+og.cell(r, 1, "CMV: en los meses con papel clasificado el Balance toma el del papel (con las NCR restadas, como lo liquida el equipo); el EERR 2026 usa el libro sin NCR, por eso difieren en el importe de la hoja NCR.").font = NOTA
 r += 2
 
 og.cell(r, 1, "3. Otras fuentes").font = B
