@@ -55,7 +55,7 @@ function normalizarPeriodo(p) {
   try {
     sesion = await sp.abrirSharepoint({ forzar: 'forzar' in args, log });
   } catch (e) {
-    fail(e.message, { code: e.code || 'error' });
+    fail(sp.mensajeLimpio(e), { code: e.code || 'error' });
   }
   const { browser, page } = sesion;
 
@@ -63,8 +63,9 @@ function normalizarPeriodo(p) {
     const base = sp.sitioDefault();
     const sitio = new URL(base).pathname;                       // /sites/<sitio>
     const api = async (ruta) => {
-      const r = await page.request.get(`${base}/_api/web/${ruta}`, { headers: { Accept: 'application/json;odata=nometadata' } });
-      if (!r.ok()) throw new Error(`SharePoint ${r.status()} en ${ruta}`);
+      const r = await sp.getConReintentos(page, `${base}/_api/web/${ruta}`,
+        { headers: { Accept: 'application/json;odata=nometadata' }, log, que: 'listado' });
+      if (!r.ok()) throw new Error(`SharePoint ${r.status()} al listar carpetas`);
       return (await r.json()).value || [];
     };
     const carpetas = (p) => api(`GetFolderByServerRelativePath(decodedurl='${q(p)}')/Folders?$select=Name`);
@@ -84,8 +85,9 @@ function normalizarPeriodo(p) {
       const drog = norm(sub);
       if (drog !== 'SUIZO' && drog !== 'MONROE') continue;
       for (const a of await archivos(`${baseMes}/${sub}`)) {
-        const r = await page.request.get(
-          `${base}/_api/web/GetFileByServerRelativePath(decodedurl='${q(`${baseMes}/${sub}/${a.Name}`)}')/$value`);
+        const r = await sp.getConReintentos(page,
+          `${base}/_api/web/GetFileByServerRelativePath(decodedurl='${q(`${baseMes}/${sub}/${a.Name}`)}')/$value`,
+          { log, que: `${sub}/${a.Name}` });
         if (!r.ok()) fail(`No pude bajar ${sub}/${a.Name}: ${r.status()}`, { code: 'descarga' });
         const buf = await r.body();
         indice.archivos.push({ drogueria: drog, nombre: a.Name, bytes: buf.length, modificado: a.TimeLastModified });
@@ -105,7 +107,7 @@ function normalizarPeriodo(p) {
       suizo: cuenta('SUIZO'), monroe: cuenta('MONROE'), entrada: sesion.entrada,
     }, null, 2));
   } catch (e) {
-    fail(e.message, { code: 'error' });
+    fail(`No pude armar el paquete: ${sp.mensajeLimpio(e)}`, { code: e.code || 'error' });
   } finally {
     await browser.close().catch(() => {});
   }
