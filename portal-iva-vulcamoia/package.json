@@ -1,0 +1,10 @@
+{
+  "name": "portal-iva-vulcamoia",
+  "version": "1.0.0",
+  "description": "Portal IVA -> input_portal COMPRAS/VENTAS con clasificacion de proveedores (Vulcamoia).",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "procesar": "python scripts/portal-iva-vulcamoia.py procesar"
+  }
+}

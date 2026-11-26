@@ -9,6 +9,7 @@ un script de Playwright y la skill que lo usa.
 | `planes-facilidades-arca` | Releva los planes de facilidades de pago en Mis Facilidades (ARCA). |
 | `conciliacion-ncr` | Concilia el Portal IVA contra las NCR de Suizo y Monroe y las saca del Libro Compras. |
 | `clasificacion-compras` | Clasifica las compras del mes (sin NCR) con el Maestro de Proveedores: cuenta y rubro del EERR, resumen por rubro y proveedores pendientes. |
+| `portal-iva-vulcamoia` | Vuelca los zips del Libro IVA Digital (Portal IVA) en los `input_portal` COMPRAS y VENTAS de Vulcamoia: detalle, clasificación de proveedores con su padrón, Resumen por Clasificación y Control con Portal IVA que tiene que dar 0. Skill de Melina. No entra a ARCA. |
 | `correos-organismos` | Releva el correo electrónico declarado de cada sociedad en ARCA (Sistema Registral y Domicilio Fiscal Electrónico) y ARBA, y arma un Excel con lo declarado, lo que hay que revisar y lo que falta. AGIP queda a mano. Solo lectura. |
 | `anticipos-sct` | Releva los anticipos de Ganancias y Bienes Personales en el SCT (ARCA), con capital e intereses. |
 | `deudas-ddjj-sct` | Controla en el SCT (ARCA) las deudas que no son anticipos y las DDJJ pendientes de presentación, en un Excel consolidado. |
