@@ -106,15 +106,31 @@ def _mes_dir(aaaamm):
     return None
 
 
-def _papel_mes(aaaamm):
+def _papeles_mes(aaaamm):
+    """Papeles de trabajo mensuales del mes, en orden de preferencia: carpeta del mes y su subcarpeta IVA;
+    nombres "…papel…" o "Pdetrabajo-AAAAMM…" (nunca "NO VA" ni el AUTOMATICO). Primero la versión más alta
+    ("(v2)") y después el más nuevo."""
     d = _mes_dir(aaaamm)
     if not d:
-        return None
-    for f in sorted(os.listdir(d)):
-        fl = f.lower()
-        if "papel" in fl and fl.endswith(".xlsx") and "no va" not in fl and not f.startswith("~$"):
-            return os.path.join(d, f)
-    return None
+        return []
+    cands = []
+    for base in (d, os.path.join(d, "IVA")):
+        if not os.path.isdir(base):
+            continue
+        for f in os.listdir(base):
+            fl = f.lower()
+            if (fl.endswith(".xlsx") and not f.startswith("~$") and "no va" not in fl and "automatico" not in fl
+                    and ("papel" in fl or fl.startswith("pdetrabajo"))):
+                cands.append(os.path.join(base, f))
+    def clave(p):
+        m = _re.search(r"\(v(\d+)\)", os.path.basename(p).lower())
+        return (int(m.group(1)) if m else 1, os.path.getmtime(p))
+    return sorted(cands, key=clave, reverse=True)
+
+
+def _papel_mes(aaaamm):
+    ps = _papeles_mes(aaaamm)
+    return ps[0] if ps else None
 
 
 def leer_papel_compras(path):
@@ -124,14 +140,39 @@ def leer_papel_compras(path):
     hojas = [n for n in wb.sheetnames if "compra" in n.lower() and "portal" in n.lower()]
     if not hojas:
         return None, "sin hoja de compras"
-    rows = list(wb[hojas[0]].iter_rows(values_only=True))
-    h = [str(v).strip().upper() if v else "" for v in rows[0]]
+    hoja = next((n for n in hojas if n.strip().lower() == "compras portal iva"), hojas[0])
+    rows = list(wb[hoja].iter_rows(values_only=True))
+    # encabezados en la fila que tiene "Importe Total" (algunos papeles tienen un título arriba)
+    hi = next((i for i, r in enumerate(rows[:6]) if any(str(v).strip().upper() == "IMPORTE TOTAL" for v in r if v)), None)
+    if hi is None:
+        return None, f"hoja '{hoja}' vacía o sin encabezados del Portal IVA"
+    h = [str(v).strip().upper() if v else "" for v in rows[hi]]
+    if "PROVEEDORES" not in h and "RUBRO EERR" in h:
+        # formato "Pdetrabajo": cada comprobante trae Rubro EERR (Maestro) e Importe imputado
+        ir, it, iva = h.index("RUBRO EERR"), h.index("IMPORTE TOTAL"), h.index("TOTAL IVA")
+        ii = h.index("IMPORTE IMPUTADO") if "IMPORTE IMPUTADO" in h else None
+        perc = [j for j, v in enumerate(h) if v.startswith(("IMPORTE DE PER", "IMPORTE DE IMP", "IMPORTE OTROS TRIB"))]
+        out, avisos = [], []
+        for r in rows[hi + 1:]:
+            if len(r) <= ir or not hasattr(r[0], "year") or not r[6]:
+                continue  # títulos, cuadros y totales
+            prov, rubro = str(r[6]).strip(), str(r[ir] or "").strip()
+            costo = _num(r[ii]) if ii is not None and r[ii] not in (None, "") else _num(r[it]) - _num(r[iva]) - sum(_num(r[j]) for j in perc)
+            if "CAMARA DE FARMACIAS" in _sin_tildes(prov.upper()):
+                concepto = "CAMARA"
+            elif rubro:
+                concepto = RUBRO_MAESTRO.get(rubro, rubro)
+            else:
+                concepto = "GASTOS VARIOS"
+                avisos.append(f"{prov}: sin Rubro EERR → Gastos varios")
+            out.append((concepto, costo, prov, rubro))
+        return out, "; ".join(sorted(set(avisos)))
     if "PROVEEDORES" not in h:
-        return None, f"hoja '{hojas[0]}' sin clasificación por cuenta (solo marca servicios/mercadería)"
+        return None, f"hoja '{hoja}' sin clasificación por cuenta (solo marca servicios/mercadería)"
     pc, it, iva = h.index("PROVEEDORES"), h.index("IMPORTE TOTAL"), h.index("TOTAL IVA")
     perc = [j for j, v in enumerate(h) if v.startswith(("IMPORTE DE PER", "IMPORTE DE IMP", "IMPORTE OTROS TRIB"))]
     out, avisos = [], []
-    for r in rows[1:]:
+    for r in rows[hi + 1:]:
         if len(r) <= pc or not isinstance(r[1], (int, float)) or not r[6]:
             continue  # filas de totales / resumen
         clase = _sin_tildes(str(r[pc] or "").strip().upper())
@@ -175,19 +216,26 @@ def compras_por_concepto(eerr_path):
     papel = {}
     origen = {}
     for i, m in enumerate(MESES_AAAAMM):
-        p = _papel_mes(m)
-        if not p:
+        ps = _papeles_mes(m)
+        if not ps:
             origen[m] = ("Maestro", "no hay papel de trabajo del mes en la carpeta")
             continue
-        datos, nota = leer_papel_compras(p)
+        datos, nota, p, notas = None, "", None, []
+        for cand in ps:  # el primero que tenga la hoja de compras clasificada
+            d_, n_ = leer_papel_compras(cand)
+            if d_ is not None:
+                datos, nota, p = d_, n_, cand
+                break
+            notas.append(f"{os.path.basename(cand)}: {n_}")
         if datos is None:
-            origen[m] = ("Maestro", f"{os.path.basename(p)}: {nota}")
+            origen[m] = ("Maestro", "; ".join(notas))
             continue
         agg = collections.defaultdict(float)
         for concepto, costo, *_ in datos:
             agg[concepto] += costo
         papel[i] = (agg, datos)
-        origen[m] = ("Papel", f"{os.path.basename(p)}, hoja de compras, columna PROVEEDORES" + (f" — {nota}" if nota else ""))
+        rel = os.path.relpath(p, _mes_dir(m))
+        origen[m] = ("Papel", f"{rel}, hoja de compras clasificada" + (f" — {nota}" if nota else ""))
 
     conceptos = set(maestro) | {c for agg, _ in papel.values() for c in agg}
     valores = {}
