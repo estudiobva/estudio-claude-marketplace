@@ -37,7 +37,7 @@
  * Control antes de archivar: el CUIT del recibo tiene que ser el de la
  * sociedad y la cuenta del recibo la elegida (mas su digito verificador).
  *
- * Archiva [Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-boleta marquesina- <Sociedad>.pdf
+ * Archiva [Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-PyP Quilmes-boleta- <Sociedad>.pdf
  * (AAAAMM = mes del recibo). Copia de todo + resumen Excel en
  * ~/Documents/BVA-salidas/recibo-pyp-quilmes/AAAA-MM-DD/ ($BVA_SALIDAS_PATH).
  *
@@ -223,7 +223,7 @@ function guardar(fila, datos, { cuitEsperado, varias }) {
   });
   if (fila.vencido) fila.observacion = `Vencio el ${datos.vencimiento}.`;
 
-  const nombre = `${datos.periodo}-boleta marquesina- ${fila.sociedad}${varias ? ` - ${fila.cuenta}` : ''}.pdf`;
+  const nombre = `${datos.periodo}-PyP Quilmes-boleta- ${fila.sociedad}${varias ? ` - ${fila.cuenta}` : ''}.pdf`;
   fs.mkdirSync(SALIDA, { recursive: true });
   fs.copyFileSync(datos.pdf, path.join(SALIDA, nombre));
   fila.archivo = path.join(SALIDA, nombre);

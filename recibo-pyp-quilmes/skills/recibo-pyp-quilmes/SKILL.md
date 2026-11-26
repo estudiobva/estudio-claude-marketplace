@@ -1,6 +1,6 @@
 ---
 name: recibo-pyp-quilmes
-description: "Baja de ARQui (Agencia de Recaudación del Municipio de Quilmes) el recibo actual de Derechos de Publicidad y Propaganda (marquesinas, carteles) de una, varias o todas las sociedades, controla que el CUIT y la cuenta del recibo sean los de la sociedad, lo archiva en la carpeta TSH del mes como 'AAAAMM-boleta marquesina- <Sociedad>.pdf' y resume cuenta, clase, área, importe, vencimiento y Nº de recibo en un Excel. Corre un script de Playwright que se loguea solo con el usuario de ARQui de la planilla de claves del estudio: no hace falta entrar a mano. Usar SIEMPRE que pidan \"bajá el recibo de PyP de [sociedad]\", \"recibo/boleta de publicidad y propaganda\", \"boleta de marquesina de Quilmes\", \"tasa de publicidad Quilmes\", \"recibos de marquesinas de todas las sociedades\", \"cuánto paga de marquesina\" o mencionen ARQui y Publicidad y Propaganda. No paga nada: para pagar, la persona entra a ARQui."
+description: "Baja de ARQui (Agencia de Recaudación del Municipio de Quilmes) el recibo actual de Derechos de Publicidad y Propaganda (marquesinas, carteles) de una, varias o todas las sociedades, controla que el CUIT y la cuenta del recibo sean los de la sociedad, lo archiva en la carpeta TSH del mes como 'AAAAMM-PyP Quilmes-boleta- <Sociedad>.pdf' y resume cuenta, clase, área, importe, vencimiento y Nº de recibo en un Excel. Corre un script de Playwright que se loguea solo con el usuario de ARQui de la planilla de claves del estudio: no hace falta entrar a mano. Usar SIEMPRE que pidan \"bajá el recibo de PyP de [sociedad]\", \"recibo/boleta de publicidad y propaganda\", \"boleta de marquesina de Quilmes\", \"tasa de publicidad Quilmes\", \"recibos de marquesinas de todas las sociedades\", \"cuánto paga de marquesina\" o mencionen ARQui y Publicidad y Propaganda. No paga nada: para pagar, la persona entra a ARQui."
 ---
 
 # Recibo actual de Publicidad y Propaganda — ARQui Quilmes
@@ -68,7 +68,7 @@ desplegable del usuario queda `no_vinculada`: no se agrega sola; vincularla con 
 
 ## Qué entrega
 
-- PDF archivado en `[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-boleta marquesina- <Sociedad>.pdf`
+- PDF archivado en `[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-PyP Quilmes-boleta- <Sociedad>.pdf`
   (AAAAMM = el mes del recibo; con carpeta de año va en `AAAA/AAAAMM/TSH/`). Es el
   nombre que ya usa el equipo. Si la sociedad tiene más de una cuenta, se agrega
   ` - <cuenta>` al nombre. Si el archivo ya estaba, no se pisa (`ya estaba`).

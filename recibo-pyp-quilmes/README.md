@@ -6,7 +6,7 @@ controla que el CUIT y la cuenta del recibo sean los de la sociedad y lo archiva
 donde el equipo guarda las boletas de marquesina:
 
 ```
-[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-boleta marquesina- <Sociedad>.pdf
+[Sociedad]/01-Impuestos Mensuales/AAAAMM/TSH/AAAAMM-PyP Quilmes-boleta- <Sociedad>.pdf
 ```
 
 El login es automático: usuario y clave del grupo MUNICIPAL (Quilmes) de
