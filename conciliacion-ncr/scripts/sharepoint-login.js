@@ -53,28 +53,29 @@ const SITIO = (args['sitio'] || sp.sitioDefault()).replace(/\/+$/, '');
     if (e.code === 'captcha') {
       fail(e.message, { code: e.code, que_hacer: 'Estos scripts no resuelven captchas.' });
     }
-    fail(e.message, { code: e.code || 'error' });
+    fail(sp.mensajeLimpio(e), { code: e.code || 'error' });
   }
 
   const { browser, page, entrada } = sesion;
   try {
-    const web = await page.request.get(`${SITIO}/_api/web?$select=Title,Url`, {
-      headers: { Accept: 'application/json;odata=nometadata' },
-    }).then((r) => r.json());
+    const web = await sp.getConReintentos(page, `${SITIO}/_api/web?$select=Title,Url`,
+      { headers: { Accept: 'application/json;odata=nometadata' }, log, que: 'sitio' }).then((r) => r.json());
     log(`adentro: ${web.Title}`);
 
     const salida = { ok: true, sitio: web.Title, url: web.Url, entrada, sesionGuardada: sp.ESTADO_FILE };
 
     if (args['carpeta']) {
       const ruta = `${new URL(SITIO).pathname}/Shared Documents/${args['carpeta']}`.replace(/'/g, "''");
-      const r = await page.request.get(
+      const r = await sp.getConReintentos(page,
         `${SITIO}/_api/web/GetFolderByServerRelativePath(decodedurl='${ruta}')/Folders?$select=Name`,
-        { headers: { Accept: 'application/json;odata=nometadata' } });
+        { headers: { Accept: 'application/json;odata=nometadata' }, log, que: 'carpeta' });
       if (!r.ok()) fail(`No pude listar "${args['carpeta']}": SharePoint ${r.status()}.`, { code: 'carpeta' });
       salida.carpeta = args['carpeta'];
       salida.subcarpetas = ((await r.json()).value || []).map((x) => x.Name);
     }
     console.log(JSON.stringify(salida, null, 2));
+  } catch (e) {
+    fail(sp.mensajeLimpio(e), { code: e.code || 'error' });
   } finally {
     await browser.close().catch(() => {});
   }

@@ -30,6 +30,35 @@ const ESTADO_FILE = path.join(ESTADO_DIR, 'sharepoint-state.json');
 
 function err(msg, code) { const e = new Error(msg); e.code = code; return e; }
 
+// Mensaje de error apto para mostrar: Playwright agrega un "Call log" con los
+// encabezados del pedido, que incluyen las cookies de la sesion (FedAuth, rtFa...).
+// Se queda solo con la primera linea y tacha cualquier cookie o token que quede.
+function mensajeLimpio(e) {
+  const m = String((e && e.message) || e || '').split(/\r?\n/)[0].split(/call log:/i)[0];
+  return m
+    .replace(/(cookie|set-cookie|authorization)\s*[:=].*$/i, '$1: [oculto]')
+    .replace(/\b(FedAuth|rtFa|SPA_RT|SIMI|ESTSAUTH\w*|msal\.\S+?)=[^;\s]+/gi, '$1=[oculto]')
+    .trim() || 'error sin detalle';
+}
+
+// GET con reintentos: un corte de red (ETIMEDOUT, ECONNRESET) o un 5xx/429 del
+// SharePoint no tiene que tirar abajo todo el paquete. Tres intentos con espera.
+async function getConReintentos(page, url, { intentos = 3, timeout = 90000, headers, log = () => {}, que = url } = {}) {
+  for (let i = 1; ; i++) {
+    let motivo;
+    try {
+      const r = await page.request.get(url, { timeout, ...(headers ? { headers } : {}) });
+      if (r.status() < 500 && r.status() !== 429) return r;
+      motivo = `SharePoint respondio ${r.status()}`;
+    } catch (e) {
+      motivo = mensajeLimpio(e).replace(/^apiRequestContext\.get:\s*/i, '');
+    }
+    if (i >= intentos) throw err(`${que}: ${motivo} (${intentos} intentos)`, 'red');
+    log(`   ${que}: ${motivo}; reintento ${i}/${intentos - 1}…`);
+    await page.waitForTimeout(5000 * i);
+  }
+}
+
 // ── Credenciales ────────────────────────────────────────────────────────────
 function credencialesSharepoint() {
   loadEnv();
@@ -174,4 +203,5 @@ async function abrirSharepoint({ sitio = sitioDefault(), forzar = false, log = (
 module.exports = {
   abrirSharepoint, loginMicrosoft, credencialesSharepoint, sesionViva,
   guardarEstado, borrarEstado, hayEstado, sitioDefault, ESTADO_FILE,
+  mensajeLimpio, getConReintentos,
 };
