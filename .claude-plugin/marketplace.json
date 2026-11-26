@@ -178,6 +178,12 @@
       "category": "contabilidad"
     },
     {
+      "name": "deducciones-arba",
+      "source": "./deducciones-arba",
+      "description": "Deducciones de IIBB que ARBA no toma en la DJ de anticipo (percepciones bancarias sin número y SIRTAC repetido): baja el ZIP y la DJ, cruza y arma los lotes de modificación para la carga por lote, con el Excel de no tomadas.",
+      "category": "contabilidad"
+    },
+    {
       "name": "saldos-farmacias-iva-iibb",
       "source": "./saldos-farmacias-iva-iibb",
       "description": "Saldos de IVA (F.2051) e IIBB (ARBA, AGIP o CM03) del mes de cada sociedad para la planilla FARMACIAS SALDO, con controles, y las DDJJ listas para subir a la carpeta DDJJ IVA-IIBB del SharePoint.",

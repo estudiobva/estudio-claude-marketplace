@@ -1,0 +1,8 @@
+{
+  "name": "deducciones-arba",
+  "description": "Deducciones de IIBB que ARBA no toma en la DJ de anticipo (percepciones bancarias sin número y SIRTAC con liquidación repetida): baja el ZIP de deducciones y el Archivo de deducciones de la DJ, cruza y arma los lotes de modificación (M) para la carga por lote, con el Excel de no tomadas. Login automático con la CIT de la planilla de claves. No sube lotes ni presenta.",
+  "version": "1.0.0",
+  "author": { "name": "Estudio BVA", "email": "joaquin@estudiobva.com" },
+  "repository": "https://github.com/estudiobva/estudio-claude-marketplace",
+  "keywords": ["arba", "ingresos brutos", "iibb", "deducciones", "percepciones", "sirtac", "lote", "playwright", "argentina"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "deducciones-arba",
+  "version": "1.0.0",
+  "description": "Deducciones de IIBB que ARBA no toma (percepciones bancarias sin número y SIRTAC repetido): baja el ZIP y la DJ, cruza y arma los lotes M.",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": { "deducciones": "node scripts/deducciones-arba.js", "probar": "node scripts/probar-cruce.js" },
+  "dependencies": { "exceljs": "^4.4.0", "officecrypto-tool": "^0.0.19", "playwright": "1.64.1" }
+}
