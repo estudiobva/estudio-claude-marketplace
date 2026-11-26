@@ -24,9 +24,10 @@
  *   --periodo      MM/AAAA o AAAAMM.
  *   --nombres      Titulares del Excel de claves, separados por ";".
  *   --cuits        CUITs separados por coma (se pueden combinar con --nombres).
- *   --bundle       Paquete del SharePoint (default: el que busca descargar-ncr,
- *                  ~/Downloads/SP-NCR-AAAAMM.bundle). Se arma una vez por mes con
- *                  scripts/sharepoint/bundle-ncr.js en la pestaña del SharePoint.
+ *   --bundle       Paquete del SharePoint ya armado (default: el lote lo baja fresco
+ *                  del SharePoint al empezar, por Playwright oculto, a
+ *                  ~/Downloads/SP-NCR-AAAAMM.bundle; ver scripts/sharepoint/bajar-bundle-ncr.js).
+ *   --no-bajar-bundle  No baja el paquete: usa el que ya esta en ~/Downloads.
  *   --actualizar   Pasa --actualizar a descargar-ncr (reemplaza NCR que cambiaron).
  *   --reconciliar  Rehace la conciliacion aunque ya exista. Sin esto se rehace
  *                  solo si descargar-ncr trajo algo nuevo o reemplazado.
@@ -306,6 +307,17 @@ async function procesar(o) {
 // ── Principal ──────────────────────────────────────────────────────────────
 (async () => {
   log(`periodo ${PERIODO} · ${objetivos.length} sociedades · ${'sin-simular' in args ? 'sin simulacion' : 'con simulacion en ARCA'}`);
+
+  // Paquete de NCR del SharePoint: una sola bajada para todo el lote. Si falla y ya hay
+  // uno en ~/Downloads se sigue con ese (con aviso); si no hay, descargar-ncr lo intenta
+  // y deja el error en cada sociedad.
+  if (!args['bundle'] && !('no-bajar-bundle' in args)) {
+    log('bajando el paquete de NCR del SharePoint (navegador oculto)…');
+    const b = await node('sharepoint/bajar-bundle-ncr.js', [`--periodo=${PERIODO}`]);
+    const eb = errorDe(b);
+    if (eb) log(`   ⚠ no pude bajar el paquete (${eb}); se usa el de ~/Downloads si existe.`);
+    else log(`   paquete listo: SUIZO ${b.json.suizo} · MONROE ${b.json.monroe}`);
+  }
   const filas = [];
   for (const [i, o] of objetivos.entries()) {
     log(`(${i + 1}/${objetivos.length}) ${o.titular}`);

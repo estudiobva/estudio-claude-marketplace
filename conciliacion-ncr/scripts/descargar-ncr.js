@@ -3,19 +3,20 @@
  * descargar-ncr.js — deja en la carpeta ncr/ del periodo las Notas de Credito de
  * Recupero (Suizo + Monroe) de una sociedad, listas para la skill conciliacion-ncr.
  *
- * El SharePoint del cliente solo se abre desde el perfil de Chrome "Trabajo"
- * (estudiobva), con la cuenta de Google que autorizaron las farmacias: no hay
- * claves para que un script inicie sesion. Por eso son dos pasos:
- *
- *   1. En esa pestaña del SharePoint se corre scripts/sharepoint/bundle-ncr.js
- *      (con window.__NCR_PERIODO = 'AAAAMM'). Baja SUIZO/ y MONROE/ del mes en
- *      UNA descarga: ~/Downloads/SP-NCR-AAAAMM.bundle. Un paquete sirve para
- *      todas las sociedades del mes.
- *   2. Este script abre el paquete y guarda lo de la sociedad:
+ * El SharePoint se abre por Playwright oculto (lib/sharepoint-login.js, cuenta Microsoft
+ * del estudio en la planilla de claves, grupo SHAREPOINT; URL del sitio en SHAREPOINT_SITIO).
+ * El paquete del mes (SUIZO/ y MONROE/ en UNA descarga, ~/Downloads/SP-NCR-AAAAMM.bundle,
+ * sirve para todas las sociedades) se baja solo con scripts/sharepoint/bajar-bundle-ncr.js:
+ *   - si no esta en ~/Downloads, este script lo baja;
+ *   - con --bajar lo vuelve a bajar aunque ya exista (para traer cambios de las farmacias).
+ * (El metodo viejo, bundle-ncr.js pegado en la pestana del SharePoint en Chrome, sigue
+ * sirviendo: arma el mismo paquete.)
+ * Este script abre el paquete y guarda lo de la sociedad:
  *
  *   node scripts/descargar-ncr.js --nombre="<sociedad>" --periodo=08/2026
  *   node scripts/descargar-ncr.js --cuit=<CUIT> --periodo=202608 --bundle="C:\...\SP-NCR-202608.bundle"
  *   node scripts/descargar-ncr.js --nombre="<sociedad>" --periodo=08/2026 --actualizar
+ *   node scripts/descargar-ncr.js --nombre="<sociedad>" --periodo=08/2026 --bajar --actualizar   (paquete fresco del SharePoint)
  *   node scripts/descargar-ncr.js --cuit=<CUIT> --periodo=202608 --solo-revisar   (no escribe nada)
  *
  * Como elige los archivos de Monroe: por el CUIT que trae cada archivo en la
@@ -34,6 +35,7 @@
 const fs   = require('fs');
 const os   = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const { parseArgs, fail } = require('../lib/args');
 const { resolveCredentials, envFile } = require('../lib/env');
@@ -119,19 +121,31 @@ function abrirBundle(ruta) {
   return indice;
 }
 
+// Baja el paquete del SharePoint por Playwright oculto (scripts/sharepoint/bajar-bundle-ncr.js).
+function bajarBundle(periodo) {
+  log(`bajando SP-NCR-${periodo}.bundle del SharePoint (navegador oculto)…`);
+  const r = spawnSync(process.execPath, [path.join(__dirname, 'sharepoint', 'bajar-bundle-ncr.js'), `--periodo=${periodo}`],
+    { encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.stderr) for (const l of r.stderr.split(/\r?\n/).filter(Boolean)) process.stderr.write(`   ${l}\n`);
+  let j = null; try { j = JSON.parse(r.stdout); } catch { /* sin JSON */ }
+  if (r.status !== 0 || !j || !j.ok) {
+    throw new Error(`No pude bajar el paquete del SharePoint: ${(j && j.error) || r.stderr.trim().split('\n').pop() || 'sin detalle'}`);
+  }
+}
+
 // El mas nuevo de ~/Downloads (Chrome agrega " (1)", " (2)" si se baja otra vez).
+// Si no hay (o con --bajar) lo baja del SharePoint por Playwright.
 function ubicarBundle(periodo) {
   if (args['bundle']) return path.resolve(String(args['bundle']));
   const dir = path.join(os.homedir(), 'Downloads');
   const re = new RegExp(`^SP-NCR-${periodo}( \\(\\d+\\))?\\.bundle$`, 'i');
-  const hits = fs.existsSync(dir)
+  const buscar = () => (fs.existsSync(dir)
     ? fs.readdirSync(dir).filter((f) => re.test(f))
         .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs })).sort((x, y) => y.t - x.t)
-    : [];
-  if (!hits.length) {
-    throw new Error(`No encuentro SP-NCR-${periodo}.bundle en ${dir}. Primero hay que correr ` +
-      'scripts/sharepoint/bundle-ncr.js en la pestaña del SharePoint (perfil de Chrome "Trabajo").');
-  }
+    : []);
+  let hits = buscar();
+  if (!hits.length || 'bajar' in args) { bajarBundle(periodo); hits = buscar(); }
+  if (!hits.length) throw new Error(`No encuentro SP-NCR-${periodo}.bundle en ${dir} despues de bajarlo.`);
   return path.join(dir, hits[0].f);
 }
 
