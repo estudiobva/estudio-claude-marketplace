@@ -40,6 +40,10 @@ cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/herramientas/validar.py "<carpet
 
 Muestra por Balance: ventas, gastos, resultado, `ESP25dif` (el comparativo cuadra: tiene que dar 0), `A2` (Anexo 2 = gastos del Resumen de Resultados: 0), pendientes/provisorios y errores de fórmulas (tienen que ser 0). Un resultado muy negativo es normal mientras falte el stock final: la existencia inicial ya entra al CMV.
 
+**Papel de trabajo mensual:** se busca en la carpeta del mes y en su subcarpeta `IVA`, con nombre `…papel…` o `Pdetrabajo-AAAAMM…` (nunca "NO VA" ni el AUTOMATICO; si hay versiones, la `(vN)` más alta). Sirve la hoja de compras clasificada con la columna PROVEEDORES o, en el formato Pdetrabajo, con Rubro EERR e Importe imputado por comprobante (incluye los servicios agregados a mano, como Edesur).
+
+**Compras de mercadería (CMV):** en los meses con papel de trabajo mensual clasificado (hoja de compras, columna PROVEEDORES) salen del papel, con las notas de crédito y NCR que tiene el papel, igual que los gastos (acuerdo con el socio a cargo). En los meses sin papel, del EERR (libro de compras con el Maestro, sin NCR conciliadas). La hoja 'Origen por mes' muestra la diferencia papel vs libro por mes.
+
 ### Si Excel no recalcula
 
 Los Balances van con recálculo al abrir. Si los EERR no tienen los valores calculados (por ejemplo, una simulación de `armado-eerr` que no se guardó desde Excel): `python scripts/herramientas/calcular_eerr.py <carpeta con EERR> <carpeta destino>` y generar con `--eerr-dir=<carpeta destino>`.

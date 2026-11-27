@@ -1,10 +1,11 @@
 """Proceso TSH / IIBB: copia la primera hoja de un Excel como solapa nueva del papel de trabajo.
 
-    python copiar_solapa.py <origen.xlsx> <papel.xlsx> "<nombre de la solapa>"
+    python copiar_solapa.py <origen.xlsx> <papel.xlsx> "<nombre de la solapa>" [--antes="<otra solapa>"]
 
 Copia valores, formulas, formatos, anchos de columna, filas inmovilizadas y filtro,
 tal cual el original. Si la solapa ya existe en el papel, la reemplaza en el mismo
-lugar. Imprime un JSON con filas y columnas copiadas.
+lugar. Con --antes, si la solapa es nueva queda justo antes de esa otra (si existe).
+Imprime un JSON con filas y columnas copiadas.
 """
 import json
 import sys
@@ -14,13 +15,18 @@ from openpyxl import load_workbook
 
 
 def main():
-    if len(sys.argv) != 4:
+    opciones = [a for a in sys.argv[1:] if a.startswith('--')]
+    posicionales = [a for a in sys.argv[1:] if not a.startswith('--')]
+    if len(posicionales) != 3:
         sys.exit(__doc__)
-    origen, papel, nombre = sys.argv[1:]
+    origen, papel, nombre = posicionales
+    antes = next((a.split('=', 1)[1] for a in opciones if a.startswith('--antes=')), None)
     src = load_workbook(origen).worksheets[0]
     wb = load_workbook(papel)
 
     pos = len(wb.sheetnames)
+    if antes and antes in wb.sheetnames:
+        pos = wb.sheetnames.index(antes)
     if nombre in wb.sheetnames:
         pos = wb.sheetnames.index(nombre)
         del wb[nombre]

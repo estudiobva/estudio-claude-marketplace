@@ -1,6 +1,6 @@
 ---
 name: papel-de-trabajo-liquidacion-de-iva
-description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - baja el Libro IVA Compras del Portal IVA y lo pega como "Compras portal iva" al lado. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores y arma el cuadro resumen de compras. Paso 8 - completa la solapa "imputacion compras" (resumen CMV / SERVICIOS y detalle por cuenta contable). Lo hace de punta a punta un script de Playwright (scripts/papel-ddjj-iva.js) con login automático. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
+description: Etapa 2 del papel de trabajo mensual de una farmacia/sociedad (la etapa 1 es la de ventas para TSH e IIBB). Prepara los papeles de trabajo para presentar la DDJJ de IVA sobre el MISMO papel `AAAAMM- papeles de trabajo- <Sociedad>.xlsx` que ya trae Ventas Zetti, Ventas Zetti (depurado), Ventas portal iva (con cuadro resumen), Ventas MCR y cruce ventas. Paso 1 - baja el Subdiario de IVA Compras de Zetti (5.6.4) y lo pega como solapa "Compras Zetti" después de "cruce ventas". Paso 2 - toma el Libro IVA Compras del Portal IVA y lo pega completo como "compras con NCR" y, al lado, como "Compras portal iva" sin las NCR (notas de credito de recupero) de Monroe y Suizo. Paso 3 - cruza compras Zetti vs Portal IVA en la solapa "cruce compras". Paso 4 - filtra en "Compras Zetti" las facturas de AySA, EDESUR y METROGAS. Paso 5 - las agrega al final de "Compras portal iva" y vuelve a totalizar. Paso 6 - titulo PROVEEDORES en la columna AG de "Compras portal iva". Paso 7 - clasifica los proveedores con el Maestro de Proveedores, arma el cuadro resumen de compras y, debajo, el detalle de las NCR ELIMINADAS. Paso 8 - completa la solapa "imputacion compras" (resumen CMV / SERVICIOS y detalle por cuenta contable). Lo hace de punta a punta un script de Playwright (scripts/papel-ddjj-iva.js) con login automático. Usar SIEMPRE que pidan "preparar el papel de IVA de [sociedad] [periodo]", "DDJJ de IVA", "liquidación de IVA", "bajar las compras de Zetti y pegarlas en el papel", "etapa 2 del papel de trabajo". No se corre antes del día 11 del mes siguiente al período.
 ---
 
 # Papel de trabajo para la DDJJ de IVA (etapa 2)
@@ -19,6 +19,18 @@ Al final se informa el resultado de todos los pasos juntos.
   el script corta: la etapa 1 no está terminada.
 - Fecha: no se corre antes del día 11 del mes siguiente al período (el script corta; `--antes-del-11` solo si el usuario lo pide).
 - El papel tiene que estar **cerrado en Excel**.
+
+## De dónde sale la información (períodos liquidados y nuevos)
+
+- **Período ya liquidado** (la DDJJ de IVA está guardada en la carpeta del mes o en `IVA/`: `AAAAMM-IVA-ACUSE-*.pdf` o
+  `AAAAMM-IVA-DDJJ-*.pdf`): el script **usa la información que ya está guardada en la carpeta** y **solo baja de su fuente
+  lo que no esté**:
+  - Compras Zetti: `AAAAMM - ZETTI - COMPRAS.xlsx` al lado del papel; si no está, lo baja de Zetti (5.6.4).
+  - Libro IVA Compras **con NCR**: el `AAAAMM - PORTAL IVA - COMPRAS.xlsx` guardado (al lado del papel o en `IVA/`) que
+    todavía trae todas las NCR de la conciliación; si no hay ninguno, lo baja del Portal IVA.
+  - Conciliación NCR: `ncr/AAAAMM-COMPRAS-SIN-NCR-<SOC>.xlsx`; si no está, la arma (ver paso 2).
+- **Período nuevo (sin liquidar):** baja todo de cada fuente, **como siempre**.
+- `--descargar`: baja todo de las fuentes aunque el período esté liquidado y la información esté guardada.
 
 ## Correr el script
 
@@ -89,7 +101,27 @@ Controles: `control_total_reporte: "ok"` (la suma coincide con la fila Total: de
 del período. `aviso_nro`: comprobantes con el número entero en la columna D (ej. NC de droguería que Zetti trae como
 `00NC-A-3116-`): se dejan tal cual salen de Zetti.
 
-### Paso 2 — Compras portal iva (plugin `portal-iva-descarga` + `copiar_solapa.py`)
+### Paso 2 — compras con NCR y Compras portal iva (plugin `portal-iva-descarga`, `quitar_ncr.py`, `copiar_solapa.py`)
+
+**Dos solapas, a continuación de "Compras Zetti"** (pedido de la usuaria):
+1. **"compras con NCR"**: el Libro IVA Compras completo, tal cual sale de ARCA, sin trabajar ni tocar nada.
+2. **"Compras portal iva"**: el mismo libro **menos las NCR (notas de crédito de recupero) de Monroe y Suizo**, o sea las
+   compras como se presentan en el Portal IVA. Todo lo demás (cruce, servicios, PROVEEDORES, clasificación, cuadro e
+   imputación) se hace sobre esta solapa. La nota al pie dice cuántas NCR se eliminaron y por cuánto.
+
+**Qué NCR se eliminan:** las de la hoja "Eliminados" de la conciliación NCR del período
+(`ncr/AAAAMM-COMPRAS-SIN-NCR-<SOC>.xlsx`, circuito `conciliacion-ncr`). `quitar_ncr.py` las busca por CUIT + PV + número
+entre las notas de crédito, controla el importe y, si alguna no está o tiene otro importe, corta sin grabar.
+Si el período no tiene conciliación, el script la arma con el plugin `conciliacion-ncr` (baja las NCR del SharePoint y
+concilia contra el libro; **no elimina nada en ARCA**). Si no se puede (sin archivos de la droguería, sociedad sin NCR),
+para con código 4: correr la conciliación aparte o seguir con `--desde-paso=2 --sin-ncr` (no se elimina ninguna NCR y
+"Compras portal iva" queda igual a "compras con NCR").
+
+**El libro tiene que traer las NCR:** el de la DDJJ presentada o el borrador ya depurado no las tienen. Si el libro bajado
+no las trae, el script busca uno guardado que sí; si no hay, para con código 4 (pasar el libro con `--portal=<ruta>` o
+`--sin-ncr`).
+
+Lo de siempre para bajar el libro:
 
 Según `--portal` (ver arriba). Período abierto: importa al borrador y baja el libro. Con la DDJJ presentada: última secuencia, solo lectura, controla el neto gravado contra la
 vista previa de la DDJJ y, si no coincide, no guarda. Copia el libro como `AAAAMM - PORTAL IVA - COMPRAS.xlsx` al lado del
@@ -199,6 +231,12 @@ cuadro; van en un bloque separado debajo, abiertas por MERCADERIA / SERVICIOS / 
 verificar que la diferencia sea de centavos antes de entregar. Contar los totales del cuadro en el chat. No tocar
 otras solapas.
 
+**NCR ELIMINADAS debajo del cuadro** (`bloque_ncr.py`, después de `cuadro_compras.py`, que borra lo que hay abajo de la
+nota): dos filas debajo del CONTROL, desde la columna U, título "NCR ELIMINADAS": una fila por NCR (fecha, comprobante,
+droguería, CUIT, Importe Total, no gravado + exento, neto, IVA, percepciones y otros, proveedor), TOTAL NCR ELIMINADAS
+(=SUM) y el control: Importe Total de "compras con NCR" − NCR eliminadas + servicios agregados de Zetti = Importe Total
+de "Compras portal iva" (diferencia 0). Sin NCR, lo dice en una línea.
+
 Aclaración: que el No Gravado dé negativo no es un error (se compensa con el exento del mismo comprobante); no
 marcarlo como observación.
 
@@ -218,6 +256,9 @@ comprobantes), según la clasificación de la columna AG (paso 7):
   (más el mismo agregado de los tipos sin IVA, H − N a S, si no las facturas C quedarían en cero). **Nunca incluye
   percepciones ni otros impuestos.** Se mantienen las cuentas de la
   plantilla aunque den cero y se **agregan las que aparezcan en AG y falten**, en orden alfabético; al pie, fila Total.
+
+**Resaltado:** el Total de Neto Gravado, No Gravado y Exento del resumen (C5:E5) y el Total de "gravado + exento" del
+detalle van con relleno "Azul, Énfasis 1, claro 40 %" del tema: son las dos puntas del control y tienen que dar lo mismo.
 
 Controles (calculados en Python, sale con código 2 si no cierran): comprobantes del detalle = Total; gravado + exento del detalle = neto + no gravado + exento del resumen; y
 neto + no gravado + exento + IVA + N a S = Importe Total (centavos). Informar el resumen, las cuentas agregadas y las
