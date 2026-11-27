@@ -1,7 +1,7 @@
 {
   "name": "papel-de-trabajo-liquidacion-de-iva",
   "description": "Etapa 2 del papel de trabajo mensual (DDJJ de IVA), de punta a punta con un script de Playwright sobre el mismo papel de la etapa de ventas: baja las compras de Zetti (5.6.4) y del Portal IVA (importa al borrador del período abierto, o la DDJJ presentada), las cruza en 'cruce compras', agrega las facturas de AySA/EDESUR/METROGAS que faltan en el Portal con su alícuota, clasifica los proveedores con el Maestro y arma el cuadro resumen de compras con SUMIFS y control. Deja el libro completo en 'compras con NCR' y 'Compras portal iva' sin las NCR de Monroe y Suizo (con su detalle debajo del cuadro); en períodos liquidados usa la información guardada y baja solo lo que falte. Nunca escribe en Zetti; en ARCA solo importa al borrador del Libro Compras.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": {
     "name": "Estudio BVA",
     "email": "joaquin@estudiobva.com"

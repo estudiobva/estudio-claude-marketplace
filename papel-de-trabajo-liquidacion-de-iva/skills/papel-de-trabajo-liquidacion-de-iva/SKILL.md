@@ -111,7 +111,8 @@ del período. `aviso_nro`: comprobantes con el número entero en la columna D (e
 
 **Qué NCR se eliminan:** las de la hoja "Eliminados" de la conciliación NCR del período
 (`ncr/AAAAMM-COMPRAS-SIN-NCR-<SOC>.xlsx`, circuito `conciliacion-ncr`). `quitar_ncr.py` las busca por CUIT + PV + número
-entre las notas de crédito, controla el importe y, si alguna no está o tiene otro importe, corta sin grabar.
+entre las notas de crédito **y de débito** (las ND de la droguería que están en el listado de NCR del SharePoint también se
+eliminan y no se presentan; ej. ND A de Monroe en Bernal 202607), controla el importe y, si alguna no está o tiene otro importe, corta sin grabar.
 Si el período no tiene conciliación, el script la arma con el plugin `conciliacion-ncr` (baja las NCR del SharePoint y
 concilia contra el libro; **no elimina nada en ARCA**). Si no se puede (sin archivos de la droguería, sociedad sin NCR),
 para con código 4: correr la conciliación aparte o seguir con `--desde-paso=2 --sin-ncr` (no se elimina ninguna NCR y
