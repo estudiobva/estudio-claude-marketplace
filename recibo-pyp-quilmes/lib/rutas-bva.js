@@ -67,7 +67,7 @@ function carpetaMes(mensuales, periodoAAAAMM) {
 
 // Carpeta TSH del periodo (tasas municipales: Seguridad e Higiene y las
 // boletas de marquesina / Publicidad y Propaganda), creandola si falta.
-// Es donde el equipo guarda "AAAAMM-boleta marquesina- <Sociedad>.pdf".
+// Es donde el equipo guarda "AAAAMM-PyP Quilmes-boleta- <Sociedad>.pdf".
 function carpetaTsh(cuit, periodoAAAAMM, { crear = true } = {}) {
   const soc = carpetaSociedad(cuit);
   const mensuales = path.join(soc, '01-Impuestos Mensuales');
