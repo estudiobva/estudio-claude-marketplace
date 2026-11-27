@@ -9,6 +9,7 @@ description: "Audita los Estados de Resultados (EERR 2026) de una o todas las so
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/auditor_eerr.py --nombre="<sociedad>"
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/auditor_eerr.py --nombre="<sociedad>" --simular
 cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/auditor_eerr.py --todas
+cd "${CLAUDE_PLUGIN_ROOT:-.}" && python scripts/auditor_eerr.py --nombre="<sociedad>" --balance
 ```
 
 En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
@@ -18,6 +19,7 @@ En Mac usar `python3` (o el `BVA_PYTHON` del `.env`).
 | `--nombre` | Sociedad, como figura en el nombre del EERR (`EERR 01-2026 a 12-2026 - <sociedad>.xlsx`). |
 | `--todas` | Todos los EERR de la carpeta. Además marca importes idénticos entre sociedades (planillas copiadas). Tarda varios minutos: correrlo en segundo plano. **Solo si el usuario lo pide expresamente.** |
 | `--hasta=AAAAMM` | Último mes a auditar. Default: el último con la DDJJ de IVA vencida (desde el día 26, el mes anterior; si no, el anterior a ese). |
+| `--balance` | Audita el **balance** `EERR 2026/BALANCE <cierre> - <sociedad> - PROTOTIPO.xlsx` en vez del EERR mensual (desde 1.4.0). Lee la hoja mensual "Resumen Resultados" (equivale a la hoja EERR) y el Estado de Resultados anual. Nunca toca el balance: la copia auditada, con la hoja "Auditorias", queda en `BVA-salidas/auditor-eerr/simulacion/AUDITORIA - BALANCE ….xlsx` (el balance suele estar abierto en Excel y el armador lo regenera entero). |
 | `--simular` | No toca la unidad: deja la copia auditada en `BVA-salidas/auditor-eerr/simulacion/`. Usarlo si el usuario solo quiere ver qué encuentra. |
 
 Libro del Portal IVA de cada mes (desde 1.3.1, el mismo criterio que armado-eerr): el de la DDJJ presentada ("presentada" en el nombre),
@@ -109,6 +111,24 @@ Control del libro IVA (desde 1.3.0):
     presentado o su crédito fiscal no es el de la DDJJ). En los meses donde corre, el control 19 ya no compara el EERR
     contra el papel (el EERR se controla contra lo declarado). Usa el libro "(DDJJ presentada)"
     si está; si no, el de la carpeta IVA. Meses sin DDJJ de IVA: aviso en el historial.
+
+DDJJ de IVA (desde 1.4.0): los controles 16 y 22 usan siempre la **última rectificativa** presentada
+(`AAAAMM-IVA-DDJJRECTn-*.pdf` de número más alto, o la secuencia más alta del JSON de ddjj-iva), no la original, y lo
+dicen en el hallazgo. Si la rectificativa más nueva es un PDF sin texto y no hay lectura de ARCA de esa secuencia, marca
+rojo "DDJJ rectificativa sin leer" y no compara contra la original. Si el libro "(DDJJ presentada)" es anterior a la
+rectificativa, marca amarillo: hay que volver a bajarlo con portal-iva-descarga --presentada.
+
+Control del balance (desde 1.4.0, solo con `--balance`):
+
+23. Estado de Resultados del balance: ventas = suma de los meses del Resumen de Resultados (más Ajustes); CMV = Anexo 3 y
+    Anexo 3 = existencia inicial + compras − existencia final (compras = las del Resumen); gastos del Estado = Total gastos
+    del Resumen (todas las líneas con cuenta del Anexo 2); el resultado se recalcula desde sus líneas; existencia inicial y
+    final cargadas (la final es amarillo mientras el ejercicio no cerró); margen bruto del ejercicio en la banda 20–40%,
+    utilidad atípica, pérdida, ventas ±40% vs ejercicio anterior e impuesto a las ganancias en cero con ganancia. Además
+    vuelca como hallazgo cada control de la hoja "Controles" del balance que no da OK (rojo si es del 1 al 5 y tiene
+    diferencia). En el balance los controles 4 y 5 mensuales no corren (el CMV mensual son solo las compras; las
+    existencias son anuales) y el 13 tampoco (no trae la hoja IVA prorrateo; lo cubre el 22). Los demás controles leen
+    el Resumen de Resultados igual que el EERR. No se genera la hoja "Utilidades".
 
 Excepciones por sociedad (una sola auditoría, criterio de Javi): en `auditor_eerr_config.json`,
 `"excepciones": {"<sociedad o CUIT>": [19]}` saltea esos controles para esa sociedad (queda anotado en el historial).
