@@ -21,7 +21,7 @@ Fuentes (SUMIFS vivas contra 'Compras portal iva', filas 2 a la ultima de compro
     Neto Gravado = T + U + W + Y + AA + AC (netos de cada alicuota; no AE, que en las filas agregadas a mano
         suele quedar vacia); Exento = L; Importe Total = H;
     IVA = V + X + Z + AB + AD (IVA de cada alicuota, no "Total IVA");
-    No Gravado = K, y en los comprobantes sin IVA discriminado (tipos 6, 8, 11, 13, 15, 111) ademas
+    No Gravado = K, y en los comprobantes sin IVA discriminado (B y C: tipos 6, 7, 8, 11, 12, 13, 15, 111 y tiques 113 a 116) ademas
         H - (N a S), igual que el cuadro resumen del paso 7 (el Portal los trae solo en Importe Total);
     Percepciones y otros impuestos = N + O + P + Q + R + S (solo en el resumen global, para que cierre);
     gravado + exento = K + L + T + U + Y + AA + AC, mas el mismo agregado de los tipos sin IVA (H - N a S:
@@ -45,7 +45,7 @@ from openpyxl.utils import column_index_from_string as ci
 
 HOJA_P = 'Compras portal iva'
 HOJA = 'imputacion compras'
-SIN_IVA = (6, 8, 11, 13, 15, 111)
+SIN_IVA = (6, 7, 8, 11, 12, 13, 15, 111, 113, 114, 115, 116)  # B y C, y sus tiques
 NS = ['N', 'O', 'P', 'Q', 'R', 'S']
 IVAS = ['V', 'X', 'Z', 'AB', 'AD']
 GRAV_EXENTO = ['K', 'L', 'T', 'U', 'Y', 'AA', 'AC']
