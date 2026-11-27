@@ -54,7 +54,7 @@ FMT = '#,##0.00;[Red]-#,##0.00'
 PERC_TIT = 'Percepciones y otros impuestos'
 TITULO_DETALLE = 'Detalle por cuenta contable'
 CELESTE = PatternFill('solid', fgColor='DDEBF7')
-# Resaltado del control (pedido 2026-11-27, Bernal 202610): "Azul, Enfasis 1, claro 40%" del tema en el Total de
+# Resaltado del control (pedido 2026-11-27): "Azul, Enfasis 1, claro 40%" del tema en el Total de
 # Neto Gravado, No Gravado y Exento del resumen (C5:E5) y en el Total de gravado + exento del detalle: tienen que dar lo mismo.
 AZUL_CONTROL = PatternFill('solid', fgColor=Color(theme=4, tint=0.5999938962981048))
 SIN_RELLENO = PatternFill(fill_type=None)

@@ -103,7 +103,7 @@ del período. `aviso_nro`: comprobantes con el número entero en la columna D (e
 
 ### Paso 2 — compras con NCR y Compras portal iva (plugin `portal-iva-descarga`, `quitar_ncr.py`, `copiar_solapa.py`)
 
-**Dos solapas, a continuación de "Compras Zetti"** (pedido de la usuaria, piloto Bernal 202610):
+**Dos solapas, a continuación de "Compras Zetti"** (pedido de la usuaria):
 1. **"compras con NCR"**: el Libro IVA Compras completo, tal cual sale de ARCA, sin trabajar ni tocar nada.
 2. **"Compras portal iva"**: el mismo libro **menos las NCR (notas de crédito de recupero) de Monroe y Suizo**, o sea las
    compras como se presentan en el Portal IVA. Todo lo demás (cruce, servicios, PROVEEDORES, clasificación, cuadro e
