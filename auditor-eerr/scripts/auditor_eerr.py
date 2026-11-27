@@ -76,6 +76,7 @@ SALIDAS = var('BVA_SALIDAS_PATH') or os.path.expanduser('~/Documents/BVA-salidas
 SALIDA = os.path.join(SALIDAS, 'auditor-eerr')
 ARBA_LOCAL = os.path.join(SALIDAS, 'arba-ddjj')          # copia local de las DJ de ARBA, si existe
 HOJA = 'Auditorias'
+HOJA_BAL = 'Resumen Resultados'   # modo --balance: hoja mensual del balance que equivale a la hoja EERR
 HOJA_UT = 'Utilidades'      # utilidad bruta y operativa por mes (fórmulas sobre la hoja EERR)
 
 # Umbrales (se pueden pisar con auditor_eerr_config.json al lado del script)
@@ -118,13 +119,18 @@ CONTROLES = {1: 'Período del ejercicio', 2: 'Meses completos', 3: 'Fórmulas', 
              10: 'Compras clasificadas = Portal IVA', 11: 'Sueldos vs F.931', 12: 'IIBB vs DJ ARBA', 13: 'IVA prorrateo',
              14: 'Tasas municipales', 15: 'Gastos fijos y financieros', 16: 'Débito / crédito fiscal', 17: 'Signo de las NC',
              18: 'Cómputo de NRF', 19: 'Prorrateo del papel', 20: 'Venta vs compra exenta/gravada', 21: 'NC de compras vs libro',
-             22: 'Prorrateo vs libro IVA'}
+             22: 'Prorrateo vs libro IVA', 23: 'Estado de Resultados del balance'}
 ALICS = ['2,5%', '5%', '10,5%', '21%', '27%']
 PERC = ['Importe de Per. o Pagos a Cta. de Otros Imp. Nac.', 'Importe de Percepciones de Ingresos Brutos', 'Importe de Impuestos Municipales',
         'Importe de Percepciones o Pagos a Cuenta de IVA', 'Importe de Impuestos Internos', 'Importe Otros Tributos']
 
 
 def num(v): return isinstance(v, (int, float)) and not isinstance(v, bool)
+def es_balance(f): return re.sub(r'^AUDITORIA - ', '', os.path.basename(f)).upper().startswith('BALANCE')
+def soc(f):
+    # nombre de la sociedad: 'EERR 12-2025 a 11-2026 - X.xlsx' o 'BALANCE 30-11-2026 - X - PROTOTIPO.xlsx'
+    n = re.sub(r'^(AUDITORIA - )?(EERR|BALANCE) .*? - ', '', os.path.basename(f))[:-5]
+    return re.sub(r' - PROTOTIPO$', '', n)
 def ndoc(v): return str(int(v)) if num(v) else re.sub(r'\D', '', str(v or ''))
 def nfc(s): return unicodedata.normalize('NFC', str(s or '')).strip()
 def norm(s): return re.sub(r'\s+', ' ', ''.join(c for c in unicodedata.normalize('NFD', nfc(s).lower()) if unicodedata.category(c) != 'Mn')).strip()
@@ -273,13 +279,16 @@ class EERR:
     def __init__(self, f):
         self.f = f
         self.wbf = abrir(f); self.wbv = abrir(f, data_only=True)
-        self.wf, self.wv = self.wbf['EERR'], self.wbv['EERR']
+        self.balance = es_balance(f)
+        self.hoja = HOJA_BAL if self.balance else 'EERR'
+        self.wf, self.wv = self.wbf[self.hoja], self.wbv[self.hoja]
         hdr = next(r for r in range(1, 15) if norm(self.wf.cell(r, 1).value) == 'concepto')
         self.hdr = hdr
         self.col = {}
         for c in range(2, 40):
             d = self.wv.cell(hdr, c).value
             if hasattr(d, 'year'): self.col[f"{d.year}{d.month:02d}"] = c
+            elif self.balance and re.match(r'^\d{2}-\d{4}$', str(d or '').strip()): self.col[f"{str(d).strip()[3:]}{str(d).strip()[:2]}"] = c
         self.meses = sorted(self.col)
         self.filas = [(r, norm(self.wf.cell(r, 1).value)) for r in range(hdr + 1, self.wf.max_row + 1) if self.wf.cell(r, 1).value]
         L = [l for _, l in self.filas]
@@ -287,21 +296,29 @@ class EERR:
             for r, l in self.filas:
                 if l == lab and (despues is None or r > despues) and (antes is None or r < antes): return r
         self.r_costo, self.r_gastos = fila('costo'), fila('gastos')
-        self.r_ing = fila('ingresos')
-        self.r_cmv = fila('cmv', self.r_costo, self.r_gastos)
-        self.r_tcosto = fila('total', self.r_costo, self.r_gastos)
+        self.r_ing = fila('total ventas') if self.balance else fila('ingresos')
+        self.r_cmv = fila('compras de mercaderia', self.r_costo, self.r_gastos) if self.balance else fila('cmv', self.r_costo, self.r_gastos)
+        self.r_tcosto = None if self.balance else fila('total', self.r_costo, self.r_gastos)
         self.r_cmvf = fila('cmv', self.r_tcosto or self.r_cmv, self.r_gastos)
         self.r_ei, self.r_ef = fila('existencia inicial'), fila('existencia final')
-        self.r_tgastos = fila('total', self.r_gastos)
+        self.r_tgastos = fila('total gastos' if self.balance else 'total', self.r_gastos)
         self.r_amort = fila('amortizacion')
         self.gastos = [(r, l) for r, l in self.filas if self.r_gastos and self.r_tgastos and self.r_gastos < r < self.r_tgastos]
         self.ix = {}
         for r, l in self.filas: self.ix.setdefault(l, r)
         self.ix['cmv'] = self.r_cmv
+        if self.balance:        # nombres del balance -> los que usan los controles
+            self.ix['ingresos'] = self.r_ing
+            for alias, real in (('edesur', 'luz (edesur)'), ('internet/telefonia', 'internet / telefonia')):    # rubros que el balance nombra distinto
+                if self.ix.get(real) and not self.ix.get(alias): self.ix[alias] = self.ix[real]
+            if self.ix.get('resultados financieros y por tenencia (incl. recpam)'):
+                self.ix['rdos financieros (fci)'] = self.ix['resultados financieros y por tenencia (incl. recpam)']
         cuit = None
         for r in range(1, hdr):
             for c in range(1, 10):
-                v = re.sub(r'\D', '', str(self.wv.cell(r, c).value or ''))
+                t = str(self.wv.cell(r, c).value or '')
+                m = re.search(r'(?<!\d)(\d{2})-?(\d{8})-?(\d)(?!\d)', t) if self.balance else None       # el balance trae el CUIT dentro del texto de A1
+                v = ''.join(m.groups()) if m else re.sub(r'\D', '', t)
                 if len(v) == 11: cuit = v
         self.cuit = cuit
         # denominación: primera celda con texto a la derecha de "DENOMINACIÓN DE LA SOCIEDAD:"
@@ -319,7 +336,7 @@ class EERR:
     def ref(self, fila, per=None):
         if fila is None: return None
         c = self.col.get(per, 1) if per else 1
-        return f"'EERR'!{CL(c)}{fila}"
+        return f"'{self.hoja}'!{CL(c)}{fila}"
     def cmv_ef(self, per):
         # CMV del mes: el de la fila final si tiene dato, si no Total costo, si no compras CMV
         for r in (self.r_cmvf, self.r_tcosto, self.r_cmv):
@@ -372,13 +389,13 @@ def c01(x):
         (int(b[:4]) * 12 + int(b[4:])) - (int(a[:4]) * 12 + int(a[4:])) == 1 for a, b in zip(cols, cols[1:]))
     if not seguidos:
         x.add(1, '-', 'Columnas de meses', 'Rojo', f"Las columnas no son 12 meses seguidos ({', '.join(mm(p) for p in cols)}).",
-              celda=f"'EERR'!B{e.hdr}")
+              celda=f"'{e.hoja}'!B{e.hdr}")
     m = re.search(r'EERR (\d{2})-(\d{4}) a (\d{2})-(\d{4})', nfc(os.path.basename(x.f)))
     if m and cols and (f"{m[2]}{m[1]}" != cols[0] or f"{m[4]}{m[3]}" != cols[-1]):
         x.add(1, '-', 'Nombre del archivo', 'Rojo', f"El nombre dice {m[1]}-{m[2]} a {m[3]}-{m[4]} pero las columnas van de {mm(cols[0])} a {mm(cols[-1])}.",
-              celda=f"'EERR'!B{e.hdr}")
+              celda=f"'{e.hoja}'!B{e.hdr}")
     if not e.cuit:
-        x.add(1, '-', 'CUIT', 'Rojo', 'No figura el CUIT de la sociedad en el encabezado del EERR.', celda="'EERR'!A1")
+        x.add(1, '-', 'CUIT', 'Rojo', 'No figura el CUIT de la sociedad en el encabezado del EERR.', celda=f"'{e.hoja}'!A1")
     elif not x.carpeta:
         x.add(1, '-', 'Carpeta de la sociedad', 'Rojo', f"No se encontró en la unidad la carpeta del CUIT {e.cuit}: no se pueden cruzar las fuentes.")
     for p in cols:
@@ -424,8 +441,10 @@ def c03(x):
             v = wv.cell(r, c).value
             if isinstance(v, str) and v.startswith('#'):
                 x.add(3, p, f"Error {CL(c)}{r}", 'Rojo', f"La celda {CL(c)}{r} ({nfc(wf.cell(r, 1).value)}) da {v}.", celda=e.ref(r, p))
-    for r, nombre in ((e.r_ing, 'Ingresos'), (e.r_tcosto, 'Total costo'), (e.r_tgastos, 'TOTAL de gastos'),
-                      (e.ix.get('rdo antes de impuesto'), 'Rdo antes de Impuesto'), (e.ix.get('rdo del ejercicio'), 'Rdo del Ejercicio')):
+    filas_f = ((e.r_ing, 'Total ventas'), (e.r_tgastos, 'Total gastos')) if e.balance else (
+        (e.r_ing, 'Ingresos'), (e.r_tcosto, 'Total costo'), (e.r_tgastos, 'TOTAL de gastos'),
+        (e.ix.get('rdo antes de impuesto'), 'Rdo antes de Impuesto'), (e.ix.get('rdo del ejercicio'), 'Rdo del Ejercicio'))
+    for r, nombre in filas_f:
         if r is None:
             x.add(3, '-', f"Falta fila: {nombre}", 'Rojo', f"El EERR no tiene la fila {nombre}."); continue
         sin = [p for p, c in e.col.items() if not str(wf.cell(r, c).value or '').startswith('=')]
@@ -457,6 +476,7 @@ def resultado(e, p):
 
 
 def c04(x):
+    if x.e.balance: x.log.append('4: en el balance el CMV mensual son las compras (las existencias son anuales): el resultado se controla en el 23'); return
     e = x.e; celda_r = e.ix.get('rdo del ejercicio') or e.r_tgastos
     racha = []
     def cerrar():
@@ -490,6 +510,7 @@ def utilidades(e, p):
 
 
 def c05(x):
+    if x.e.balance: x.log.append('5: en el balance el CMV mensual son las compras (las existencias son anuales): el margen se controla en el 23'); return
     e = x.e; mb = margenes(e, x.meses)
     if not mb: return x.ok(5)
     med = statistics.median(mb.values()); lo, hi = CFG['margen_banda']; d = CFG['margen_desvio_pts']
@@ -617,6 +638,7 @@ def c07(x):
 
 def c08(x):
     e = x.e
+    if e.balance: return        # las existencias del balance se controlan en el 23 (Anexo 3)
     if e.r_ei and not any(e.v(e.r_ei, p) for p in e.meses):
         x.add(8, '-', 'Existencia inicial', 'Rojo', "No está cargada la existencia inicial: el CMV queda igual a las compras y el margen bruto no es confiable.",
               celda=e.ref(e.r_ei, e.meses[0] if e.meses else None))
@@ -710,11 +732,12 @@ def c09(x):
 
 def compras_imputadas(e):
     ws = e.wbv['Compras imputadas']; filas = list(ws.iter_rows(values_only=True))
-    h = filas[0]; cols = {}
+    ih = next((i for i, f in enumerate(filas[:5]) if any(isinstance(v, str) and re.match(r'^\d{2}/\d{4}$', v) for v in f)), 0)
+    h = filas[ih]; cols = {}
     for i, v in enumerate(h):
         if isinstance(v, str) and re.match(r'^\d{2}/\d{4}$', v): cols[f"{v[3:]}{v[:2]}"] = i
     out = []
-    for r in filas[1:]:
+    for r in filas[ih + 1:]:
         if not re.match(r'^\d{11}$', str(r[0] or '').strip()): continue      # fila TOTAL y renglones vacíos
         out.append(dict(cuit=str(r[0] or '').strip(), prov=nfc(r[1]), cuenta=nfc(r[2]), rubro=nfc(r[3]), estado=nfc(r[4]),
                         m={p: float(r[i]) for p, i in cols.items() if num(r[i])}))
@@ -762,6 +785,7 @@ def c10(x):
         tot = sum(v for p, v in ms.items() if p in x.meses)
         if rub.startswith('excluido') or abs(tot) < 1: continue
         r = e.ix.get(rub)
+        if e.balance and rub.startswith('matricula'): continue   # en el balance la matrícula sale de Zetti T&S y la cuota de la Cámara va aparte (acuerdo 12/11)
         if r is None:
             x.add(10, '-', f"Rubro sin fila: {rub.upper()}", 'Rojo', f"Hay compras imputadas a \"{rub.upper()}\" ({pesos(tot)} en el ejercicio) que no tienen fila en el EERR: no llegan al resultado.",
                   round(tot, 2)); continue
@@ -886,6 +910,7 @@ def c12(x):
 
 def c13(x):
     e = x.e; r = e.ix.get('iva prorrateo')
+    if e.balance: x.log.append('13: el balance no trae la hoja de control IVA prorrateo (se controla en el 22)'); return
     if 'IVA prorrateo' not in e.wbv.sheetnames or r is None:
         x.add(13, '-', 'Hoja IVA prorrateo', 'Amarillo', 'No está la hoja de control "IVA prorrateo": no se puede controlar la fila IVA Prorrateo.'); return x.ok(13)
     ws = e.wbv['IVA prorrateo']; fila = {}
@@ -1060,19 +1085,50 @@ def ddjj_iva(x, p):
     if p not in c: c[p] = _ddjj_iva(x, p)
     return c[p]
 
+def ddjj_pdfs(x, p):
+    # PDF de la DDJJ de IVA del mes, de la rectificativa de número más alto a la original: AAAAMM-IVA-DDJJRECTn-*.pdf, AAAAMM-IVA-DDJJ-*.pdf
+    # (no los acuses ni los borradores). A igual número, el más nuevo.
+    out = []
+    for f in x.en_mes(p, rf'^{p}-IVA-DDJJ(?:RECT(\d*))?[-_ ].*\.pdf$'):
+        b = os.path.basename(f)
+        if re.search(r'borrador', b, re.I): continue
+        m = re.match(rf'^{p}-IVA-DDJJ(?:RECT(\d*))?[-_ ]', b)
+        n = (int(m[1]) if m[1] else 1) if 'RECT' in b[:len(p) + 14] else 0
+        out.append((n, os.path.getmtime(f), f))
+    return sorted(out, reverse=True)
+
+
 def _ddjj_iva(x, p):
-    # AAAAMM-IVA-DDJJ-*.pdf de la carpeta del mes (el más nuevo, por las rectificativas) o, si no, el JSON de ddjj-iva.js
-    # en BVA-salidas/ddjj-iva/<CUIT>/AAAAMM.json
-    for f in sorted(x.en_mes(p, rf'^{p}-IVA-DDJJ-.*\.pdf$'), key=os.path.getmtime, reverse=True):
+    # DDJJ de IVA presentada, la ULTIMA secuencia del Portal IVA de ARCA (la rectificativa si la hay): el PDF AAAAMM-IVA-DDJJRECTn-*.pdf de la
+    # carpeta del mes (o el original) o el JSON de ddjj-iva.js (BVA-salidas/ddjj-iva/<CUIT>/AAAAMM.json, que trae la secuencia de ARCA).
+    # Manda la de número más alto; a igual número, el PDF de la unidad.
+    x.__dict__.setdefault('_ddjj_sec', {})
+    pdf, ilegible = None, None
+    for n, _, f in ddjj_pdfs(x, p):
         try: t = pdf_texto(f)
-        except Exception as err: x.log.append(f"16 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); continue
+        except Exception as err: x.log.append(f"16 {mm(p)}: no se pudo leer {os.path.basename(f)} ({err})"); t = ''
         g = {k: re.search(rx, t, re.I) for k, rx in DDJJ_RX.items()}
-        if all(g.values()): return {k: float(v[1].replace('.', '').replace(',', '.')) for k, v in g.items()}, f
+        if all(g.values()): pdf = ({k: float(v[1].replace('.', '').replace(',', '.')) for k, v in g.items()}, f, n); break
+        if ilegible is None: ilegible = (n, f)       # la de número más alto no tiene texto (PDF escaneado): no se puede caer en la original en silencio
+    js = None
     j = os.path.join(SALIDAS, 'ddjj-iva', x.e.cuit or '-', f'{p}.json')
     if os.path.exists(j):
         d = json.load(open(j, encoding='utf-8'))
-        if num(d.get('df')) and num(d.get('cf')): return dict(df=d['df'], cf=d['cf']), j
-    return None, None
+        if num(d.get('df')) and num(d.get('cf')):
+            m = re.search(r'(\d+)', str(d.get('secuencia') or ''))
+            js = (dict(df=d['df'], cf=d['cf']), j, int(m[1]) if m else 0)
+    mejor = max((c for c in (pdf, js) if c), key=lambda c: c[2], default=None)    # empate: max devuelve el primero = el PDF
+    if ilegible and ilegible[0] >= 1 and (mejor is None or mejor[2] < ilegible[0]):
+        # hay una rectificativa más nueva que la que se pudo leer: comparar contra una secuencia vieja daría diferencias falsas
+        x.add(16, p, 'DDJJ rectificativa sin leer', 'Rojo',
+              f"La DDJJ de IVA de {mm(p)} tiene la rectificativa {ilegible[0]} ({os.path.basename(ilegible[1])}) pero el PDF no tiene texto (escaneado o imagen) y "
+              f"no hay lectura de ARCA de esa secuencia: no se compara contra la original, que ya no vale. Correr ddjj-iva ({mm(p)}), que toma la última secuencia del Portal IVA.",
+              fuente=ilegible[1], comparar=ilegible[0])
+        x.log.append(f"16 {mm(p)}: rectificativa {ilegible[0]} ilegible: se omiten los controles de la DDJJ de ese mes")
+        return None, None
+    if mejor is None: return None, None
+    x._ddjj_sec[p] = mejor[2]
+    return mejor[0], mejor[1]
 
 
 def sin_papel(x, control):
@@ -1093,11 +1149,21 @@ def c16(x):
         if not d: continue
         df, cf = d['det'].get('subtotal debito fiscal'), d['det'].get('total credito fiscal')
         dj, fdj = ddjj_iva(x, p)
+        rect = ddjj_pdfs(x, p)[:1]
+        if rect and rect[0][0] >= 1:
+            # hay rectificativa: el libro "(DDJJ presentada)" tiene que ser de esa secuencia (bajado después de presentarla)
+            viejos = [g for g in (libro_iva(x, p, 'VENTAS'), libro_iva(x, p, 'COMPRAS')) if g and 'presentada' in norm(os.path.basename(g))
+                      and os.path.getmtime(g) < rect[0][1]]
+            if viejos:
+                x.add(16, p, 'Libro IVA anterior a la rectificativa', 'Amarillo',
+                      f"{mm(p)} tiene la DDJJ rectificativa {rect[0][0]} ({os.path.basename(rect[0][2])}), pero el libro del Portal IVA ({os.path.basename(viejos[0])}) "
+                      "es anterior (fecha del archivo): puede ser el de la original. Volver a bajarlo con portal-iva-descarga --presentada (toma la última secuencia).",
+                      fuente=viejos[0], comparar=rect[0][0])
         if dj:
             for k, nombre, v, et in (('df', 'Débito fiscal', df, 'subtotal debito fiscal'), ('cf', 'Crédito fiscal', cf, 'total credito fiscal')):
                 if num(v) and abs(v - dj[k]) > 1:
                     x.add(16, p, f"{nombre} vs DDJJ", 'Rojo', f"El {nombre.lower()} del papel de {mm(p)} (celda {celda_papel(d, ('det', et))} de la hoja "
-                          f"{d['hoja']}) no coincide con la DDJJ de IVA presentada ({os.path.basename(fdj)}).", round(v, 2), dj[k], fuente=d['f'])
+                          f"{d['hoja']}) no coincide con la DDJJ de IVA presentada ({os.path.basename(fdj)}{', rectificativa ' + str(x._ddjj_sec[p]) if x._ddjj_sec.get(p) else ''}).", round(v, 2), dj[k], fuente=d['f'])
         if num(df) and num(cf) and df > 0: rat[p] = cf / df
         x.ok(16, p)
     if len(rat) >= 3:
@@ -1346,17 +1412,89 @@ def c22(x):
                   round(nocomp, 2), dec, fuente=d['f'])
         x.ok(22, p)
     if sin_dj:
-        x.log.append(f"22: sin DDJJ de IVA (PDF AAAAMM-IVA-DDJJ o ddjj-iva) en {', '.join(mm(p) for p in sin_dj)}: no se controla el prorrateo esos meses")
+        x.log.append(f"22: sin DDJJ de IVA (PDF AAAAMM-IVA-DDJJ / DDJJRECTn o ddjj-iva) en {', '.join(mm(p) for p in sin_dj)}: no se controla el prorrateo esos meses")
     x.ok(22)
 
 
-CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22]
+
+
+def c23(x):
+    # Solo con --balance: el Estado de Resultados (anual) del balance contra el Resumen de Resultados (mensual), el Anexo 2 (gastos) y el Anexo 3 (CMV)
+    e = x.e
+    if not e.balance: return
+    wb = e.wbv; hoja = 'Estado de Resultados'
+    if hoja not in wb.sheetnames:
+        x.add(23, '-', 'Hoja Estado de Resultados', 'Rojo', 'El balance no tiene la hoja "Estado de Resultados".'); return x.ok(23)
+    er = wb[hoja]; lin = {}
+    for r in range(6, er.max_row + 1):
+        l = norm(er.cell(r, 1).value)
+        if l: lin[l] = r
+    def fila(pref): return next((r for l, r in lin.items() if l.startswith(norm(pref))), None)
+    def val(pref, col=2):
+        r = fila(pref); v = er.cell(r, col).value if r else None
+        return float(v) if num(v) else None
+    ref = lambda pref, col='B': f"'{hoja}'!{col}{fila(pref)}" if fila(pref) else f"'{hoja}'!A1"
+    ventas, cmv, res = val('Ingresos por ventas'), val('Costo de las mercaderias'), val('RESULTADO DEL EJERCICIO')
+    if ventas is None or res is None:
+        x.add(23, '-', 'Estado de Resultados sin valores', 'Rojo', 'El Estado de Resultados no tiene valores calculados (las fórmulas no se recalcularon).', celda=ref('Ingresos por ventas')); return x.ok(23)
+    cierre = e.meses[-1] if e.meses else None
+    ajuste = next((c for c in range(2, 30) if norm(e.wv.cell(e.hdr, c).value) == 'ajustes'), None)
+    def anual(r):
+        return sum(e.v(r, p) for p in e.meses) + (float(e.wv.cell(r, ajuste).value) if ajuste and num(e.wv.cell(r, ajuste).value) else 0.0)
+    # a) ventas del Estado = suma de los meses del Resumen (más Ajustes)
+    sv = anual(e.r_ing)
+    if abs(ventas - sv) > 1:
+        x.add(23, '-', 'Ventas del Estado de Resultados', 'Rojo', f"Las ventas del Estado de Resultados ({pesos(ventas)}) no son la suma de los meses del Resumen de Resultados ({pesos(sv)}).", ventas, sv, celda=ref('Ingresos por ventas'))
+    # b) Anexo 3: CMV = existencia inicial + compras - existencia final, y es el del Estado
+    if 'Anexo 3' in wb.sheetnames:
+        a3 = wb['Anexo 3']; ei, co, ef, cm = (float(a3.cell(r, 2).value) if num(a3.cell(r, 2).value) else None for r in (6, 7, 8, 9))
+        compras = anual(e.r_cmv)
+        if ei is None or cm is None: x.add(23, '-', 'Anexo 3 sin valores', 'Rojo', 'El Anexo 3 no tiene valores calculados.', celda="'Anexo 3'!B9")
+        else:
+            if abs(co - compras) > 1: x.add(23, '-', 'Compras del Anexo 3', 'Rojo', f"Las compras del Anexo 3 ({pesos(co)}) no son las del Resumen de Resultados ({pesos(compras)}).", co, compras, celda="'Anexo 3'!B7")
+            if cmv is not None and abs(-cmv - cm) > 1: x.add(23, '-', 'CMV del Estado de Resultados', 'Rojo', f"El CMV del Estado de Resultados ({pesos(-cmv)}) no es el del Anexo 3 ({pesos(cm)}).", -cmv, cm, celda=ref('Costo de las mercaderias'))
+            if abs(ei + co - (ef or 0) - cm) > 1: x.add(23, '-', 'CMV del Anexo 3', 'Rojo', f"El CMV del Anexo 3 ({pesos(cm)}) no es existencia inicial + compras - existencia final ({pesos(ei + co - (ef or 0))}).", cm, ei + co - (ef or 0), celda="'Anexo 3'!B9")
+            if not ei: x.add(23, '-', 'Existencia inicial', 'Rojo', "No está cargada la existencia inicial (Anexo 3): el CMV queda igual a las compras y el margen bruto no es confiable.", celda="'Anexo 3'!B6")
+            if not ef: x.add(23, '-', 'Existencia final', 'Rojo' if cierre and cierre <= x.hasta else 'Amarillo', f"No está cargada la existencia final (Anexo 3): el CMV queda en compras + existencia inicial{'' if cierre and cierre <= x.hasta else ' (el ejercicio todavía no cerró: es provisorio)'}.", celda="'Anexo 3'!B8")
+    else: x.add(23, '-', 'Anexo 3', 'Rojo', 'El balance no tiene la hoja "Anexo 3".')
+    # c) gastos: Anexo 2 = total gastos del Resumen = administración + comercialización + financieros del Estado
+    ga = [val(p) for p in ('Gastos de Administracion', 'Gastos de Comercializacion', 'Gastos Financieros')]
+    if None not in ga:
+        sg = -sum(ga); tg = anual(e.r_tgastos)
+        if abs(sg - tg) > 1: x.add(23, '-', 'Gastos del Estado de Resultados', 'Rojo', f"Los gastos del Estado de Resultados ({pesos(sg)}) no son el Total gastos del Resumen de Resultados ({pesos(tg)}): alguna línea sin cuenta del Anexo 2.", sg, tg, celda=ref('Gastos de Administracion'))
+    # d) el resultado se recalcula desde las líneas
+    partes = [val(p) for p in ('Ingresos por ventas', 'Costo de las mercaderias', 'Gastos de Administracion', 'Gastos de Comercializacion', 'Gastos Financieros', 'Resultado Financiero', 'Otros Ingresos', 'Impuesto a las Ganancias')]
+    if None not in partes and abs(sum(partes) - res) > 1:
+        x.add(23, '-', 'Resultado del ejercicio', 'Rojo', f"El resultado del ejercicio ({pesos(res)}) no es la suma de sus líneas ({pesos(sum(partes))}).", res, sum(partes), celda=ref('RESULTADO DEL EJERCICIO'))
+    # e) razonabilidad anual
+    if ventas > 0 and cmv is not None:
+        m = (ventas + cmv) / ventas; lo, hi = CFG['margen_banda']
+        if not lo <= m <= hi: x.add(23, '-', 'Margen bruto del ejercicio', 'Rojo' if m < 0 or m > 0.6 else 'Amarillo', f"Margen bruto del ejercicio: {pct(m)}; fuera de la banda esperada {pct(lo)}-{pct(hi)}.", round(m, 4), round((lo + hi) / 2, 4), es_pct=True, celda=ref('Ganancia Bruta'))
+        if res / ventas > CFG['resultado_max_pct']: x.add(23, '-', 'Utilidad atípica del ejercicio', 'Amarillo', f"El resultado del ejercicio es {pct(res / ventas)} de las ventas (más de {pct(CFG['resultado_max_pct'])}).", round(res / ventas, 4), CFG['resultado_max_pct'], es_pct=True, celda=ref('RESULTADO DEL EJERCICIO'))
+        if res < 0: x.add(23, '-', 'Pérdida del ejercicio', 'Amarillo', f"El ejercicio da pérdida de {pesos(-res)}.", res, celda=ref('RESULTADO DEL EJERCICIO'))
+        vant = val('Ingresos por ventas', 3)
+        if vant and abs(ventas / vant - 1) > 0.4: x.add(23, '-', 'Ventas vs ejercicio anterior', 'Amarillo', f"Las ventas del ejercicio ({pesos(ventas)}) varían {pct(ventas / vant - 1)} contra el ejercicio anterior ({pesos(vant)}).", ventas, vant, celda=ref('Ingresos por ventas'))
+    ap, imp = val('Ganancia (Perdida) del ejercicio antes'), val('Impuesto a las Ganancias')
+    if ap and ap > 0 and not imp: x.add(23, '-', 'Impuesto a las Ganancias', 'Amarillo', f"El ejercicio da ganancia antes de impuesto ({pesos(ap)}) y el impuesto a las ganancias está en cero.", ap, celda=ref('Impuesto a las Ganancias'))
+    # f) los controles del propio balance (hoja Controles) que no dan OK
+    if 'Controles' in wb.sheetnames:
+        for r in wb['Controles'].iter_rows(min_row=6, values_only=True):
+            n, nom, v, res_ = (r + (None,) * 4)[:4]
+            if not num(n) or norm(res_) in ('', 'ok'): continue
+            rojo = int(n) <= 5 and num(v) and abs(v) > 1
+            x.add(23, '-', f"Control {int(n)} del balance", 'Rojo' if rojo else 'Amarillo',
+                  f"Control {int(n)} de la hoja Controles del balance: {nfc(nom)} - {nfc(res_)}" + (f" ({pesos(v) if abs(v) >= 1000 else int(v)})." if num(v) else f" ({nfc(v)})." if v else '.'),
+                  float(v) if num(v) else None, celda=f"'Controles'!D{int(n) + 5}")
+    x.ok(23)
+
+
+CHECKS = [c01, c02, c03, c04, c05, c06, c07, c08, c09, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23]
 
 
 def analizar(args):
     f, hasta = args
     x = Ctx(f, hasta)
-    nombre = norm(re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5])
+    nombre = norm(soc(f))
     exc = {int(c) for k, cs in CFG['excepciones'].items() if norm(k) == nombre or re.sub(r'\D', '', k) == (x.e.cuit or '-') for c in cs}
     x.excepciones = exc
     for i, chk in enumerate(CHECKS, 1):
@@ -1650,11 +1788,14 @@ def recalcular(f):
 
 
 def necesita_recalculo(f):
-    wf, wv = abrir(f)['EERR'], abrir(f, data_only=True)['EERR']
-    for row in wf.iter_rows(min_row=1, max_row=wf.max_row, max_col=14):
-        for c in row:
-            if isinstance(c.value, str) and c.value.startswith('=') and wv[c.coordinate].value is None and c.column > 1:
-                return True
+    hojas = ('Resumen Resultados', 'Estado de Resultados', 'Anexo 2', 'Anexo 3') if es_balance(f) else ('EERR',)
+    wbf, wbv = abrir(f), abrir(f, data_only=True)
+    for h in hojas:
+        wf, wv = wbf[h], wbv[h]
+        for row in wf.iter_rows(min_row=1, max_row=wf.max_row, max_col=16):
+            for c in row:
+                if isinstance(c.value, str) and c.value.startswith('=') and wv[c.coordinate].value is None and c.column > 1:
+                    return True
     return False
 
 
@@ -1663,23 +1804,25 @@ def main():
     except Exception: pass
     a = {k: v for k, _, v in (s.lstrip('-').partition('=') for s in sys.argv[1:])}
     hasta = a.get('hasta') or hasta_default()
-    simular = 'simular' in a
-    archivos = sorted(f for f in glob.glob(f"{EERR_DIR}/EERR *.xlsx") if not os.path.basename(f).startswith('~$'))
+    balance = 'balance' in a
+    simular = 'simular' in a or balance      # el balance nunca se pisa en la unidad: la copia auditada va a simulacion/
+    if balance: archivos = sorted(f for f in glob.glob(f"{_EERR_BASE}/BALANCE *.xlsx") if not os.path.basename(f).startswith('~$'))
+    else: archivos = sorted(f for f in glob.glob(f"{EERR_DIR}/EERR *.xlsx") if not os.path.basename(f).startswith('~$'))
     if 'nombre' in a:
         q = norm(a['nombre'])
-        archivos = [f for f in archivos if norm(re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5]) == q] or \
+        archivos = [f for f in archivos if norm(soc(f)) == q] or \
                    [f for f in archivos if q in norm(os.path.basename(f))]
     elif 'todas' not in a:
-        sys.exit('Uso: auditor_eerr.py --nombre="Sociedad" | --todas  [--hasta=AAAAMM] [--simular] [--procesos=4]')
-    if not archivos: sys.exit('No se encontró el EERR pedido.')
+        sys.exit('Uso: auditor_eerr.py --nombre="Sociedad" | --todas  [--balance] [--hasta=AAAAMM] [--simular] [--procesos=4]')
+    if not archivos: sys.exit('No se encontró el balance pedido.' if balance else 'No se encontró el EERR pedido.')
     hoy = datetime.datetime.now().replace(microsecond=0)
     trabajo = f"{SALIDA}/trabajo"; os.makedirs(trabajo, exist_ok=True)
     resp = f"{SALIDA}/_respaldos/{hoy:%Y%m%d-%H%M}"
-    print(f"Auditoría de {len(archivos)} EERR, meses hasta {mm(hasta)}{' (simulación)' if simular else ''}")
+    print(f"Auditoría de {len(archivos)} {'balance(s)' if balance else 'EERR'}, meses hasta {mm(hasta)}{' (simulación)' if simular else ''}")
     # 1) copia de trabajo (y recálculo si faltan valores de fórmulas)
     copias, saltear = {}, []
     for f in archivos:
-        w = os.path.join(trabajo, os.path.basename(f))
+        w = os.path.join(trabajo, ('AUDITORIA - ' if balance else '') + os.path.basename(f))
         shutil.copy2(f, w); copias[f] = (w, os.path.getmtime(f))
         if necesita_recalculo(w):
             print('  recalculando con Excel', os.path.basename(f))
@@ -1702,7 +1845,7 @@ def main():
         for (lab, p, v), lst in idx.items():
             if len({f for f, _ in lst}) < 2: continue
             for f, ref in lst:
-                otras = ', '.join(sorted(re.sub(r'^EERR .*? - ', '', os.path.basename(g))[:-5] for g, _ in lst if g != f))
+                otras = ', '.join(sorted(soc(g) for g, _ in lst if g != f))
                 res[f]['h'].append(dict(control=2, mes=mm(p), concepto=f"{res[f]['etiquetas'].get(lab, lab)} igual a otra sociedad", nivel='Rojo',
                                         desc=f"{res[f]['etiquetas'].get(lab, lab)} de {mm(p)} ({pesos(v)}) es idéntico al de: {otras}. Posible planilla copiada.",
                                         valor=v, control_val=None, dif=None, celda=ref, fuente=None, es_pct=False, comparar=v))
@@ -1712,12 +1855,12 @@ def main():
         r = res[f]; w, mt = copias[f]
         wb = abrir(w)
         cont = escribir(wb, r, hasta, hoy)
-        escribir_utilidades(wb, r, hasta)
+        if not balance: escribir_utilidades(wb, r, hasta)       # en el balance el CMV mensual son compras: la hoja engañaría
         wb.save(w); recalcular(w)
-        nombre = re.sub(r'^EERR .*? - ', '', os.path.basename(f))[:-5]
+        nombre = soc(f)
         estado = 'simulación'
         if simular:
-            os.makedirs(f"{SALIDA}/simulacion", exist_ok=True); shutil.copy2(w, f"{SALIDA}/simulacion/{os.path.basename(f)}")
+            os.makedirs(f"{SALIDA}/simulacion", exist_ok=True); shutil.copy2(w, f"{SALIDA}/simulacion/{os.path.basename(w)}")
         elif os.path.getmtime(f) != mt:
             estado = 'NO GUARDADO: el archivo cambió en la unidad mientras se auditaba'
             os.makedirs(f"{SALIDA}/no-guardados", exist_ok=True); shutil.copy2(w, f"{SALIDA}/no-guardados/{os.path.basename(f)}")
