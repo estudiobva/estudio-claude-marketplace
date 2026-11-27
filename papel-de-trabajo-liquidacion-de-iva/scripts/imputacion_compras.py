@@ -40,6 +40,7 @@ from datetime import datetime
 
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Font, PatternFill, Side
+from openpyxl.styles.colors import Color
 from openpyxl.utils import column_index_from_string as ci
 
 HOJA_P = 'Compras portal iva'
@@ -53,6 +54,10 @@ FMT = '#,##0.00;[Red]-#,##0.00'
 PERC_TIT = 'Percepciones y otros impuestos'
 TITULO_DETALLE = 'Detalle por cuenta contable'
 CELESTE = PatternFill('solid', fgColor='DDEBF7')
+# Resaltado del control (pedido 2026-11-27, Bernal 202610): "Azul, Enfasis 1, claro 40%" del tema en el Total de
+# Neto Gravado, No Gravado y Exento del resumen (C5:E5) y en el Total de gravado + exento del detalle: tienen que dar lo mismo.
+AZUL_CONTROL = PatternFill('solid', fgColor=Color(theme=4, tint=0.5999938962981048))
+SIN_RELLENO = PatternFill(fill_type=None)
 F = dict(name='Aptos Narrow', size=11)
 FINA = Side(style='thin')
 
@@ -177,6 +182,8 @@ def main():
     for j in range(2, 9):
         L = chr(64 + j)
         escribir((5, j), f'=SUM({L}3:{L}4)', bold=True, fmt='0' if j == 2 else FMT)
+    for j in (3, 4, 5):  # Neto Gravado, No Gravado, Exento del Total: resaltados (control contra el detalle)
+        ws.cell(5, j).fill = AZUL_CONTROL
 
     # --- detalle por cuenta (fila 9 en adelante)
     existentes, r = [], 9
@@ -194,6 +201,8 @@ def main():
     for rr in range(9, max(fin_viejo, 9 + len(cuentas)) + 2):  # limpiar el bloque anterior
         for j in (1, 2, 3):
             ws.cell(rr, j).value = None
+            if ws.cell(rr, j).fill == AZUL_CONTROL:  # resaltado del Total anterior (si cambio la cantidad de cuentas)
+                ws.cell(rr, j).fill = SIN_RELLENO
     detalle = []
     for i, cta in enumerate(cuentas):
         rr = 9 + i
@@ -211,6 +220,7 @@ def main():
     escribir((rt, 1), 'Total', bold=True, fmt=None)
     escribir((rt, 2), f'=SUM(B9:B{rt - 1})', bold=True, fmt='0')
     escribir((rt, 3), f'=SUM(C9:C{rt - 1})', bold=True)
+    ws.cell(rt, 3).fill = AZUL_CONTROL  # Total gravado + exento: resaltado (= Neto + No Gravado + Exento del resumen)
     for j in (1, 2, 3):
         ws.cell(rt, j).border = Border(top=FINA)
     wb.save(papel)
