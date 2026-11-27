@@ -11,13 +11,13 @@ Antes de tocar el papel lo respalda en `BVA-salidas/papel-ddjj-iva/respaldos`.
 | Paso | Qué hace | Script |
 |---|---|---|
 | 1 | Baja de Zetti el Subdiario de IVA Compras (5.6.4) y lo pega como solapa **Compras Zetti** | `bajar-compras-zetti.js`, `copiar_solapa.py` |
-| 2 | Baja el Libro IVA Compras del Portal IVA (abierto o DDJJ presentada) y lo pega como **Compras portal iva** | plugin `portal-iva-descarga`, `copiar_solapa.py` |
+| 2 | Libro IVA Compras del Portal IVA (abierto o DDJJ presentada, o el guardado si el período está liquidado): completo como **compras con NCR** y, al lado, **Compras portal iva** sin las NCR de Monroe y Suizo de la conciliación NCR (la arma con `conciliacion-ncr` si falta) | plugin `portal-iva-descarga`, `quitar_ncr.py`, `copiar_solapa.py` |
 | 3 | Cruza Zetti vs Portal IVA en la solapa **cruce compras** (sin eliminar nada de Zetti), con observaciones por comprobante | `cruce_compras.py` |
 | 4 | Filtra en Compras Zetti las facturas de AySA, EDESUR y METROGAS | `filtrar_servicios.py` |
 | 5 | Las agrega al final de Compras portal iva con su alícuota (y deja el control de alícuota debajo de Compras Zetti); las mal cargadas no se toman | `agregar_servicios_portal.py` |
 | 6 | Título PROVEEDORES en la columna AG de Compras portal iva | `titulo_proveedores.py` |
-| 7 | Clasifica los proveedores con el Maestro de Proveedores (y las cuentas que se pasen con `--cuentas` para los NO CLASIFICADOS) y arma el cuadro resumen de compras (SUMIFS, otros conceptos y control) | `clasificar_proveedores.py`, `asignar_cuentas.py`, `cuadro_compras.py` |
-| 8 | Completa la solapa **imputacion compras**: resumen CMV / SERVICIOS (neto, no gravado, exento, IVA, percepciones y otros impuestos, total) y detalle por cuenta contable con CMV incluido (gravado + exento), agregando las cuentas que falten | `imputacion_compras.py` |
+| 7 | Clasifica los proveedores con el Maestro de Proveedores (y las cuentas que se pasen con `--cuentas` para los NO CLASIFICADOS) y arma el cuadro resumen de compras (SUMIFS, otros conceptos y control) y, debajo, las **NCR ELIMINADAS** con su control | `clasificar_proveedores.py`, `asignar_cuentas.py`, `cuadro_compras.py` |
+| 8 | Completa la solapa **imputacion compras**: resumen CMV / SERVICIOS (neto, no gravado, exento, IVA, percepciones y otros impuestos, total) y detalle por cuenta contable con CMV incluido (gravado + exento), agregando las cuentas que falten; totales del control resaltados en azul claro | `imputacion_compras.py` |
 
 ## Requisitos
 
@@ -41,6 +41,9 @@ node scripts/papel-ddjj-iva.js --cuit=<CUIT> --periodo=202610 --desde-paso=2 --p
   eliminadas (carpeta `ncr/`), no importa: volvería a traer las NCR; para con código 4 si no hay DDJJ presentada. También `--portal=borrador`,
   `--portal=presentada`, `--portal=iva` (el de la carpeta IVA del mes) o `--portal=<ruta>` (.xlsx, o el .zip / .csv tal
   como lo baja el Portal IVA a mano).
+- Período ya liquidado (DDJJ de IVA guardada en la carpeta): usa la información guardada (Zetti, libro con NCR,
+  conciliación NCR) y baja de su fuente solo lo que falte. Período nuevo: baja todo, como siempre. `--descargar` fuerza
+  la descarga; `--sin-ncr` no elimina NCR.
 - NO CLASIFICADOS: para con código 4 y la lista; se retoma con `--desde-paso=7 --cuentas="CUIT=CUENTA;..."` (solo el papel,
   no el Maestro).
 - `--subcarpeta=controles` si el papel de la etapa 1 quedó en controles, o `--papel=<ruta>`.
