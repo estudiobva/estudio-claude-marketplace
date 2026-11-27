@@ -11,7 +11,7 @@ de comprobantes, con el formato de Norte 202609:
     fijas en el orden de la usuaria, aunque queden en cero, mas las combinaciones que aparezcan y
     no esten en la lista (se avisan). Columnas: Neto Gravado 0% (T), 10,5 (Y), 21 (AA), 27 (AC),
     No Gravado (K), Exento (L), IVA 10,5 (Z), IVA 21 (AB), IVA 27 (AD) y Total. En los tipos sin IVA
-    discriminado (6, 8, 11, 13, 15, 111) No Gravado suma ademas, con SUMPRODUCT, Importe Total (H) - N a S.
+    discriminado (B y C: 6, 7, 8, 11, 12, 13, 15, 111 y tiques 113 a 116) No Gravado suma ademas, con SUMPRODUCT, Importe Total (H) - N a S.
     Los tipos cargados como texto ("FC") se suman en "1 - Factura A / SERVICIOS", sin tocar B.
     Una fila libre y TOTAL PORTAL IVA (en AE, el total general).
   * Bloque aparte: N a S (Otros Imp. Nac., Perc. IIBB, Municipales, Perc. IVA, Internos, Otros
@@ -57,7 +57,8 @@ FIJAS = [(1, 'SERVICIOS'), (1, 'MERCADERIA'), (63, 'SERVICIOS'), (4, 'SERVICIOS'
          (11, 'MERCADERIA'), (15, 'SERVICIOS'),
          (111, 'SERVICIOS'), (3, 'MERCADERIA'), (3, 'SERVICIOS'), (8, 'MERCADERIA'), (13, 'SERVICIOS')]
 NC = {3, 8, 13, 21, 53, 112, 113, 114, 203}
-SIN_IVA = {6, 8, 11, 13, 15, 111}
+# Comprobantes B y C (y sus tiques) que el Portal trae sin IVA discriminado: el Importe Total va a No Gravado.
+SIN_IVA = {6, 7, 8, 11, 12, 13, 15, 111, 113, 114, 115, 116}
 CONCEPTOS = [('Neto Gravado 0%', 'T'), ('Neto Gravado 10,5', 'Y'), ('Neto Gravado 21', 'AA'),
              ('Neto Gravado 27', 'AC'), ('No Gravado', 'K'), ('Exento', 'L'), ('IVA 10,5', 'Z'),
              ('IVA 21', 'AB'), ('IVA 27', 'AD')]

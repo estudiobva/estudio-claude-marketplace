@@ -111,7 +111,8 @@ del período. `aviso_nro`: comprobantes con el número entero en la columna D (e
 
 **Qué NCR se eliminan:** las de la hoja "Eliminados" de la conciliación NCR del período
 (`ncr/AAAAMM-COMPRAS-SIN-NCR-<SOC>.xlsx`, circuito `conciliacion-ncr`). `quitar_ncr.py` las busca por CUIT + PV + número
-entre las notas de crédito, controla el importe y, si alguna no está o tiene otro importe, corta sin grabar.
+entre las notas de crédito **y de débito** (las ND de la droguería que están en el listado de NCR del SharePoint también se
+eliminan y no se presentan; ej. ND A de Monroe en Bernal 202607), controla el importe y, si alguna no está o tiene otro importe, corta sin grabar.
 Si el período no tiene conciliación, el script la arma con el plugin `conciliacion-ncr` (baja las NCR del SharePoint y
 concilia contra el libro; **no elimina nada en ARCA**). Si no se puede (sin archivos de la droguería, sociedad sin NCR),
 para con código 4: correr la conciliación aparte o seguir con `--desde-paso=2 --sin-ncr` (no se elimina ninguna NCR y
@@ -217,7 +218,7 @@ lista (ej. factura B o NC C de un proveedor CMV): agregar la fila y avisar.
 
 Nueve columnas de conceptos: Neto Gravado 0 % = T, Neto Gravado 10,5 = Y, Neto Gravado 21 = AA, Neto Gravado 27 = AC,
 No Gravado = K, Exento = L, IVA 10,5 = Z, IVA 21 = AB, IVA 27 = AD.
-Comprobantes sin IVA discriminado (tipos 6, 8, 11, 13, 15 y 111): además, sumar a No Gravado el Importe Total (H)
+Comprobantes sin IVA discriminado (tipos 6, 7, 8, 11, 12, 13, 15, 111 y los tiques 113 a 116 (ej. Tique NC C de $75 en Sanar 10 202607)): además, sumar a No Gravado el Importe Total (H)
 menos las columnas N a S. Tipo cargado como texto (ej. "FC", servicios públicos): sumarlo en "1 - Factura A /
 SERVICIOS" con un criterio más en la fórmula, SIN modificar la columna B.
 
@@ -248,7 +249,7 @@ comprobantes), según la clasificación de la columna AG (paso 7):
 
 - **Resumen global (filas 3 a 5):** CMV (AG = "CMV"), SERVICIOS (todo lo demás) y Total. Columnas: Comprobantes,
   Neto Gravado (T + U + W + Y + AA + AC, los netos de cada alícuota; no AE, que en filas agregadas a mano suele quedar
-  vacía), No Gravado (K, y en los tipos sin IVA discriminado 6, 8, 11, 13, 15 y 111 además H − N a S, como el cuadro del
+  vacía), No Gravado (K, y en los tipos sin IVA discriminado 6, 7, 8, 11, 12, 13, 15, 111 y los tiques 113 a 116 (ej. Tique NC C de $75 en Sanar 10 202607) además H − N a S, como el cuadro del
   paso 7), Exento (L), IVA (V + X + Z + AB + AD), Percepciones y otros impuestos (N a S, todo junto) e Importe
   Total (H): neto + no gravado + exento + IVA + percepciones = Importe Total en cada fila. Si la plantilla tiene
   Importe Total en G, se agrega la columna de percepciones en G y el total pasa a H.

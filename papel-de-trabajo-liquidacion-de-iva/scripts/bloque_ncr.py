@@ -19,8 +19,11 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
 
-TIPOS_NC = {3, 8, 13, 53, 112, 113, 114, 203}
+# NCR del listado de las droguerias: notas de credito y tambien notas de debito (ej. ND A de Monroe que forman parte
+# del listado de NCR del SharePoint y se eliminan igual; pedido 2026-11-27, Bernal 202607).
+TIPOS_NC = {3, 8, 13, 53, 112, 113, 114, 203, 2, 7, 12, 52, 115, 116, 117, 202}
 FMT = '#,##0.00;[Red]-#,##0.00'
+ETIQUETA = {3: 'NC A', 8: 'NC B', 13: 'NC C', 2: 'ND A', 7: 'ND B', 12: 'ND C'}
 
 
 def fallar(msg, **extra):
@@ -83,7 +86,7 @@ def main():
         if k in ncr:
             g = lambda c: f(wc.cell(r, c).value)  # noqa: E731
             lista.append({
-                'fecha': wc.cell(r, 1).value, 'comp': f'NC A {k[1]:05d}-{k[2]:08d}' if num(wc.cell(r, 2).value) == 3 else f'NC {k[1]:05d}-{k[2]:08d}',
+                'fecha': wc.cell(r, 1).value, 'comp': f'{ETIQUETA.get(num(wc.cell(r, 2).value), "Tipo %s" % num(wc.cell(r, 2).value))} {k[1]:05d}-{k[2]:08d}',
                 'drog': ncr[k], 'prov': wc.cell(r, 7).value, 'cuit': wc.cell(r, 6).value,
                 'total': g(8), 'nogex': g(11) + g(12),
                 'neto': sum(g(c) for c in (20, 21, 23, 25, 27, 29)), 'iva': sum(g(c) for c in (22, 24, 26, 28, 30)),
@@ -112,7 +115,7 @@ def main():
     fino = Side(style='thin')
     grueso = Side(style='medium')
 
-    wp.cell(r0, 21, 'NCR ELIMINADAS (notas de credito de recupero de Monroe y Suizo, conciliacion NCR)').font = negrita
+    wp.cell(r0, 21, 'NCR ELIMINADAS (notas de credito de recupero de Monroe y Suizo, y ND del mismo listado; conciliacion NCR)').font = negrita
     tit = ['Fecha', 'Comprobante', 'Drogueria', 'CUIT', 'Importe Total', 'No grav. + Exento', 'Neto Gravado', 'IVA',
            'Percepciones y otros', 'Proveedor (Portal IVA)']
     hr = r0 + 1

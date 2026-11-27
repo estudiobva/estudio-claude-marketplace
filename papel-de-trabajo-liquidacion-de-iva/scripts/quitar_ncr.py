@@ -1,4 +1,4 @@
-"""Resta las NCR (notas de credito de recupero) de Monroe y Suizo del Libro IVA Compras del Portal.
+"""Resta las NCR (notas de credito de recupero, y las ND del mismo listado) de Monroe y Suizo del Libro IVA Compras del Portal.
 
     python quitar_ncr.py --origen=<libro con NCR.xlsx> --ncr=<AAAAMM-COMPRAS-SIN-NCR-<SOC>.xlsx> --salida=<xlsx sin NCR>
     python quitar_ncr.py --origen=<libro.xlsx> --ncr=<conciliacion.xlsx> --verificar
@@ -6,7 +6,7 @@
 
 Las NCR salen de la conciliacion del circuito conciliacion-ncr (hoja "Eliminados": drogueria, CUIT, PV, numero e
 importe). Copia el libro tal cual, borra las filas de esas NCR (las busca por CUIT + PV + numero entre las notas de
-credito y controla el importe), rehace la fila TOTAL (=SUM), el filtro y la nota al pie (cantidad de comprobantes y
+credito y de debito y controla el importe), rehace la fila TOTAL (=SUM), el filtro y la nota al pie (cantidad de comprobantes y
 cuantas NCR se eliminaron). El libro completo queda aparte, en la solapa "compras con NCR".
 
 --verificar: no graba nada; dice si el libro trae TODAS las NCR de la conciliacion (sirve para elegir, entre los
@@ -25,7 +25,9 @@ from collections import Counter
 
 from openpyxl import load_workbook
 
-TIPOS_NC = {3, 8, 13, 53, 112, 113, 114, 203}
+# NCR del listado de las droguerias: notas de credito y tambien notas de debito (ej. ND A de Monroe que forman parte
+# del listado de NCR del SharePoint y se eliminan igual; pedido 2026-11-27, Bernal 202607).
+TIPOS_NC = {3, 8, 13, 53, 112, 113, 114, 203, 2, 7, 12, 52, 115, 116, 117, 202}
 
 
 def fallar(msg, **extra):
